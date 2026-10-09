@@ -1,0 +1,33 @@
+:root {
+  color-scheme: light;
+  --ink: #172033;
+  --muted: #697386;
+  --line: #e4e8ef;
+  --surface: #ffffff;
+  --canvas: #f5f7fb;
+  --red: #b51f32;
+  --navy: #17243b;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { margin: 0; background: var(--canvas); color: var(--ink); font-family: Arial, Helvetica, sans-serif; }
+.shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 34px 0 28px; }
+.topbar { display: flex; align-items: center; gap: 14px; }
+.brand-mark { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: var(--red); color: white; font-weight: 800; letter-spacing: -.06em; }
+.eyebrow { margin: 0 0 7px; color: var(--red); font-size: 11px; font-weight: 800; letter-spacing: .16em; }
+h1 { margin: 0; font-size: 20px; letter-spacing: -.03em; }
+.environment { margin-left: auto; border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; background: white; color: var(--muted); font-size: 12px; }
+.hero { margin: 38px 0 22px; padding: clamp(26px, 5vw, 54px); border-radius: 24px; background: var(--navy); color: white; }
+.hero .eyebrow { color: #ff9da8; }
+.hero h2 { max-width: 680px; margin: 0; font-size: clamp(32px, 5vw, 54px); line-height: 1.06; letter-spacing: -.055em; }
+.hero-copy { max-width: 610px; color: #d1d8e4; font-size: 16px; line-height: 1.7; }
+.status-line { display: inline-flex; align-items: center; gap: 9px; margin-top: 12px; color: #f1f4f9; font-size: 13px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #77d6a1; box-shadow: 0 0 0 4px #77d6a122; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.module { min-height: 190px; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.module-index { color: var(--red); font-size: 12px; font-weight: 800; }
+.module h3 { margin: 22px 0 8px; font-size: 19px; }
+.module p { min-height: 48px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+.module-status { display: inline-block; margin-top: 16px; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+footer { margin-top: 24px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+@media (max-width: 720px) { .shell { width: min(100% - 28px, 1120px); padding-top: 20px; } .grid { grid-template-columns: 1fr; } .module { min-height: auto; } .module p { min-height: auto; } .environment { font-size: 11px; } }
