@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import mysql from "mysql2/promise";
+import type { RowDataPacket } from "mysql2";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -54,7 +55,7 @@ async function main() {
 
     if (files.length === 0) throw new Error("No SQL migrations found");
 
-    const [rows] = await connection.query<Array<{ version: string; checksum: string }>>(
+    const [rows] = await connection.query<(RowDataPacket & { version: string; checksum: string })[]>(
       "SELECT version, checksum FROM schema_migrations",
     );
     const applied = new Map(rows.map((row) => [row.version, row.checksum]));
