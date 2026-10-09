@@ -7,7 +7,8 @@
 - [x] CI workflow configured for locked installs, lint, TypeScript, secret scanning and production build.
 - [x] Node.js major version documented in `.nvmrc`.
 - [x] Contribution, security reporting and environment conventions committed.
-- [ ] `package-lock.json` generated, committed and matches `package.json`.
+- [x] `package-lock.json` generated and committed on `main` in commit `3cc779dc0c`.
+- [ ] Verify the committed lockfile matches `package.json` through a fresh `npm ci` run on the latest commit.
 - [ ] The lockfile bootstrap workflow passes `npm ci`, lint, typecheck and production build and commits the lockfile.
 - [ ] Main CI passes after the lockfile commit.
 - [ ] A clean clone can install and build using only documented steps.
