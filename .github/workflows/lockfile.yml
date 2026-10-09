@@ -46,12 +46,12 @@ jobs:
           SESSION_SECRET: "ci-only-session-secret-value-not-for-production-000000"
       - name: Commit lockfile if it changed
         run: |
-          if git diff --quiet -- package-lock.json; then
+          git add package-lock.json
+          if git diff --cached --quiet -- package-lock.json; then
             echo "package-lock.json is already up to date."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
           git commit -m "build: commit reproducible npm lockfile"
           git push origin HEAD:main
