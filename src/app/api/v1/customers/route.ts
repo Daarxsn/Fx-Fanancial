@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       params.push(pattern, pattern, pattern);
     }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-    const [rows] = await pool.execute<(RowDataPacket & {
+    const [rows] = await pool.query<(RowDataPacket & {
       id: string; name: string; email: string | null; phone: string | null;
       billing_address_json: unknown; tax_identifier: string | null; is_active: number;
       created_at: Date; updated_at: Date;
