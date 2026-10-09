@@ -1,46 +1,22 @@
 # Phase 01 — Database Infrastructure
 
-## Scope
+## Implemented in repository
+- Server-only MySQL connection pool with required environment validation, bounded pool settings, and configurable TLS with certificate verification enabled when TLS is on.
+- Server-side database health check that does not expose driver errors.
+- A minimal non-cached health endpoint returning HTTP 200 when the database responds and HTTP 503 otherwise.
+- Initial MySQL 8 schema migration at `database/migrations/001_initial_schema.sql`.
 
-Establish the server-only MySQL connection layer and a safe connectivity check before introducing business tables or invoice workflows.
+## Environment
+Use `.env.local` for local credentials and deployment secret settings in hosted environments. Never commit secrets or real customer data.
 
-## Implemented in this phase
-
-- A shared `mysql2/promise` connection pool.
-- Required environment-variable checks for host, port, database, username and password.
-- Explicit `DATABASE_SSL=true|false` configuration; TLS certificate verification remains enabled when TLS is enabled.
-- Bounded connection count, connection timeout, idle handling and queue limits.
-- Development pool reuse to avoid opening a new pool during Next.js development reloads.
-- A health-check function that returns a minimal status and timestamp without exposing database-driver errors or connection details.
-
-## Required environment
-
-| Variable | Purpose |
-|---|---|
-| `DATABASE_HOST` | MySQL host |
-| `DATABASE_PORT` | MySQL TCP port |
-| `DATABASE_NAME` | Database/schema name |
-| `DATABASE_USER` | Database account |
-| `DATABASE_PASSWORD` | Database password |
-| `DATABASE_SSL` | Explicit TLS toggle (`true` or `false`) |
-
-Keep real values in ignored local environment files or the deployment platform's secret settings. `.env.example` must contain placeholders only.
+Required variables: `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_SSL`.
 
 ## Verification gates
+- [ ] Commit and verify lockfile against manifest.
+- [ ] Lint, TypeScript and production build pass from a clean checkout.
+- [ ] Apply migration to a disposable MySQL 8 database and inspect resulting schema.
+- [ ] Test valid TLS connection and invalid credentials/network failure.
+- [ ] Verify health endpoint never leaks connection details.
+- [ ] Review schema constraints and migration rollback/recovery strategy before production use.
 
-- [ ] Confirm the app scaffold and lockfile are present on the working branch.
-- [ ] Install dependencies from the committed lockfile.
-- [ ] Run ESLint and TypeScript checks.
-- [ ] Run the production build.
-- [ ] Verify missing or malformed environment variables fail clearly.
-- [ ] Test a successful TLS connection against the configured MySQL service.
-- [ ] Test failed credentials/network access and ensure the health check exposes no secrets.
-- [ ] Confirm no credentials or real customer data are committed.
-
-## Not yet verified
-
-The GitHub repository currently contains the Phase 00 documentation but does not yet contain `package.json`, the Next.js application scaffold, or a committed lockfile. Therefore these new source files have not yet been compiled or integration-tested from the repository. The configured MySQL connection has not been tested by this commit. These are explicit blockers to marking Phase 01 complete.
-
-## Next step
-
-Safely synchronize the existing local Next.js project with the remote `main` history, then run the verification gates above. Do not force-push or commit `.env.local`.
+A schema file being committed does not mean it has been applied or integration-tested. Do not apply to production without a verified backup and explicit review.
