@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "tsx scripts/migrate.ts"
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed:reference": "tsx scripts/seed-reference.ts"
   },
   "dependencies": {
     "mysql2": "^3.24.5",
