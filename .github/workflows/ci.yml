@@ -23,8 +23,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
       - name: Install dependencies
-        run: npm install --no-audit
+        run: npm ci --no-audit
+      - name: Secret scan (repository history)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Lint
         run: npm run lint
       - name: TypeScript
@@ -38,3 +43,4 @@ jobs:
           DATABASE_USER: ci_placeholder
           DATABASE_PASSWORD: ci_placeholder
           DATABASE_SSL: "false"
+          SESSION_SECRET: "ci-only-session-secret-value-not-for-production-000000"
