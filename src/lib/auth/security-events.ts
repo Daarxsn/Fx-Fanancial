@@ -6,7 +6,7 @@ import type { ResultSetHeader } from "mysql2";
 
 type QueryExecutor = Pool | PoolConnection;
 
-function digest(value: string | null | undefined): string | null {
+export function hashSecurityIdentifier(value: string | null | undefined): string | null {
   if (!value) return null;
   const pepper = process.env.SESSION_SECRET;
   if (!pepper || pepper.length < 32) return null;
@@ -30,7 +30,7 @@ export async function writeSecurityEvent(
       (id, user_id, event_type, outcome, subject_hash, source_ip_hash, user_agent_hash, metadata_json)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [randomUUID(), input.userId ?? null, input.eventType, input.outcome,
-      digest(input.subject), digest(input.sourceIp), digest(input.userAgent),
+      hashSecurityIdentifier(input.subject), hashSecurityIdentifier(input.sourceIp), hashSecurityIdentifier(input.userAgent),
       input.metadata ? JSON.stringify(input.metadata) : null],
   );
 }
