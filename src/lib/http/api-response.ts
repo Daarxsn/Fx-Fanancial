@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { AuthorizationError } from "@/lib/auth/authorize";
+import { CsrfError } from "@/lib/auth/csrf";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -30,6 +31,10 @@ export function apiError(error: unknown) {
     message = error.code === "UNAUTHENTICATED"
       ? "Authentication required"
       : "You do not have permission to perform this action";
+  } else if (error instanceof CsrfError) {
+    status = 403;
+    code = "CSRF_INVALID";
+    message = "The request could not be verified. Refresh the page and try again.";
   } else if (error instanceof ZodError) {
     status = 422;
     code = "VALIDATION_ERROR";
