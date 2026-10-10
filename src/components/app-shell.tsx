@@ -72,6 +72,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 
   useEffect(() => {
+    const desktopQuery = window.matchMedia("(min-width: 901px)");
+    const onViewportChange = () => {
+      if (desktopQuery.matches) setMobileOpen(false);
+    };
+    desktopQuery.addEventListener("change", onViewportChange);
+    return () => desktopQuery.removeEventListener("change", onViewportChange);
+  }, []);
+
+  useEffect(() => {
     if (mobileOpen) {
       mobileWasOpen.current = true;
       const previousOverflow = document.body.style.overflow;
