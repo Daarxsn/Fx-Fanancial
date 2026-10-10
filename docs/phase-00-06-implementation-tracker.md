@@ -102,14 +102,41 @@ Evidence:
 
 These are explicit runtime/production gates, not missing design deliverables. Phase 03's stated design completion gate is complete; this sign-off does not claim migration 003 has been applied to Aiven, legacy rows/grants have been reconciled, or planned endpoints are implemented.
 
-## Phase 04 — UI
+## Phase 04 — Design system and application shell
 
-- [ ] Design tokens and accessible reusable component system implemented.
-- [ ] Application shell/navigation and responsive layouts implemented.
-- [ ] Customer/catalog/company/invoice/payment pages use real protected APIs.
-- [ ] Loading, empty, error, validation, conflict and confirmation states implemented.
-- [ ] Keyboard, accessibility and desktop/tablet/mobile review completed.
+**Foundation completion gate: COMPLETE.** Shared visual language, responsive application shell, reusable UI states and code-level accessibility/responsiveness checks are committed and CI-validated.
 
+- [x] Central design tokens for light/dark surfaces, typography, spacing, borders, shadows, focus and semantic status colors.
+- [x] Shared Geist typography and typed SVG icon set.
+- [x] Responsive shell with primary navigation, active route indication, context top bar, environment label, breadcrumbs and content page layouts.
+- [x] Working light/dark toggle with preference persistence and fallback if browser storage is unavailable.
+- [x] Mobile navigation drawer, scrim, Escape-to-close, keyboard focus handling, background-scroll lock and resize-to-desktop behavior.
+- [x] Reusable controls and feedback: Button/IconButton, Card, status badge, labelled text/select/textarea inputs, field errors, alerts, toast, loading, empty and error states.
+- [x] Accessible confirmation dialog with initial focus, Escape handling, focus trap/return and busy state.
+- [x] Semantic DataTable with horizontal overflow treatment and integrated loading/empty/error states; reusable bounded pagination controls.
+- [x] Root route loading/error/not-found experiences and skip-to-main-content accessibility link.
+- [x] Overview and module foundation pages contain no fabricated finance totals or fake activity; planned APIs are not presented as active.
+- [x] UI foundation validator added to CI for theme tokens, semantic navigation, keyboard support, focus visibility, responsive breakpoints, reduced-motion support, reusable form/table/feedback primitives and route-level states.
+- [x] CI + lockfile workflows passed on the recorded UI revision: OpenAPI and existing database/API integration checks, UI foundation validation, lint, TypeScript and production build.
+
+Evidence:
+- CI success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38050370293
+- Lockfile/build success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38050370244
+- Design-system specification: `docs/phase-04-ui-design-system.md`
+- Tokens/responsive styles: `src/app/globals.css`
+- Application shell: `src/components/app-shell.tsx`
+- Reusable controls/feedback/data primitives: `src/components/ui.tsx`
+- Icon set: `src/components/icon.tsx`
+- Code-level foundation validator: `scripts/validate-ui-foundation.mjs`
+
+### Separate data/workflow release gates
+
+- [ ] Connect customer/catalog list, detail, update and archive experiences to tested protected APIs. Current customer/catalog APIs support list/create only.
+- [ ] Implement and test invoice, quotation, payment/allocation/reversal, approval, document, email, reminder, reporting/export and full audit workflows before showing those actions as available.
+- [ ] Connect authenticated user identity, notifications, global search and permission-aware action visibility when those capabilities are implemented.
+- [ ] Perform a manual visual smoke review on desktop, tablet and narrow mobile browser widths before production release. This review has not been performed in this pass.
+
+The Phase 04 **UI foundation** is complete; these separate workflow and release-QA gates do not change the foundation sign-off.
 ## Phase 05 — Authentication/RBAC
 
 - [ ] Identity provider approved and configured.

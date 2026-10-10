@@ -1,6 +1,6 @@
 # Phase 04 — Design System and Application Shell
 
-**Status:** UI foundation implemented; CI verification in progress on the current revision. Business workflows remain explicitly separate and are not represented as live while their protected endpoints are planned.
+**Status:** UI foundation completion gate passed. CI, UI foundation checks, lint, TypeScript and production build passed on commit `e5dbbba496d34d92632bcb0b4f3df754df1844e5`. Business workflows remain explicitly separate and are not represented as live while their protected endpoints are planned.
 
 ## 1. Visual language
 
@@ -113,8 +113,14 @@ The static UI validation is a guardrail for code-level invariants; it does not r
 - [x] Keyboard skip link, visible focus, nav current state, modal focus trap/return and reduced-motion support implemented.
 - [x] Module pages avoid fake financial metrics and do not present planned endpoints as active.
 - [x] Code-level UI foundation validation added to CI.
-- [ ] Final CI run passes on the latest revision after all Phase 04 commits.
-- [ ] Manual browser/device visual review and any follow-up polish completed.
+- [x] Latest CI passes, including the responsive/accessibility UI foundation validator, lint, TypeScript and production build.
+
+Evidence:
+- CI success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38050370293
+- Lockfile/build workflow success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38050370244
+- UI foundation validator: `scripts/validate-ui-foundation.mjs`
+
+**Follow-up QA note:** a manual browser/device screenshot review has not been performed in this pass. The responsive breakpoints and keyboard-related invariants are implemented and code-level validated; do a visual smoke review at desktop, tablet and narrow mobile widths before a production release.
 
 ### Separate business-flow prerequisites
 
@@ -122,4 +128,4 @@ The static UI validation is a guardrail for code-level invariants; it does not r
 - [ ] Implement and test invoice/quotation/payment/approval/document/email/report workflows before showing their actions as available.
 - [ ] Connect user identity/menu, notifications, global search and permissions once authentication and those capabilities are approved and implemented.
 
-**Completion gate for Phase 04:** the consistent responsive UI foundation must pass the latest CI run; business workflows remain a separate implementation gate.
+**Completion gate for Phase 04: PASSED.** The consistent, responsive UI foundation and automated code-level accessibility checks are implemented and CI-validated. Business workflows and production visual QA remain separate gates.
