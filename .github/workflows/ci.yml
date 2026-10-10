@@ -136,7 +136,7 @@ jobs:
 
       - name: Validate OpenAPI contract
         run: npm run api:validate
-      - name: Verify implemented customer and catalog API contracts
+      - name: Verify authentication, authorization and master-data API contracts
         env:
           DATABASE_HOST: 127.0.0.1
           DATABASE_PORT: 3306
@@ -158,7 +158,7 @@ jobs:
             sleep 2
           done
           test "$ready" = "true"
-          if ! npm run api:contract-test; then
+          if ! npm run auth:security-test; then
             cat "$RUNNER_TEMP/next-api-contract.log"
             exit 1
           fi
