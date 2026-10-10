@@ -30,13 +30,14 @@ Evidence:
 - [x] CI seeded twice and verified the expected 2 migrations, 22 permission definitions and 7 role definitions.
 - [x] CI tested a deliberate failed connection without printing raw network/credential diagnostics.
 - [x] CI logical dump restored into a separate disposable database with matching base-table count and migration ledger.
+- [x] Runtime health endpoint returned 200 for a healthy database and generic 503 for an unavailable database, without raw diagnostics.
 - [x] Backup, recovery and least-privilege access policy documented; provider pricing comparison reviewed from current official list-price pages.
 - [ ] **Blocking gate:** run `npm run db:verify` against the actual Aiven MySQL service and record successful TLS-verified `SELECT 1`. CI cannot substitute for this live endpoint test.
 - [ ] Before production: verify actual Aiven plan backup retention and complete a provider-managed restore drill; approve business RPO/RTO targets and final provider spend ceiling.
 
 Evidence:
-- CI success for commit `a09e0ce70edadc748ea8f86032245d812e2ea1ad`: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38029874336
-- Lockfile/build workflow success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38029874322
+- CI success for commit `1f5aa08189c4bde09ac0d2a32e142a0c577ae6e5`: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38030068615
+- Lockfile/build workflow success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38030068593
 - TLS validation command and backup/access policy: `docs/phase-01-database-infrastructure.md`, `docs/database-migrations.md`, `docs/database-backup-and-access.md`
 - Public list-price comparison: `docs/provider-cost-review-2026-10.md`
 
