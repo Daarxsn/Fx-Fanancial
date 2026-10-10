@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "@/components/icon";
 import { IconButton } from "@/components/ui";
@@ -41,12 +41,70 @@ const descriptions: Record<string, string> = {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<{ id: string; email: string; displayName: string; roles: string[] } | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authMessage, setAuthMessage] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const mobileWasOpen = useRef(false);
   const selected = navByPath.get(pathname) ?? navGroups.flatMap((group) => group.items).find((item) => item.href !== "/" && pathname.startsWith(item.href));
   const sectionTitle = pathname === "/" ? "Overview" : selected?.label ?? "Workspace";
   const pageDescription = descriptions[pathname] ?? "Your finance workspace, organized and ready to grow.";
+
+  useEffect(() => {
+    if (pathname === "/login" || pathname === "/activate") return;
+    let active = true;
+    fetch("/api/v1/auth/me", { cache: "no-store", credentials: "same-origin" })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((body) => {
+        if (!active) return;
+        setCurrentUser(body?.data?.user ?? null);
+        setAuthLoaded(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        setCurrentUser(null);
+        setAuthLoaded(true);
+      });
+    return () => { active = false; };
+  }, [pathname]);
+
+  const signOut = useCallback(async () => {
+    let csrfToken = "";
+    for (const part of document.cookie.split(";")) {
+      const separator = part.indexOf("=");
+      if (part.slice(0, separator).trim() === "fx_csrf") csrfToken = part.slice(separator + 1).trim();
+    }
+    setAuthBusy(true);
+    setAuthMessage("");
+    try {
+      if (!csrfToken) {
+        const bootstrap = await fetch("/api/v1/auth/csrf", { cache: "no-store", credentials: "same-origin" });
+        const payload = await bootstrap.json();
+        csrfToken = payload?.data?.csrfToken ?? "";
+      }
+      const response = await fetch("/api/v1/auth/logout", {
+        method: "POST",
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: { "X-CSRF-Token": csrfToken },
+        body: "{}",
+      });
+      if (!response.ok) {
+        setAuthMessage("Sign-out could not be completed. Please try again.");
+        return;
+      }
+      setCurrentUser(null);
+      router.replace("/login");
+      router.refresh();
+    } catch {
+      setAuthMessage("Sign-out could not be completed. Please try again.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }, [router]);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("fx-theme");
@@ -123,6 +181,18 @@ export function AppShell({ children }: { children: ReactNode }) {
     [pathname],
   );
 
+  if (pathname === "/login" || pathname === "/activate") {
+    return (
+      <div className="auth-shell">
+        <main id="main-content" className="auth-shell__main">{children}</main>
+        <footer className="auth-shell__footer">
+          <span>Falchion Xeniaa · Internal finance workspace</span>
+          <span><Icon name="shield" size={14} /> Protected account access</span>
+        </footer>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to main content</a>
@@ -189,6 +259,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="topbar__right">
             <span className="environment-pill"><span /> Foundation</span>
             <span className="topbar__divider" aria-hidden="true" />
+            {currentUser ? (
+              <>
+                <span className="topbar-user" title={currentUser.email}>
+                  <span className="topbar-user__avatar" aria-hidden="true">{currentUser.displayName.trim().split(/\\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "FX"}</span>
+                  <span className="topbar-user__text"><strong>{currentUser.displayName}</strong><small>{currentUser.roles[0]?.replaceAll("_", " ") ?? "Signed in"}</small></span>
+                </span>
+                <button className="topbar-signout" type="button" onClick={() => void signOut()} disabled={authBusy}>
+                  {authBusy ? "Signing out…" : "Sign out"}
+                </button>
+              </>
+            ) : (
+              <Link className="topbar-signin" href="/login">{authLoaded ? "Sign in" : "Account"}</Link>
+            )}
             <IconButton
               icon={theme === "light" ? "moon" : "sun"}
               label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
@@ -196,6 +279,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               onClick={toggleTheme}
             />
           </div>
+          {authMessage ? <p className="topbar-auth-message" role="alert">{authMessage}</p> : null}
         </header>
 
         <main id="main-content" className="main-content" tabIndex={-1}>
