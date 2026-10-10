@@ -13,14 +13,14 @@
 - [x] Lockfile bootstrap workflow passes on the current repository revision.
 - [x] Main CI passes on the current repository revision.
 - [x] A clean GitHub Actions checkout installs dependencies, lints, type-checks and builds using documented Node.js 24 setup.
-- [ ] Developer Mac working tree is verified clean and `main` is synchronized with `origin/main`.
+- [x] Developer Mac working tree is verified clean and `main` is synchronized with `origin/main`.
 - [x] Gitleaks secret scan passed on the current repository revision after checkout was configured to fetch full Git history.
 
 ## Evidence
 
 - Current verified revision at the time of this record: `2121950b4fe3c1b9130f9ad8c45813261082df2b`.
-- CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38028829948 — success.
-- Lockfile bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38028829946 — success.
+- CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38029253509 — success for the tracked revision before this documentation update.
+- Lockfile bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38029253557 — success for the tracked revision before this documentation update.
 - CI checkout uses `fetch-depth: 0`, so Gitleaks can inspect the intended Git history range. The earlier failure was caused by shallow history, not by a reported secret.
 - `.nvmrc`, `package.json`, `package-lock.json`, `.env.example`, `.gitignore`, `CONTRIBUTING.md`, `SECURITY.md`, and `docs/environments.md` are committed.
 
@@ -31,16 +31,10 @@
 - Staging: separate services and credentials; synthetic or approved sanitized data.
 - Production: deployment-managed secrets, TLS, restricted access, backups and monitoring.
 
-## Remaining sign-off
+## Sign-off
 
-The only remaining Phase 00 acceptance item is a local confirmation from the developer's Mac that the pull completed and the working tree is clean. GitHub Actions cannot inspect the local working tree. Run:
+Developer confirmed on 2026-10-10 that `git pull --ff-only origin main` succeeded, `git status -sb` showed `## main...origin/main` with no modified or untracked files, and both `git rev-parse HEAD` and `git rev-parse origin/main` returned `b295af5df234b4b000116618e35b1914700e457f`.
 
-```bash
-git status -sb
-git rev-parse HEAD
-git rev-parse origin/main
-```
-
-Sign off Phase 00 only when `git status -sb` shows no modified/untracked files and the two hashes match the latest `origin/main` revision.
+Phase 00 acceptance criteria are complete for the repository and application foundation. The workflow evidence is from the preceding tested revision; this documentation-only update triggers CI again. Reconfirm the updated run before treating its latest commit as CI-verified.
 
 Phase 00 covers repository and application foundation. It does not imply database integration, migration execution, backup/restore drills or later application phases are complete.
