@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "@/components/icon";
 import { IconButton } from "@/components/ui";
 
@@ -46,6 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const mobileWasOpen = useRef(false);
   const [themeReady, setThemeReady] = useState(false);
   const selected = navByPath.get(pathname) ?? navGroups.flatMap((group) => group.items).find((item) => item.href !== "/" && pathname.startsWith(item.href));
   const sectionTitle = pathname === "/" ? "Overview" : selected?.label ?? "Workspace";
@@ -77,12 +78,40 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
-    if (!mobileOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeMobile();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    if (mobileOpen) {
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      window.requestAnimationFrame(() => document.querySelector<HTMLAnchorElement>("#primary-navigation a")?.focus());
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          closeMobile();
+          return;
+        }
+        if (event.key !== "Tab") return;
+        const drawer = document.getElementById("primary-navigation");
+        const focusable = drawer?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), [tabindex]:not([tabindex="-1"])');
+        if (!focusable?.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      };
+      document.addEventListener("keydown", onKeyDown);
+      return () => {
+        document.body.style.overflow = previousOverflow;
+        document.removeEventListener("keydown", onKeyDown);
+      };
+    }
+    if (mobileWasOpen.current) {
+      document.querySelector<HTMLButtonElement>(".mobile-menu-button")?.focus();
+    }
+    mobileWasOpen.current = mobileOpen;
+    return;
   }, [mobileOpen, closeMobile]);
 
   const activeGroup = useMemo(
@@ -146,7 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="app-main">
         <header className="topbar">
           <div className="topbar__left">
-            <IconButton className="mobile-menu-button" icon="menu" label="Open navigation menu" onClick={() => setMobileOpen(true)} />
+            <IconButton className="mobile-menu-button" icon="menu" label="Open navigation menu" expanded={mobileOpen} onClick={() => setMobileOpen(true)} />
             <div className="topbar__context">
               <span className="topbar__section">{activeGroup?.label ?? "Workspace"}</span>
               <Icon name="chevron-right" size={14} />
