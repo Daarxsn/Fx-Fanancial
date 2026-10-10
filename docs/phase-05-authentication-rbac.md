@@ -1,95 +1,134 @@
-# Phase 05 — Authentication and Role-Based Access Control
+# Phase 05 — Authentication and Access Control
 
-**Status:** Security design baseline only. Authentication and authorization are not considered active until the implementation and security tests pass.
+**Status:** Implementation in progress pending current CI evidence. The repository now contains a local-password sign-in flow, opaque database-backed sessions, CSRF checks, invitations/activation, role-based permissions, user administration, revocation, rate limits and security events. Do not call the release gate complete until the negative authorization suite passes on the latest commit and production configuration is reviewed.
 
-## Security boundary
+## 1. Implemented authentication strategy and limits
 
-- All business data and mutations are private by default.
-- Authentication establishes the user identity; authorization separately decides whether that identity may perform an action on a resource.
-- Enforce authorization on the server for every page loader, Route Handler, server action, file/PDF download and background job.
-- Never rely on hidden UI controls, client-supplied role names, or untrusted headers for authorization.
-- Every data query must be scoped to the user's permitted company/legal entities where applicable.
-- Do not expose invoice/customer/payment information from a public health endpoint or unauthenticated API.
+The initial supported strategy is **invited local-password accounts**. Users are not self-registered. An administrator who already has `users:manage` creates an invitation, chooses approved role templates and legal-entity scopes, then delivers the one-time activation token to the invitee through the company's approved secure channel.
 
-## Identity provider decision
+- `/login`: email/password sign-in.
+- `/activate`: invited account password setup from a single-use token.
+- `GET /api/v1/auth/csrf`: short-lived, host-only CSRF cookie and bootstrap token.
+- `POST /api/v1/auth/login`: credential verification, rate limit, session creation and success/failure security event.
+- `POST /api/v1/auth/logout`: revokes current session and clears auth cookies.
+- `GET /api/v1/auth/me`: current active user, current roles/permissions/scopes and session expiry.
+- `POST /api/v1/auth/activate`: consumes invitation and activates account transactionally.
+- `POST /api/v1/auth/sessions/revoke-all`: revoke all sessions for current user.
+- `GET /api/v1/users`: protected user directory.
+- `POST /api/v1/users/invitations`: protected invitation creation with role and entity scoping.
+- `PATCH /api/v1/users/{userId}`: protected account-status, role and legal-entity-scope management; privilege changes revoke sessions.
 
-Choose one supported identity strategy before implementing sessions:
-1. Managed OIDC identity provider with MFA and organization-managed accounts; or
-2. A deliberately selected application authentication library with secure password hashing, account recovery and MFA policy.
+External OIDC/SSO, MFA/step-up, password reset/recovery, automated invitation email delivery, emergency access and identity-provider federation are **not implemented** in this pass. Do not claim them as capabilities. The invitation API returns a newly generated activation token once to a caller with `users:manage`; the API uses no-store and never logs the token. The caller must deliver it out-of-band through an approved secure channel until a mail provider and its controls are configured.
 
-Do not roll a custom password/session system casually. Confirm whether users must sign in using company-managed email and whether Google/Microsoft SSO is required. Provider secrets must be deployment secrets, never repository files.
+## 2. Credentials, token and session handling
 
-## Minimum roles and permissions
+- `app_users.password_hash` stores scrypt hashes only; raw passwords are never persisted. Current policy is 12–128 characters.
+- Successful sign-in generates an unpredictable opaque token. Only its SHA-256 hash is stored in `auth_sessions`; the token itself is delivered only through the `HttpOnly` `fx_session` cookie.
+- Cookie flags: `HttpOnly`, `Secure` in production, `SameSite=Lax`, `Path=/`, eight-hour absolute lifetime. The session is rejected after 30 minutes of inactivity. Last activity is refreshed at most once every five minutes.
+- Every protected request looks up the live session and checks revocation, expiration, idle time and current account status. Suspended or deactivated accounts are denied immediately.
+- Roles, permissions and legal-entity access are read from current database assignments at request time. The cookie does not carry authoritative client-controlled roles/permissions/scopes.
+- Logout marks the row revoked before clearing cookies. Account status, role or scope changes revoke all sessions for the affected user. Revoke-all also supports self-service session invalidation.
+- Session tokens are not stored in localStorage/sessionStorage or returned from the login response body.
+- The activation token is random, hashed before persistence, 24-hour expiry, single-use and transactionally consumed. The UI removes the token query string from the visible URL after hydration and the app sets a `no-referrer` metadata policy.
 
-Role names are starting points; confirm the actual staff roster and separation-of-duties policy before assigning users.
+## 3. CSRF and same-origin protection
 
-- **System administrator:** manage system configuration and access; financial actions should still be explicitly permissioned and audited.
-- **Finance administrator:** manage legal entities, numbering configuration, invoice/payment workflows and finance reports as approved.
-- **Invoice creator:** create/edit drafts and view permitted records; cannot issue/cancel unless separately granted.
-- **Invoice issuer:** issue invoices within assigned legal-entity scope.
-- **Payment recorder:** record and allocate payments within assigned scope; reversal requires separate permission.
-- **Approver:** approve/reject requests within configured thresholds; cannot approve their own request if separation-of-duties requires it.
-- **Auditor/read-only:** view permitted records and audit events; no financial mutation.
-- **Viewer:** read-only access to assigned resources.
+- Cookie-authenticated unsafe requests require an `X-CSRF-Token` header matching the readable, host-only `fx_csrf` cookie.
+- State-changing requests must include an `Origin` or `Referer` whose origin matches the request origin; `Sec-Fetch-Site: cross-site` is rejected.
+- For an authenticated request, the CSRF token hash must also match the hash stored against the current server-side session.
+- CSRF validation is applied to login, logout, invitation activation, session revocation, invitation/user administration and customer/catalog mutations. Authentication/authorization still runs independently after CSRF validation.
+- CSRF rejections return a generic client error. Server diagnostics, when enabled in logs, contain only a fixed reason category, never the actual cookie/header token.
 
-Use permission identifiers such as `customers:read`, `customers:write`, `invoices:read`, `invoices:draft:create`, `invoices:draft:update`, `invoices:issue`, `invoices:cancel`, `payments:read`, `payments:record`, `payments:reverse`, `reports:read`, `audit:read`, `users:manage`, and `settings:manage`.
+## 4. Rate limits and security-event logging
 
-## Session and cookie requirements
+Migration `004_auth_sessions_and_security.sql` adds session, invitation, rate-limit and security-event tables.
 
-- Use the selected provider/library's maintained session mechanism.
-- Session cookies must be `HttpOnly`, `Secure` in production, and use an appropriate `SameSite` policy.
-- Avoid storing session tokens in localStorage or sessionStorage.
-- Rotate/invalidate sessions on sign-in, sign-out, password reset and privilege changes as supported by the chosen identity strategy.
-- Apply CSRF protections to cookie-authenticated state-changing requests.
-- Set idle/absolute expiration according to business security policy.
-- Require re-authentication or step-up authentication for sensitive operations if the chosen provider supports it.
+| Scope | Current limit | Response |
+|---|---|---|
+| Login per normalized email | 5 attempts per 15-minute window | HTTP 429 with `Retry-After` |
+| Login per source IP | 20 attempts per 15-minute window | HTTP 429 with `Retry-After` |
+| Invitation activation token | 10 attempts per 15-minute window | HTTP 429 with `Retry-After` |
+| Invitation create per administrator | 20 attempts per 15-minute window | HTTP 429 with `Retry-After` |
 
-## Authorization and resource scoping
+Rate-limit identifiers are HMAC digests rather than raw emails, tokens or IPs. These are per-database buckets, not a distributed edge/WAF rate limit. In deployment, configure a trusted reverse proxy and do not accept spoofable `X-Forwarded-For` from arbitrary clients; `requestSecurityContext` should only be trusted behind a controlled proxy.
 
-- Default deny: a permission must be explicitly granted.
-- Check permission and legal-entity scope in the same server-side service path that loads/mutates the resource.
-- Avoid insecure direct object references: knowing an invoice UUID must not grant access to it.
-- Use consistent 401/403/404 semantics, including deliberate 404 concealment for inaccessible resources where appropriate.
-- Separate configuration management from invoice issuance and payment reversal permissions.
-- Restrict audit logs and exports because they may contain sensitive financial data.
-- Background jobs must use an explicit service identity and re-check the current resource state before acting.
+Security events record action, outcome and optional actor/subject/network metadata. Subject/IP/user-agent are keyed hashes; credentials, passwords, session cookies, CSRF tokens and invitation bearer tokens are not persisted to logs. Auth events are separate from business audit events.
 
-## Audit and account lifecycle
+## 5. Roles and permission templates
 
-- Audit sign-in/security events without storing credentials or tokens.
-- Record actor, action, target, time, outcome and safe metadata for role changes and sensitive financial operations.
-- Provide controlled invitation/deactivation flows; deactivate access promptly when staff leave.
-- Do not hard-code production administrator accounts or bootstrap passwords.
-- Define recovery and emergency-access procedures; emergency access must be limited and auditable.
+Reference seed supplies 22 permission keys and seven role definitions. On first seed only, when `role_permissions` is empty, it assigns a baseline least-privilege permission template to each role. It never creates users, assigns roles to users, or grants legal-entity scopes. If role-permission mappings already exist, the seed does not overwrite them.
 
-## Security test matrix
+| Role key | Baseline responsibility | Important boundary |
+|---|---|---|
+| `system_admin` | User access, application settings and audit read | No automatic invoice issue, payment reversal or other financial mutation grant |
+| `finance_admin` | Approved finance master data and finance workflows | No automatic user administration grant |
+| `invoice_creator` | Customer/catalog read and write; invoice draft and quotation work | Cannot issue/cancel invoices or reverse receipts under the baseline |
+| `invoice_issuer` | Read customer/catalog/invoices and issue within assigned scope | Does not get payment reversal or user administration |
+| `payment_recorder` | Read customers/invoices/payments and record payments | Reversal remains a distinct permission |
+| `approver` | Read and decide approval requests | Assignment thresholds/self-approval rules still require business workflow implementation |
+| `auditor` | Read-only access to the explicitly granted read surfaces and audit | No customer/catalog/finance mutation grants |
 
-- Unauthenticated access to protected pages/routes is rejected.
-- Authenticated user without permission receives a denial.
-- User assigned to one legal entity cannot access another entity's invoices or PDFs.
-- Client-provided role/scope values cannot elevate privileges.
-- Session cookie flags and expiry are verified in production-like settings.
-- CSRF protections are verified for cookie-authenticated writes.
-- Revoked/deactivated accounts lose access.
-- Permission checks apply to exports, file downloads and background jobs.
-- Logs contain no passwords, session tokens or database secrets.
+Access still requires both the specific permission and legal-entity scope where applicable. These are starter templates, not approval to assign any actual staff member or issuer entity.
 
-## Decisions required
+## 6. User and privilege lifecycle
 
-- Identity provider and SSO requirements.
-- User list, roles, legal-entity scope and permission assignments.
-- MFA and account recovery requirements.
-- Session lifetime and re-authentication policy.
-- Separation-of-duties rules for approvals, issuance and payment reversals.
+- Invitation creates an `INVITED` local-password account, role mappings, approved entity scopes and hashed single-use token in a transaction.
+- Account activation uses a password policy, hashes the password, changes status to `ACTIVE`, consumes the token and revokes other outstanding invitations.
+- User administration supports `ACTIVE`, `SUSPENDED` and `DEACTIVATED`; invitation activation transitions from `INVITED` to `ACTIVE`.
+- A status, role or scope change is audited and revokes active sessions immediately.
+- A user cannot change their own administrative record through the current user-admin route; this avoids accidental lockout.
+- Only an existing `system_admin` may grant/change a `system_admin` assignment. The final active system administrator cannot be demoted or suspended.
+- Passwordless invitation records cannot be changed directly to `ACTIVE`; activation through the single-use flow must set a password first.
+- A one-time bootstrap script creates the first system administrator when no user has the `system_admin` role. It requires explicit confirmation and environment-provided values; no account or password is committed to source code.
 
-## Acceptance criteria
+### One-time first administrator bootstrap
 
-- [x] Threat boundaries and default-deny policy documented.
-- [x] Starter roles and permission identifiers documented.
-- [ ] Identity strategy selected and configured.
-- [ ] Sessions and login/logout implemented securely.
-- [ ] Server-side resource-scoped authorization implemented.
-- [ ] Security and cross-entity access tests pass.
-- [ ] Audit events for authentication and permission changes are verified.
+After applying the migrations and seeding role templates in the intended database, set the following **in the operator's private shell/deployment environment only** and run `npm run auth:bootstrap-admin`:
 
-Do not expose financial functionality publicly until authentication and authorization are implemented and tested.
+- `BOOTSTRAP_ADMIN_CONFIRM=CREATE_FIRST_ADMIN`
+- `BOOTSTRAP_ADMIN_EMAIL`
+- `BOOTSTRAP_ADMIN_NAME`
+- `BOOTSTRAP_ADMIN_PASSWORD` (12–128 characters)
+- Existing database connection/TLS variables and `SESSION_SECRET`
+- Optional `BOOTSTRAP_ADMIN_LEGAL_ENTITY_IDS` with only approved entity UUIDs; leave unset if no issuer scope has been approved yet.
+
+Do not store these in a tracked `.env` file, paste them into chat, or include them in CI secrets for ordinary application builds. The script is one-time by design, checks for an existing system-admin assignment and prints no credential values. Run it only against the deliberately selected target database. Confirm the actual legal entity mappings before giving any user a billing scope.
+
+## 7. Server-side authorization boundaries
+
+- The default is deny. API handlers call `requirePermission` against the current session's permission set.
+- Client-provided permission, role, actor ID and legal-entity scope are not trusted.
+- Customer/catalog create routes require write permissions and CSRF; list routes require read permission.
+- User directory, invitation creation and user privilege changes require `users:manage`, with additional system-admin and last-admin checks.
+- Cross-entity access helpers are available; resource endpoints that operate on a legal-entity resource must call `requirePermissionForEntity`/equivalent and enforce scope in the SQL/service predicate. An ID's existence is not access authorization.
+- Future invoice/quotation/payment/document/PDF/export/report routes still need their own server-side permission and scope checks when implemented. The OpenAPI `x-implementation-status` marker distinguishes real routes from planned workflows. This phase does not claim unavailable business routes are protected by their presence in the spec.
+- Private downloads, server actions and background jobs must use the same authorization boundary when those capabilities are introduced; never rely on disabled buttons or hidden UI.
+
+## 8. Negative authorization test coverage
+
+The CI API contract test was upgraded from client-signed permission claims to database-created test users with seeded role grants and actual sign-in. It is designed to assert:
+
+- Unauthenticated customer reads are denied with 401.
+- A forged, client-claimed signed permission payload without a matching database session cannot authenticate.
+- Authenticated writes without a CSRF header are rejected.
+- An invoice-creator role can use allowed master-data routes.
+- An auditor can read but cannot write customer records or list users.
+- Suspended accounts cannot log in.
+- Valid invitation activation works; replaying its token fails.
+- Role changes invalidate old sessions; suspended accounts lose access.
+- Logout invalidates replayed old cookies; revoke-all invalidates existing sessions.
+- Account rate limits return 429 with `Retry-After`.
+- Existing customer/catalog request validation, response envelopes, pagination and exact-decimal serialization remain covered.
+
+**Completion gate is pending until** current CI passes this test suite plus OpenAPI validation, MySQL 8 migration/seed/restore, UI validation, lint, TypeScript and production build on the same revision. After CI succeeds, keep the test evidence link and commit SHA here and in the Phase 00–06 tracker.
+
+## 9. Remaining production decisions and limitations
+
+- Confirm whether company-managed OIDC/SSO, MFA and step-up are required before general production rollout. Local-password authentication is implemented for invited users; that is not a substitute for those requirements if policy mandates them.
+- Configure secure invitation delivery and password recovery before relying on manual activation token transfer at scale.
+- Review trusted proxy/source-IP handling and external edge rate limiting before production deployment.
+- Apply migration 004 and seed role templates only after confirming the intended Aiven database, backup/restore readiness and appropriate runtime grants.
+- Assign no actual users or entity scopes until the authorized business owner approves the staff roster, roles and legal-entity mappings.
+- The permission and account tables exist, but each future invoice/payment/file/export/report handler must independently enforce permission and entity scope before that feature can ship.
+
+Do not call Phase 05 fully accepted until its negative authorization tests pass against the current code revision. Do not confuse automated CI success with production SSO/MFA approval, mail configuration, or a live Aiven migration.
