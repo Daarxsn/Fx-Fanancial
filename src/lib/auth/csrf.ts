@@ -23,8 +23,21 @@ function assertSameOrigin(request: NextRequest): void {
   const source = request.headers.get("origin") ?? request.headers.get("referer");
   if (!source) throw new CsrfError("ORIGIN_MISSING");
   try {
-    if (new URL(source).origin !== request.nextUrl.origin) throw new CsrfError("ORIGIN_MISMATCH");
-  } catch {
+    const sourceOrigin = new URL(source).origin;
+    const expectedOrigin = request.nextUrl.origin;
+    if (sourceOrigin !== expectedOrigin) {
+      // Host/origin metadata only; never print cookies, tokens or credentials.
+      console.warn("CSRF origin mismatch", {
+        sourceOrigin,
+        expectedOrigin,
+        host: request.headers.get("host"),
+        forwardedHost: request.headers.get("x-forwarded-host"),
+        forwardedProto: request.headers.get("x-forwarded-proto"),
+      });
+      throw new CsrfError("ORIGIN_MISMATCH");
+    }
+  } catch (error) {
+    if (error instanceof CsrfError) throw error;
     throw new CsrfError("ORIGIN_MISMATCH");
   }
   if (request.headers.get("sec-fetch-site") === "cross-site") throw new CsrfError("CROSS_SITE");
