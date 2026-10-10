@@ -1,165 +1,498 @@
 openapi: 3.1.0
 info:
-  title: Falchion Invoice API
+  title: Falchion Xeniaa Invoice Management API
   version: 1.0.0
-  description: Initial internal API contract. Planned endpoints are not implemented merely by being listed here.
+  description: >
+    Canonical v1 API contract. Operations are explicitly marked implemented or planned with
+    x-implementation-status. Planned operations are not live unless a matching route and tests exist.
+    Protected operations use the fx_session HttpOnly cookie established by the configured identity flow.
 servers:
-  - url: /api/v1
+  - url: /
+    description: Same-origin application API
 tags:
   - name: Health
   - name: Customers
+  - name: Catalog
+  - name: Legal Entities
+  - name: Brands
+  - name: Tax
+  - name: Quotations
   - name: Invoices
   - name: Payments
+  - name: Approvals
+  - name: Documents
+  - name: Communications
+  - name: Reports
+  - name: Audit
+security:
+  - cookieAuth: []
 paths:
-  /health:
+  /api/health:
     get:
       tags: [Health]
-      summary: Check application/database readiness
-      operationId: getHealth
+      summary: Root health/readiness endpoint
+      operationId: getRootHealth
+      x-implementation-status: implemented
       security: []
       responses:
         "200":
           description: Application and database are responding
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/HealthResponse"
+              schema: { $ref: "#/components/schemas/HealthResponse" }
         "503":
-          description: A required dependency is unavailable
+          description: Required database dependency unavailable
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/HealthResponse"
-  /customers:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+  /api/v1/health:
+    get:
+      tags: [Health]
+      summary: Versioned health/readiness endpoint
+      operationId: getVersionedHealth
+      x-implementation-status: implemented
+      security: []
+      responses:
+        "200":
+          description: Application and database are responding
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+        "503":
+          description: Required database dependency unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthResponse" }
+  /api/v1/customers:
     get:
       tags: [Customers]
-      summary: List customers
+      summary: Search and list customers
       operationId: listCustomers
-      security:
-        - sessionAuth: []
+      x-implementation-status: implemented
       parameters:
+        - { $ref: "#/components/parameters/Query" }
         - in: query
-          name: q
-          schema: { type: string, maxLength: 120 }
-        - in: query
-          name: limit
-          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
-        - in: query
-          name: cursor
-          schema: { type: string, maxLength: 256 }
+          name: status
+          schema: { type: string, enum: [active, archived, all], default: active }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Offset" }
       responses:
         "200":
           description: Customer page
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/CustomerListResponse"
+              schema: { $ref: "#/components/schemas/CustomerListResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Customers]
-      summary: Create a customer
+      summary: Create a customer master record
       operationId: createCustomer
-      security:
-        - sessionAuth: []
+      x-implementation-status: implemented
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/CustomerInput"
+            schema: { $ref: "#/components/schemas/CustomerInput" }
       responses:
         "201":
           description: Customer created
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/CustomerResponse"
+              schema: { $ref: "#/components/schemas/CustomerResponse" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/ValidationError" }
-  /invoices:
+  /api/v1/customers/{customerId}:
+    parameters:
+      - { $ref: "#/components/parameters/CustomerId" }
+    get:
+      tags: [Customers]
+      summary: Retrieve a customer
+      operationId: getCustomer
+      x-implementation-status: planned
+      responses:
+        "200":
+          description: Customer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomerResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Customers]
+      summary: Update an editable customer master record
+      operationId: updateCustomer
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CustomerUpdateInput" }
+      responses:
+        "200":
+          description: Customer updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomerResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/catalog/items:
+    get:
+      tags: [Catalog]
+      summary: Search and list catalog items
+      operationId: listCatalogItems
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/Query" }
+        - in: query
+          name: status
+          schema: { type: string, enum: [active, archived, all], default: active }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Offset" }
+      responses:
+        "200":
+          description: Catalog item page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogItemListResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Catalog]
+      summary: Create a catalog item
+      operationId: createCatalogItem
+      x-implementation-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogItemInput" }
+      responses:
+        "201":
+          description: Catalog item created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogItemResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/catalog/items/{itemId}:
+    parameters:
+      - { $ref: "#/components/parameters/ItemId" }
+    get:
+      tags: [Catalog]
+      summary: Retrieve a catalog item
+      operationId: getCatalogItem
+      x-implementation-status: planned
+      responses:
+        "200":
+          description: Catalog item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogItemResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Catalog]
+      summary: Update catalog master data
+      operationId: updateCatalogItem
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CatalogItemUpdateInput" }
+      responses:
+        "200":
+          description: Catalog item updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogItemResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/legal-entities:
+    get:
+      tags: [Legal Entities]
+      summary: List legal billing entities in the caller's permitted scope
+      operationId: listLegalEntities
+      x-implementation-status: planned
+      responses:
+        "200":
+          description: Legal entity list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalEntityListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Legal Entities]
+      summary: Create a draft legal entity configuration
+      operationId: createLegalEntity
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LegalEntityInput" }
+      responses:
+        "201":
+          description: Draft legal entity configuration created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalEntityResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/legal-entities/{legalEntityId}:
+    parameters:
+      - { $ref: "#/components/parameters/LegalEntityId" }
+    get:
+      tags: [Legal Entities]
+      summary: Get a legal entity configuration
+      operationId: getLegalEntity
+      x-implementation-status: planned
+      responses:
+        "200":
+          description: Legal entity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalEntityResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Legal Entities]
+      summary: Update a non-issued effective-dated configuration
+      operationId: updateLegalEntity
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LegalEntityUpdateInput" }
+      responses:
+        "200":
+          description: Legal entity configuration version created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalEntityResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/brands:
+    get:
+      tags: [Brands]
+      summary: List brand labels
+      operationId: listBrands
+      x-implementation-status: planned
+      responses:
+        "200":
+          description: Brand list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Brands]
+      summary: Create a brand label
+      operationId: createBrand
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandInput" }
+      responses:
+        "201":
+          description: Brand created; legal entity mapping is not inferred
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/brands/{brandId}/legal-entities:
+    parameters:
+      - { $ref: "#/components/parameters/BrandId" }
+    get:
+      tags: [Brands]
+      summary: List approved effective mappings for a brand
+      operationId: listBrandLegalEntityMappings
+      x-implementation-status: planned
+      responses:
+        "200":
+          description: Effective-dated mapping list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandEntityMappingListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Brands]
+      summary: Request an explicitly approved brand/entity mapping
+      operationId: createBrandLegalEntityMapping
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandEntityMappingInput" }
+      responses:
+        "201":
+          description: Mapping record created with approval/effective-date policy applied
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandEntityMappingResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/legal-entities/{legalEntityId}/tax-rules:
+    parameters:
+      - { $ref: "#/components/parameters/LegalEntityId" }
+    get:
+      tags: [Tax]
+      summary: List effective-dated tax rules for an entity
+      operationId: listTaxRules
+      x-implementation-status: planned
+      responses:
+        "200":
+          description: Tax rule list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaxRuleListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tax]
+      summary: Propose a tax rule for approval
+      operationId: createTaxRule
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaxRuleInput" }
+      responses:
+        "201":
+          description: Rule created with pending/approved state per configured workflow
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaxRuleResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/invoices:
     get:
       tags: [Invoices]
-      summary: List invoices
+      summary: Search invoices in the caller's legal-entity scope
       operationId: listInvoices
-      security:
-        - sessionAuth: []
+      x-implementation-status: planned
       parameters:
         - in: query
           name: status
-          schema:
-            type: string
-            enum: [DRAFT, ISSUED, CANCELLED]
+          schema: { type: string, enum: [DRAFT, ISSUED, CANCELLED] }
         - in: query
           name: customerId
           schema: { $ref: "#/components/schemas/Uuid" }
         - in: query
-          name: limit
-          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+          name: legalEntityId
+          schema: { $ref: "#/components/schemas/Uuid" }
         - in: query
-          name: cursor
-          schema: { type: string, maxLength: 256 }
+          name: invoiceDateFrom
+          schema: { type: string, format: date }
+        - in: query
+          name: invoiceDateTo
+          schema: { type: string, format: date }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Offset" }
       responses:
         "200":
           description: Invoice page
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/InvoiceListResponse"
+              schema: { $ref: "#/components/schemas/InvoiceListResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Invoices]
-      summary: Create an invoice draft
+      summary: Create a draft invoice
       operationId: createInvoiceDraft
-      security:
-        - sessionAuth: []
+      x-implementation-status: planned
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: "#/components/schemas/InvoiceDraftInput"
+            schema: { $ref: "#/components/schemas/InvoiceDraftInput" }
       responses:
         "201":
-          description: Draft created
+          description: Draft created; no official invoice number allocated yet
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/InvoiceResponse"
+              schema: { $ref: "#/components/schemas/InvoiceResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/ValidationError" }
-  /invoices/{invoiceId}:
+  /api/v1/invoices/{invoiceId}:
     parameters:
-      - $ref: "#/components/parameters/InvoiceId"
+      - { $ref: "#/components/parameters/InvoiceId" }
     get:
       tags: [Invoices]
-      summary: Get invoice details
+      summary: Read invoice details and separate lifecycle/payment/approval states
       operationId: getInvoice
-      security:
-        - sessionAuth: []
+      x-implementation-status: planned
       responses:
         "200":
-          description: Invoice details
+          description: Invoice and snapshot metadata
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/InvoiceResponse"
+              schema: { $ref: "#/components/schemas/InvoiceResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /invoices/{invoiceId}/issue:
+    patch:
+      tags: [Invoices]
+      summary: Update a draft invoice only
+      operationId: updateInvoiceDraft
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InvoiceDraftUpdateInput" }
+      responses:
+        "200":
+          description: Draft updated and totals recalculated by server
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvoiceResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/invoices/{invoiceId}/issue:
     parameters:
-      - $ref: "#/components/parameters/InvoiceId"
+      - { $ref: "#/components/parameters/InvoiceId" }
     post:
       tags: [Invoices]
-      summary: Issue a draft invoice transactionally
+      summary: Issue a draft invoice in one transaction
       operationId: issueInvoice
-      security:
-        - sessionAuth: []
+      x-implementation-status: planned
       parameters:
         - in: header
           name: Idempotency-Key
@@ -167,70 +500,597 @@ paths:
           schema: { type: string, minLength: 16, maxLength: 128 }
       responses:
         "200":
-          description: Existing issuance result for an idempotent retry
+          description: Existing issue result returned for a matching retry
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/InvoiceResponse"
-        "409": { $ref: "#/components/responses/Conflict" }
+              schema: { $ref: "#/components/schemas/InvoiceResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationError" }
-  /invoices/{invoiceId}/payments:
+  /api/v1/invoices/{invoiceId}/cancel:
     parameters:
-      - $ref: "#/components/parameters/InvoiceId"
-    get:
-      tags: [Payments]
-      summary: List payment allocations for an invoice
-      operationId: listInvoicePayments
-      security:
-        - sessionAuth: []
+      - { $ref: "#/components/parameters/InvoiceId" }
+    post:
+      tags: [Invoices]
+      summary: Request controlled cancellation of an issued invoice
+      operationId: cancelInvoice
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonInput" }
       responses:
         "200":
-          description: Payment allocation list
+          description: Cancellation result or pending approval state
           content:
             application/json:
-              schema:
-                type: object
-                required: [data, meta]
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/PaymentAllocation"
-                  meta:
-                    $ref: "#/components/schemas/Meta"
+              schema: { $ref: "#/components/schemas/InvoiceResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/invoices/{invoiceId}/pdf:
+    parameters:
+      - { $ref: "#/components/parameters/InvoiceId" }
+    get:
+      tags: [Documents]
+      summary: Download authorized private invoice PDF
+      operationId: downloadInvoicePdf
+      x-implementation-status: planned
+      responses:
+        "200":
+          description: PDF bytes; private and authorization checked
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quotations:
+    get:
+      tags: [Quotations]
+      summary: List quotations in permitted scope
+      operationId: listQuotations
+      x-implementation-status: planned
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [DRAFT, SENT, ACCEPTED, REJECTED, EXPIRED, CANCELLED, CONVERTED] }
+        - in: query
+          name: customerId
+          schema: { $ref: "#/components/schemas/Uuid" }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Offset" }
+      responses:
+        "200":
+          description: Quotation page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuotationListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Quotations]
+      summary: Create a quotation draft
+      operationId: createQuotationDraft
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuotationInput" }
+      responses:
+        "201":
+          description: Draft quotation created using a separate quotation series
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuotationResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/quotations/{quotationId}/convert:
+    parameters:
+      - { $ref: "#/components/parameters/QuotationId" }
+    post:
+      tags: [Quotations]
+      summary: Convert quotation to linked invoice draft
+      operationId: convertQuotation
+      x-implementation-status: planned
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 16, maxLength: 128 }
+      responses:
+        "201":
+          description: Linked invoice draft created after current-policy revalidation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvoiceResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/payments:
+    get:
+      tags: [Payments]
+      summary: Search receipts in permitted customer/entity scope
+      operationId: listPayments
+      x-implementation-status: planned
+      parameters:
+        - in: query
+          name: customerId
+          schema: { $ref: "#/components/schemas/Uuid" }
+        - in: query
+          name: paymentDateFrom
+          schema: { type: string, format: date }
+        - in: query
+          name: paymentDateTo
+          schema: { type: string, format: date }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Offset" }
+      responses:
+        "200":
+          description: Payment receipt page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Payments]
+      summary: Record a receipt without claiming bank settlement
+      operationId: recordPayment
+      x-implementation-status: planned
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 16, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaymentInput" }
+      responses:
+        "201":
+          description: Receipt recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/invoices/{invoiceId}/payments:
+    parameters:
+      - { $ref: "#/components/parameters/InvoiceId" }
+    get:
+      tags: [Payments]
+      summary: List receipts/allocations for an invoice
+      operationId: listInvoicePayments
+      x-implementation-status: planned
+      responses:
+        "200":
+          description: Allocations and receipt references
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentAllocationListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Payments]
+      summary: Allocate part of an existing receipt to an invoice
+      operationId: allocatePayment
+      x-implementation-status: planned
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 16, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PaymentAllocationInput" }
+      responses:
+        "201":
+          description: Allocation created within receipt and invoice balance constraints
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentAllocationResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/payments/{paymentId}/reverse:
+    parameters:
+      - { $ref: "#/components/parameters/PaymentId" }
+    post:
+      tags: [Payments]
+      summary: Reverse a recorded receipt with reason and audit history
+      operationId: reversePayment
+      x-implementation-status: planned
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 16, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonInput" }
+      responses:
+        "200":
+          description: Receipt reversed; source history is preserved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/approvals:
+    get:
+      tags: [Approvals]
+      summary: List assigned approval requests
+      operationId: listApprovalRequests
+      x-implementation-status: planned
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [PENDING, APPROVED, REJECTED, WITHDRAWN, CANCELLED] }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Offset" }
+      responses:
+        "200":
+          description: Approval request page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApprovalListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/approvals/{approvalId}/decision:
+    parameters:
+      - { $ref: "#/components/parameters/ApprovalId" }
+    post:
+      tags: [Approvals]
+      summary: Approve or reject a request with separation-of-duties check
+      operationId: decideApproval
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [APPROVED, REJECTED] }
+                reason: { type: string, maxLength: 1000 }
+      responses:
+        "200":
+          description: Approval decision saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApprovalResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/invoices/{invoiceId}/send-email:
+    parameters:
+      - { $ref: "#/components/parameters/InvoiceId" }
+    post:
+      tags: [Communications]
+      summary: Queue an email using a confirmed recipient and approved artifact
+      operationId: queueInvoiceEmail
+      x-implementation-status: planned
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 16, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [recipientEmail, artifactType]
+              properties:
+                recipientEmail: { type: string, format: email, maxLength: 320 }
+                artifactType: { type: string, enum: [INVOICE_ORIGINAL, INVOICE_PAID_COPY, INVOICE_PARTIAL_COPY, INVOICE_CANCELLED_COPY] }
+                message: { type: string, maxLength: 5000 }
+      responses:
+        "202":
+          description: Durable email attempt queued; this does not change invoice lifecycle
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailOutboxResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/documents/{fileId}:
+    parameters:
+      - { $ref: "#/components/parameters/FileId" }
+    get:
+      tags: [Documents]
+      summary: Read/download a private document artifact
+      operationId: downloadDocument
+      x-implementation-status: planned
+      responses:
+        "200":
+          description: Artifact bytes
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/reminders:
+    get:
+      tags: [Communications]
+      summary: List scheduled reminder jobs
+      operationId: listReminders
+      x-implementation-status: planned
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [SCHEDULED, PROCESSING, SENT, SKIPPED, FAILED, CANCELLED] }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Offset" }
+      responses:
+        "200":
+          description: Reminder job page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReminderListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/reports/receivables:
+    get:
+      tags: [Reports]
+      summary: Read scoped receivables report with separate invoice, receipt and balance totals
+      operationId: getReceivablesReport
+      x-implementation-status: planned
+      parameters:
+        - in: query
+          name: legalEntityId
+          schema: { $ref: "#/components/schemas/Uuid" }
+        - in: query
+          name: asOfDate
+          schema: { type: string, format: date }
+        - in: query
+          name: customerId
+          schema: { $ref: "#/components/schemas/Uuid" }
+      responses:
+        "200":
+          description: Receivables summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReceivablesReportResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/exports:
+    post:
+      tags: [Reports]
+      summary: Queue a scoped audited data export
+      operationId: createExport
+      x-implementation-status: planned
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 16, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [exportType, legalEntityIds, format]
+              properties:
+                exportType: { type: string, enum: [INVOICES, PAYMENTS, RECEIVABLES, CUSTOMERS, AUDIT] }
+                legalEntityIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items: { $ref: "#/components/schemas/Uuid" }
+                format: { type: string, enum: [CSV, JSON] }
+                filters: { type: object, additionalProperties: true }
+      responses:
+        "202":
+          description: Export queued; download remains private and time-limited
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExportResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/audit-events:
+    get:
+      tags: [Audit]
+      summary: Search scoped audit history
+      operationId: listAuditEvents
+      x-implementation-status: planned
+      parameters:
+        - in: query
+          name: entityType
+          schema: { type: string, maxLength: 80 }
+        - in: query
+          name: entityId
+          schema: { $ref: "#/components/schemas/Uuid" }
+        - in: query
+          name: actorId
+          schema: { $ref: "#/components/schemas/Uuid" }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Offset" }
+      responses:
+        "200":
+          description: Audit event page; secrets and sensitive payload fields are omitted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditEventListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 components:
   securitySchemes:
-    sessionAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: Session token
-      description: Placeholder contract. Select and implement authentication before enabling protected routes.
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: fx_session
+      description: HttpOnly signed application session cookie; do not send bearer tokens or client-selected roles.
   parameters:
+    Query:
+      in: query
+      name: query
+      schema: { type: string, maxLength: 100 }
+    Limit:
+      in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    Offset:
+      in: query
+      name: offset
+      schema: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
+    CustomerId:
+      in: path
+      name: customerId
+      required: true
+      schema: { $ref: "#/components/schemas/Uuid" }
+    ItemId:
+      in: path
+      name: itemId
+      required: true
+      schema: { $ref: "#/components/schemas/Uuid" }
+    LegalEntityId:
+      in: path
+      name: legalEntityId
+      required: true
+      schema: { $ref: "#/components/schemas/Uuid" }
+    BrandId:
+      in: path
+      name: brandId
+      required: true
+      schema: { $ref: "#/components/schemas/Uuid" }
     InvoiceId:
       in: path
       name: invoiceId
       required: true
-      schema:
-        $ref: "#/components/schemas/Uuid"
+      schema: { $ref: "#/components/schemas/Uuid" }
+    QuotationId:
+      in: path
+      name: quotationId
+      required: true
+      schema: { $ref: "#/components/schemas/Uuid" }
+    PaymentId:
+      in: path
+      name: paymentId
+      required: true
+      schema: { $ref: "#/components/schemas/Uuid" }
+    ApprovalId:
+      in: path
+      name: approvalId
+      required: true
+      schema: { $ref: "#/components/schemas/Uuid" }
+    FileId:
+      in: path
+      name: fileId
+      required: true
+      schema: { $ref: "#/components/schemas/Uuid" }
   schemas:
     Uuid:
       type: string
       format: uuid
     Money:
       type: string
-      pattern: '^-?[0-9]{1,15}(\.[0-9]{1,4})?$'
-      description: Exact decimal string; authoritative arithmetic uses server decimal arithmetic and database DECIMAL.
+      pattern: '^-?(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$'
+      description: Exact decimal string; all authoritative arithmetic uses decimal-safe server code and MySQL DECIMAL.
     Meta:
       type: object
+      required: [requestId]
       properties:
-        requestId: { type: string }
-        nextCursor: { type: [string, "null"] }
+        requestId: { type: string, format: uuid }
+        pagination:
+          type: object
+          required: [limit, offset, hasMore]
+          properties:
+            limit: { type: integer, minimum: 1, maximum: 100 }
+            offset: { type: integer, minimum: 0, maximum: 1000000 }
+            hasMore: { type: boolean }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            fields:
+              type: object
+              additionalProperties: { type: string }
+            requestId: { type: string, format: uuid }
+    BadRequest:
+      description: Malformed JSON or query parameters
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing/invalid session
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Authenticated but not permitted or out of scope
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource missing or intentionally concealed outside caller scope
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: State, duplicate idempotency or concurrency conflict
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationError:
+      description: Body fails schema or domain validation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    SuccessMeta:
+      type: object
+      required: [meta]
+      properties:
+        meta: { $ref: "#/components/schemas/Meta" }
     HealthResponse:
       type: object
       required: [status, checks, checkedAt]
@@ -249,21 +1109,27 @@ components:
         name: { type: string, minLength: 1, maxLength: 255 }
         email: { type: [string, "null"], format: email, maxLength: 320 }
         phone: { type: [string, "null"], maxLength: 50 }
-        billingAddress:
-          type: [object, "null"]
-          additionalProperties: true
+        billingAddress: { type: [object, "null"], additionalProperties: true }
         taxIdentifier: { type: [string, "null"], maxLength: 100 }
         notes: { type: [string, "null"], maxLength: 5000 }
-    Customer:
+    CustomerUpdateInput:
       allOf:
         - $ref: "#/components/schemas/CustomerInput"
-        - type: object
-          required: [id, isActive, createdAt, updatedAt]
-          properties:
-            id: { $ref: "#/components/schemas/Uuid" }
-            isActive: { type: boolean }
-            createdAt: { type: string, format: date-time }
-            updatedAt: { type: string, format: date-time }
+      description: Future PATCH contract; require at least one field in runtime validation.
+    Customer:
+      type: object
+      required: [id, name, isActive]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        name: { type: string, maxLength: 255 }
+        email: { type: [string, "null"], format: email }
+        phone: { type: [string, "null"] }
+        billingAddress: { type: [object, "null"], additionalProperties: true }
+        taxIdentifier: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     CustomerResponse:
       type: object
       required: [data, meta]
@@ -278,16 +1144,216 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Customer" }
         meta: { $ref: "#/components/schemas/Meta" }
+    CatalogItemInput:
+      type: object
+      additionalProperties: false
+      required: [itemType, name, customerDescription, unitCode, defaultUnitPrice, currency]
+      properties:
+        itemCode: { type: [string, "null"], maxLength: 80 }
+        itemType: { type: string, enum: [PRODUCT, SERVICE] }
+        name: { type: string, minLength: 1, maxLength: 255 }
+        customerDescription: { type: string, minLength: 1, maxLength: 1000 }
+        internalDescription: { type: [string, "null"], maxLength: 1000 }
+        unitCode: { type: string, minLength: 1, maxLength: 40 }
+        defaultUnitPrice: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        defaultTaxCode: { type: [string, "null"], maxLength: 80 }
+    CatalogItemUpdateInput:
+      allOf:
+        - $ref: "#/components/schemas/CatalogItemInput"
+      description: Future PATCH contract; require at least one field in runtime validation.
+    CatalogItem:
+      type: object
+      required: [id, itemType, name, customerDescription, unitCode, defaultUnitPrice, currency, isActive]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        itemCode: { type: [string, "null"] }
+        itemType: { type: string, enum: [PRODUCT, SERVICE] }
+        name: { type: string }
+        customerDescription: { type: string }
+        internalDescription: { type: [string, "null"] }
+        unitCode: { type: string }
+        defaultUnitPrice: { $ref: "#/components/schemas/Money" }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        defaultTaxCode: { type: [string, "null"] }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CatalogItemResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/CatalogItem" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    CatalogItemListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/CatalogItem" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    LegalEntityInput:
+      type: object
+      additionalProperties: false
+      required: [legalName, displayName, address, currency]
+      properties:
+        legalName: { type: string, minLength: 1, maxLength: 255 }
+        displayName: { type: string, minLength: 1, maxLength: 255 }
+        registrationNumber: { type: [string, "null"], maxLength: 100 }
+        taxIdentifier: { type: [string, "null"], maxLength: 100 }
+        address: { type: object, minProperties: 1, additionalProperties: true }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+    LegalEntityUpdateInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        displayName: { type: string, maxLength: 255 }
+        address: { type: object, minProperties: 1, additionalProperties: true }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        active: { type: boolean }
+        effectiveFrom: { type: string, format: date-time }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    LegalEntity:
+      type: object
+      required: [id, legalName, displayName, currency, isActive]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        legalName: { type: string }
+        displayName: { type: string }
+        registrationNumber: { type: [string, "null"] }
+        taxIdentifier: { type: [string, "null"], description: Sensitive; shown only to authorized roles. }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        isActive: { type: boolean }
+    LegalEntityResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/LegalEntity" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    LegalEntityListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/LegalEntity" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    BrandInput:
+      type: object
+      additionalProperties: false
+      required: [name, code]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        code: { type: string, pattern: '^[A-Z0-9_-]{1,40}$' }
+    Brand:
+      type: object
+      required: [id, name, code, isActive]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        name: { type: string }
+        code: { type: string }
+        isActive: { type: boolean }
+    BrandResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/Brand" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    BrandListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Brand" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    BrandEntityMappingInput:
+      type: object
+      additionalProperties: false
+      required: [legalEntityId, effectiveFrom, reason]
+      properties:
+        legalEntityId: { $ref: "#/components/schemas/Uuid" }
+        effectiveFrom: { type: string, format: date }
+        effectiveUntil: { type: [string, "null"], format: date }
+        isDefault: { type: boolean, default: false }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    BrandEntityMapping:
+      allOf:
+        - $ref: "#/components/schemas/BrandEntityMappingInput"
+        - type: object
+          required: [brandId, createdAt]
+          properties:
+            brandId: { $ref: "#/components/schemas/Uuid" }
+            createdAt: { type: string, format: date-time }
+    BrandEntityMappingResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/BrandEntityMapping" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    BrandEntityMappingListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/BrandEntityMapping" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    TaxRuleInput:
+      type: object
+      additionalProperties: false
+      required: [taxCode, displayName, jurisdiction, rate, calculationMode, effectiveFrom, reason]
+      properties:
+        taxCode: { type: string, minLength: 1, maxLength: 80 }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        jurisdiction: { type: string, minLength: 1, maxLength: 120 }
+        rate: { type: string, pattern: '^(0|[1-9][0-9]{0,2})(\.[0-9]{1,6})?$' }
+        calculationMode: { type: string, enum: [EXCLUSIVE, INCLUSIVE] }
+        effectiveFrom: { type: string, format: date }
+        effectiveUntil: { type: [string, "null"], format: date }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    TaxRule:
+      type: object
+      required: [id, taxCode, jurisdiction, rate, calculationMode, effectiveFrom, isActive, approvalStatus]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        taxCode: { type: string }
+        displayName: { type: string }
+        jurisdiction: { type: string }
+        rate: { type: string }
+        calculationMode: { type: string, enum: [EXCLUSIVE, INCLUSIVE] }
+        effectiveFrom: { type: string, format: date }
+        effectiveUntil: { type: [string, "null"], format: date }
+        isActive: { type: boolean }
+        approvalStatus: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+    TaxRuleResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/TaxRule" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    TaxRuleListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/TaxRule" }
+        meta: { $ref: "#/components/schemas/Meta" }
     InvoiceLineInput:
       type: object
       additionalProperties: false
       required: [description, quantity, unitPrice]
       properties:
+        catalogItemId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
         description: { type: string, minLength: 1, maxLength: 1000 }
-        quantity: { $ref: "#/components/schemas/Money" }
-        unitPrice: { $ref: "#/components/schemas/Money" }
-        discountAmount: { $ref: "#/components/schemas/Money" }
-        taxRate: { $ref: "#/components/schemas/Money" }
+        unitCode: { type: string, maxLength: 40 }
+        quantity: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
+        unitPrice: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
+        discountAmount: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
+        taxCode: { type: [string, "null"], maxLength: 80 }
     InvoiceDraftInput:
       type: object
       additionalProperties: false
@@ -297,7 +1363,7 @@ components:
         brandId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
         customerId: { $ref: "#/components/schemas/Uuid" }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
-        invoiceDate: { oneOf: [{ type: string, format: date }, { type: "null" }] }
+        invoiceDate: { type: [string, "null"], format: date }
         paymentTermsDays: { type: integer, minimum: 0, maximum: 3650 }
         notes: { type: [string, "null"], maxLength: 5000 }
         lines:
@@ -305,20 +1371,33 @@ components:
           minItems: 1
           maxItems: 500
           items: { $ref: "#/components/schemas/InvoiceLineInput" }
+    InvoiceDraftUpdateInput:
+      allOf:
+        - $ref: "#/components/schemas/InvoiceDraftInput"
+      description: Future draft-only PATCH; server rejects issued/cancelled invoices and unknown fields.
     Invoice:
       type: object
-      required: [id, lifecycleStatus, currency, grandTotal, createdAt, updatedAt]
+      required: [id, legalEntityId, customerId, lifecycleStatus, paymentStatus, currency, grandTotal, createdAt, updatedAt]
       properties:
         id: { $ref: "#/components/schemas/Uuid" }
+        legalEntityId: { $ref: "#/components/schemas/Uuid" }
+        brandId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
+        customerId: { $ref: "#/components/schemas/Uuid" }
+        documentType: { type: string, enum: [INVOICE, CREDIT_NOTE, DEBIT_NOTE] }
+        relatedInvoiceId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
         invoiceNumber: { type: [string, "null"] }
         lifecycleStatus: { type: string, enum: [DRAFT, ISSUED, CANCELLED] }
+        paymentStatus: { type: string, enum: [UNPAID, PARTIALLY_PAID, PAID] }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         subtotal: { $ref: "#/components/schemas/Money" }
         discountTotal: { $ref: "#/components/schemas/Money" }
         taxTotal: { $ref: "#/components/schemas/Money" }
         grandTotal: { $ref: "#/components/schemas/Money" }
+        invoiceDate: { type: [string, "null"], format: date }
+        dueDate: { type: [string, "null"], format: date }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+        issueSnapshotHash: { type: [string, "null"], pattern: '^[0-9a-f]{64}$' }
     InvoiceResponse:
       type: object
       required: [data, meta]
@@ -333,6 +1412,93 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Invoice" }
         meta: { $ref: "#/components/schemas/Meta" }
+    QuotationInput:
+      type: object
+      additionalProperties: false
+      required: [legalEntityId, customerId, currency, lines]
+      properties:
+        legalEntityId: { $ref: "#/components/schemas/Uuid" }
+        brandId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
+        customerId: { $ref: "#/components/schemas/Uuid" }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        validUntil: { type: [string, "null"], format: date }
+        notes: { type: [string, "null"], maxLength: 5000 }
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items: { $ref: "#/components/schemas/InvoiceLineInput" }
+    Quotation:
+      type: object
+      required: [id, legalEntityId, customerId, status, currency, grandTotal]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        legalEntityId: { $ref: "#/components/schemas/Uuid" }
+        customerId: { $ref: "#/components/schemas/Uuid" }
+        quotationNumber: { type: [string, "null"] }
+        status: { type: string, enum: [DRAFT, SENT, ACCEPTED, REJECTED, EXPIRED, CANCELLED, CONVERTED] }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        grandTotal: { $ref: "#/components/schemas/Money" }
+        convertedInvoiceId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
+    QuotationResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/Quotation" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    QuotationListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Quotation" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    PaymentInput:
+      type: object
+      additionalProperties: false
+      required: [customerId, amount, currency, paymentDate, method]
+      properties:
+        customerId: { $ref: "#/components/schemas/Uuid" }
+        amount: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        paymentDate: { type: string, format: date }
+        method: { type: string, minLength: 1, maxLength: 40 }
+        reference: { type: [string, "null"], maxLength: 160 }
+        notes: { type: [string, "null"], maxLength: 5000 }
+    Payment:
+      type: object
+      required: [id, customerId, amount, currency, paymentDate, status]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        customerId: { $ref: "#/components/schemas/Uuid" }
+        amount: { $ref: "#/components/schemas/Money" }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        paymentDate: { type: string, format: date }
+        method: { type: string }
+        reference: { type: [string, "null"] }
+        status: { type: string, enum: [RECORDED, REVERSED] }
+    PaymentResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/Payment" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    PaymentListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Payment" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    PaymentAllocationInput:
+      type: object
+      additionalProperties: false
+      required: [paymentId, amount]
+      properties:
+        paymentId: { $ref: "#/components/schemas/Uuid" }
+        amount: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
     PaymentAllocation:
       type: object
       required: [id, paymentId, invoiceId, amount, createdAt]
@@ -342,47 +1508,125 @@ components:
         invoiceId: { $ref: "#/components/schemas/Uuid" }
         amount: { $ref: "#/components/schemas/Money" }
         createdAt: { type: string, format: date-time }
-    Error:
+    PaymentAllocationResponse:
       type: object
-      required: [error]
+      required: [data, meta]
       properties:
-        error:
+        data: { $ref: "#/components/schemas/PaymentAllocation" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    PaymentAllocationListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/PaymentAllocation" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    ReasonInput:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+    Approval:
+      type: object
+      required: [id, resourceType, actionKey, status, requestedBy, requestedAt]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        legalEntityId: { $ref: "#/components/schemas/Uuid" }
+        resourceType: { type: string, enum: [INVOICE, QUOTATION] }
+        resourceId: { $ref: "#/components/schemas/Uuid" }
+        actionKey: { type: string }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, WITHDRAWN, CANCELLED] }
+        requestedBy: { $ref: "#/components/schemas/Uuid" }
+        decidedBy: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
+        requestedAt: { type: string, format: date-time }
+        decidedAt: { type: [string, "null"], format: date-time }
+    ApprovalResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/Approval" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    ApprovalListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Approval" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    EmailOutboxResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
           type: object
-          required: [code, message, requestId]
+          required: [id, status, queuedAt]
           properties:
-            code: { type: string }
-            message: { type: string }
-            fields:
-              type: object
-              additionalProperties: { type: string }
-            requestId: { type: string }
-    BadRequest:
-      description: Malformed request
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    Unauthorized:
-      description: Authentication required
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    Forbidden:
-      description: Permission denied
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    Conflict:
-      description: State or idempotency conflict
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    ValidationError:
-      description: Domain validation failed
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
+            id: { $ref: "#/components/schemas/Uuid" }
+            status: { type: string, enum: [QUEUED, PROCESSING, SENT, FAILED, CANCELLED] }
+            queuedAt: { type: string, format: date-time }
+        meta: { $ref: "#/components/schemas/Meta" }
+    ReminderListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, invoiceId, scheduledAt, status]
+            properties:
+              id: { $ref: "#/components/schemas/Uuid" }
+              invoiceId: { $ref: "#/components/schemas/Uuid" }
+              scheduledAt: { type: string, format: date-time }
+              status: { type: string, enum: [SCHEDULED, PROCESSING, SENT, SKIPPED, FAILED, CANCELLED] }
+        meta: { $ref: "#/components/schemas/Meta" }
+    ReceivablesReportResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [currency, invoicedTotal, adjustmentTotal, allocatedPaymentsTotal, outstandingTotal, asOfDate]
+          properties:
+            currency: { type: string, pattern: '^[A-Z]{3}$' }
+            invoicedTotal: { $ref: "#/components/schemas/Money" }
+            adjustmentTotal: { $ref: "#/components/schemas/Money" }
+            allocatedPaymentsTotal: { $ref: "#/components/schemas/Money" }
+            outstandingTotal: { $ref: "#/components/schemas/Money" }
+            asOfDate: { type: string, format: date }
+        meta: { $ref: "#/components/schemas/Meta" }
+    ExportResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [id, status, createdAt]
+          properties:
+            id: { $ref: "#/components/schemas/Uuid" }
+            status: { type: string, enum: [QUEUED, PROCESSING, READY, FAILED, EXPIRED] }
+            createdAt: { type: string, format: date-time }
+        meta: { $ref: "#/components/schemas/Meta" }
+    AuditEvent:
+      type: object
+      required: [id, action, entityType, entityId, outcome, createdAt]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        actorId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { $ref: "#/components/schemas/Uuid" }
+        outcome: { type: string, enum: [SUCCESS, FAILURE] }
+        correlationId: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+    AuditEventListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/AuditEvent" }
+        meta: { $ref: "#/components/schemas/Meta" }
