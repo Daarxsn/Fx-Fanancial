@@ -38,16 +38,12 @@ const descriptions: Record<string, string> = {
   "/settings": "Manage workspace configuration when authorized workflows are enabled.",
 };
 
-function initials(label: string) {
-  return label.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
-}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const mobileWasOpen = useRef(false);
-  const [themeReady, setThemeReady] = useState(false);
   const selected = navByPath.get(pathname) ?? navGroups.flatMap((group) => group.items).find((item) => item.href !== "/" && pathname.startsWith(item.href));
   const sectionTitle = pathname === "/" ? "Overview" : selected?.label ?? "Workspace";
   const pageDescription = descriptions[pathname] ?? "Your finance workspace, organized and ready to grow.";
@@ -55,9 +51,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = window.localStorage.getItem("fx-theme");
     const nextTheme = stored === "dark" || stored === "light" ? stored : "light";
+    // This one-time state sync hydrates the persisted preference after SSR, avoiding hydration mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(nextTheme);
     document.documentElement.dataset.theme = nextTheme;
-    setThemeReady(true);
   }, []);
 
   const toggleTheme = useCallback(() => {
@@ -73,9 +70,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
 
   useEffect(() => {
     if (mobileOpen) {
@@ -189,7 +183,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <IconButton
               icon={theme === "light" ? "moon" : "sun"}
               label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-              pressed={themeReady ? theme === "dark" : undefined}
+              pressed={theme === "dark"}
               onClick={toggleTheme}
             />
           </div>
