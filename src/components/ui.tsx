@@ -227,7 +227,7 @@ export function TextField({
   required = false,
   className = "",
   ...inputProps
-}: FieldBaseProps & Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "className" | "aria-describedby" | "aria-invalid">) {
+}: FieldBaseProps & Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "aria-describedby" | "aria-invalid">) {
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
@@ -256,7 +256,7 @@ export function TextAreaField({
   required = false,
   className = "",
   ...textareaProps
-}: FieldBaseProps & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "id" | "className" | "aria-describedby" | "aria-invalid">) {
+}: FieldBaseProps & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "id" | "aria-describedby" | "aria-invalid">) {
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
@@ -290,7 +290,7 @@ export function SelectField({
 }: FieldBaseProps & {
   options: { value: string; label: string; disabled?: boolean }[];
   placeholder?: string;
-} & Omit<SelectHTMLAttributes<HTMLSelectElement>, "id" | "className" | "aria-describedby" | "aria-invalid">) {
+} & Omit<SelectHTMLAttributes<HTMLSelectElement>, "id" | "aria-describedby" | "aria-invalid">) {
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
