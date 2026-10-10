@@ -1108,22 +1108,40 @@ components:
       required: [name]
       properties:
         name: { type: string, minLength: 1, maxLength: 255 }
-        email: { type: [string, "null"], format: email, maxLength: 320 }
-        phone: { type: [string, "null"], maxLength: 50 }
-        billingAddress: { type: [object, "null"], additionalProperties: true }
-        taxIdentifier: { type: [string, "null"], maxLength: 100 }
-        notes: { type: [string, "null"], maxLength: 5000 }
+        email:
+          oneOf:
+            - { type: string, format: email, minLength: 1, maxLength: 320 }
+            - { type: string, const: "" }
+        phone:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 50 }
+            - { type: string, const: "" }
+        billingAddress: { type: object, minProperties: 1, additionalProperties: true }
+        taxIdentifier:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 100 }
+            - { type: string, const: "" }
+        notes: { type: string, maxLength: 5000 }
     CustomerUpdateInput:
       type: object
       additionalProperties: false
       minProperties: 1
       properties:
         name: { type: string, minLength: 1, maxLength: 255 }
-        email: { type: [string, "null"], format: email, maxLength: 320 }
-        phone: { type: [string, "null"], maxLength: 50 }
-        billingAddress: { type: [object, "null"], additionalProperties: true }
-        taxIdentifier: { type: [string, "null"], maxLength: 100 }
-        notes: { type: [string, "null"], maxLength: 5000 }
+        email:
+          oneOf:
+            - { type: string, format: email, minLength: 1, maxLength: 320 }
+            - { type: string, const: "" }
+        phone:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 50 }
+            - { type: string, const: "" }
+        billingAddress: { type: object, minProperties: 1, additionalProperties: true }
+        taxIdentifier:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 100 }
+            - { type: string, const: "" }
+        notes: { type: string, maxLength: 5000 }
     Customer:
       type: object
       required: [id, name, isActive]
@@ -1157,29 +1175,41 @@ components:
       additionalProperties: false
       required: [itemType, name, customerDescription, unitCode, defaultUnitPrice, currency]
       properties:
-        itemCode: { type: [string, "null"], maxLength: 80 }
+        itemCode:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 80 }
+            - { type: string, const: "" }
         itemType: { type: string, enum: [PRODUCT, SERVICE] }
         name: { type: string, minLength: 1, maxLength: 255 }
         customerDescription: { type: string, minLength: 1, maxLength: 1000 }
-        internalDescription: { type: [string, "null"], maxLength: 1000 }
+        internalDescription: { type: string, maxLength: 1000 }
         unitCode: { type: string, minLength: 1, maxLength: 40 }
-        defaultUnitPrice: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
+        defaultUnitPrice: { type: string, pattern: String.raw`^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$` }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
-        defaultTaxCode: { type: [string, "null"], maxLength: 80 }
+        defaultTaxCode:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 80 }
+            - { type: string, const: "" }
     CatalogItemUpdateInput:
       type: object
       additionalProperties: false
       minProperties: 1
       properties:
-        itemCode: { type: [string, "null"], maxLength: 80 }
+        itemCode:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 80 }
+            - { type: string, const: "" }
         itemType: { type: string, enum: [PRODUCT, SERVICE] }
         name: { type: string, minLength: 1, maxLength: 255 }
         customerDescription: { type: string, minLength: 1, maxLength: 1000 }
-        internalDescription: { type: [string, "null"], maxLength: 1000 }
+        internalDescription: { type: string, maxLength: 1000 }
         unitCode: { type: string, minLength: 1, maxLength: 40 }
-        defaultUnitPrice: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
+        defaultUnitPrice: { type: string, pattern: String.raw`^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$` }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
-        defaultTaxCode: { type: [string, "null"], maxLength: 80 }
+        defaultTaxCode:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 80 }
+            - { type: string, const: "" }
     CatalogItem:
       type: object
       required: [id, itemType, name, customerDescription, unitCode, defaultUnitPrice, currency, isActive]
