@@ -5,8 +5,8 @@
 - Server-only mysql2 connection pool with bounded settings (connection limit 5, max idle 2, bounded wait queue, 10-second connect timeout and keep-alive). Production explicitly rejects `DATABASE_SSL=false`.
 - Verified TLS options support system trust plus an optional CA PEM via `DATABASE_SSL_CA_PATH` (local file) or `DATABASE_SSL_CA` (protected deployment environment value). Certificate validation is never disabled when TLS is on.
 - Server-side database health check and non-cached health endpoints (`/api/health` and `/api/v1/health`) return HTTP 200 or 503 with generic status and no raw driver diagnostics.
-- MySQL 8 schema migrations 001 and 002 with migration ledger and SHA-256 checksum verification.
-- Safe, repeatable reference seed script for role/permission definitions. It creates no users and grants no permissions to roles; production use is blocked by default.
+- MySQL 8 schema migrations 001–004 with migration ledger and SHA-256 checksum verification. Migration 004 adds credentials/session/invitation/security-event/rate-limit tables for Phase 05.
+- Safe, repeatable reference seed defines roles/permissions and, on first seed only when role_permissions is empty, applies 53 baseline least-privilege role-permission mappings. It still creates no users, user-role assignments, or legal-entity scopes; production use is blocked by default unless explicitly enabled.
 - `npm run db:verify` performs `SELECT 1` against the configured remote MySQL endpoint, verifies an active TLS cipher, and enables certificate verification.
 - Backup, restoration, least-privilege database access and incident-response policy documented at `docs/database-backup-and-access.md`.
 - Dated list-price comparison and planning estimates documented at `docs/provider-cost-review-2026-10.md`; no provider purchase is implied.
