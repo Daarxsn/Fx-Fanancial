@@ -80,18 +80,26 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
     try {
       await connection.beginTransaction();
       const [targets] = await connection.execute(
-        "SELECT u.id, u.email, u.account_status, " +
+        "SELECT u.id, u.email, u.account_status, u.password_hash, " +
         "EXISTS(SELECT 1 FROM user_roles ur JOIN app_roles r ON r.id=ur.role_id " +
         "WHERE ur.user_id=u.id AND r.role_key='system_admin') AS is_system_admin " +
         "FROM app_users u WHERE u.id=? FOR UPDATE",
         [userId],
-      ) as [Array<RowDataPacket & { id: string; email: string; account_status: string; is_system_admin: number }>, unknown];
+      ) as [Array<RowDataPacket & { id: string; email: string; account_status: string; password_hash: string | null; is_system_admin: number }>, unknown];
       const target = targets[0];
       if (!target) {
         await connection.rollback();
         return jsonNoStore({ error: { code: "NOT_FOUND", message: "User not found." } }, 404);
       }
       const resultingStatus = parsed.accountStatus ?? target.account_status;
+      if (parsed.accountStatus === "ACTIVE" && !target.password_hash) {
+        await connection.rollback();
+        return jsonNoStore({ error: { code: "ACCOUNT_NOT_ACTIVATABLE", message: "Invite the user to set a password before activating this account." } }, 409);
+      }
+      if (Number(target.is_system_admin) === 1 && !actor.roles.includes("system_admin")) {
+        await connection.rollback();
+        throw new AuthorizationError("FORBIDDEN");
+      }
       if (Number(target.is_system_admin) === 1 &&
           (resultingStatus !== "ACTIVE" || (parsed.roleKeys && !parsed.roleKeys.includes("system_admin")))) {
         const [countRows] = await connection.execute(
