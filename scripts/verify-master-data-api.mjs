@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createHmac, createHash, randomBytes, randomUUID, scrypt as scryptCallback } from "node:crypto";
+import { createHmac, randomBytes, randomUUID, scrypt as scryptCallback } from "node:crypto";
 import mysql from "mysql2/promise";
 
 const baseUrl = process.env.API_TEST_BASE_URL ?? "http://127.0.0.1:3002";
@@ -43,14 +43,6 @@ function cookiePairs(response) {
   const getSetCookie = response.headers.getSetCookie?.bind(response.headers);
   const rows = getSetCookie ? getSetCookie() : [response.headers.get("set-cookie")].filter(Boolean);
   return rows.map((row) => row.split(";")[0]).filter(Boolean);
-}
-function jarFrom(pairs = []) {
-  const jar = new Map();
-  for (const pair of pairs) {
-    const index = pair.indexOf("=");
-    if (index > 0) jar.set(pair.slice(0, index), pair.slice(index + 1));
-  }
-  return jar;
 }
 function cookieHeader(jar) {
   return [...jar.entries()].map(([key, value]) => key + "=" + value).join("; ");
@@ -176,6 +168,8 @@ try {
   assert.ok(list.body.data.some((row) => row.id === created.body.data.id));
   assert.equal("billing_address_json" in list.body.data[0], false);
 
+  const financeAdmin = await seedUser("finance_admin", "finance-" + suffix + "@example.invalid", "ACTIVE", "Finance Admin Strong Password #5!");
+  const financeSession = await login(financeAdmin);
   const itemCode = "PH5-" + suffix.toUpperCase();
   const item = await call("/api/v1/catalog/items", {
     method: "POST",
@@ -184,7 +178,7 @@ try {
       customerDescription: "CI-only auth test fixture", internalDescription: "Not production data",
       unitCode: "unit", defaultUnitPrice: "12.3400", currency: "INR", defaultTaxCode: "",
     }),
-  }, staffSession.jar);
+  }, financeSession.jar);
   assert.equal(item.response.status, 201);
   assert.equal(item.body.data.defaultUnitPrice, "12.3400");
   const invalid = await call("/api/v1/customers", {
@@ -202,7 +196,7 @@ try {
     "read-only role cannot create customers",
   );
   assert.equal(viewerWrite.body.error.code, "FORBIDDEN");
-  const userAdminDenied = await expectStatus(call("/api/v1/users", {}, viewerSession.jar), 403, "read-only role cannot access user administration");
+  await expectStatus(call("/api/v1/users", {}, viewerSession.jar), 403, "read-only role cannot access user administration");
 
   const suspendedLoginCsrf = await getCsrf();
   const suspendedAttempt = await call("/api/v1/auth/login", {
@@ -255,6 +249,7 @@ try {
   }, adminSession.jar);
   assert.equal(suspend.response.status, 200);
   const staleAfterSuspend = await expectStatus(call("/api/v1/customers", {}, newInviteeSession.jar), 401, "account suspension revokes sessions immediately");
+  assert.equal(staleAfterSuspend.body.error.code, "UNAUTHENTICATED");
 
   const oldStaffCookie = cookieHeader(new Map(staffSession.jar));
   const logout = await call("/api/v1/auth/logout", { method: "POST", body: "{}" }, staffSession.jar);
