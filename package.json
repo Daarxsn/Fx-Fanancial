@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed:reference": "tsx scripts/seed-reference.ts",
-    "db:verify": "tsx scripts/verify-db.ts"
+    "db:verify": "tsx scripts/verify-db.ts",
+    "api:validate": "node scripts/validate-openapi.cjs"
   },
   "dependencies": {
     "mysql2": "^3.24.5",
@@ -27,6 +28,7 @@
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "16.4.0",
+    "js-yaml": "4.3.2",
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
     "typescript": "^5.0.0"
