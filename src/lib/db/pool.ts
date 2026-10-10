@@ -33,6 +33,9 @@ function createPool(): mysql.Pool {
   if (sslSetting !== "true" && sslSetting !== "false") {
     throw new Error("DATABASE_SSL must be set to true or false");
   }
+  if (process.env.NODE_ENV === "production" && sslSetting !== "true") {
+    throw new Error("DATABASE_SSL=true is required in production");
+  }
 
   return mysql.createPool({
     host: requiredEnv("DATABASE_HOST"),
