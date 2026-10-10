@@ -1,5 +1,8 @@
 import mysql from "mysql2/promise";
 import { randomUUID } from "node:crypto";
+import { loadProjectEnv } from "./load-env";
+
+loadProjectEnv();
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -102,8 +105,9 @@ async function main() {
   }
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : "Unknown seed error";
-  console.error(`Seed failed: ${message}`);
+main().catch(async () => {
+  console.error(
+    "Reference seed failed. Check required DATABASE_* settings, migration status, TLS configuration, and database grants. Raw database diagnostics are intentionally suppressed.",
+  );
   process.exitCode = 1;
 });
