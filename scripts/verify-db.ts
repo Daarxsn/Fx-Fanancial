@@ -1,6 +1,7 @@
 import mysql from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { loadProjectEnv } from "./load-env";
+import { verifiedMysqlTlsOptions } from "../src/lib/db/tls-options";
 
 loadProjectEnv();
 
@@ -29,7 +30,7 @@ async function main(): Promise<void> {
     database: requiredEnv("DATABASE_NAME"),
     user: requiredEnv("DATABASE_USER"),
     password: requiredEnv("DATABASE_PASSWORD"),
-    ssl: { rejectUnauthorized: true },
+    ssl: verifiedMysqlTlsOptions(),
     connectTimeout: 10000,
     decimalNumbers: false,
   });
