@@ -32,6 +32,8 @@ export function apiError(error: unknown) {
       ? "Authentication required"
       : "You do not have permission to perform this action";
   } else if (error instanceof CsrfError) {
+    // Fixed diagnostic category only; never log or return cookie/header values.
+    console.warn("CSRF request rejected", { reason: error.reason });
     status = 403;
     code = "CSRF_INVALID";
     message = "The request could not be verified. Refresh the page and try again.";
