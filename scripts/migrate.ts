@@ -4,6 +4,7 @@ import path from "node:path";
 import mysql from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { loadProjectEnv } from "./load-env";
+import { verifiedMysqlTlsOptions } from "../src/lib/db/tls-options";
 
 loadProjectEnv();
 
@@ -23,7 +24,7 @@ function databasePort(): number {
 
 function databaseSsl() {
   const setting = requiredEnv("DATABASE_SSL").toLowerCase();
-  if (setting === "true") return { rejectUnauthorized: true };
+  if (setting === "true") return verifiedMysqlTlsOptions();
   if (setting === "false" && process.env.NODE_ENV !== "production") return undefined;
   if (setting === "false") throw new Error("DATABASE_SSL=false is not permitted in production");
   throw new Error("DATABASE_SSL must be true or false");
