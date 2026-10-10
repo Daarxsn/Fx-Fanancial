@@ -18,16 +18,29 @@ Evidence:
 - Lockfile bootstrap success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38029253557
 - Acceptance record: `docs/phase-00-acceptance.md`
 
-## Phase 01 — Database infrastructure
+## Phase 01 — Database connectivity and infrastructure
 
-- [x] Server-only MySQL connection foundation and health endpoint source files exist.
-- [x] Versioned migration runner and migration ledger implementation exist in repository.
-- [x] Development reference seed script exists; production use is not implied.
-- [ ] Aiven connection verified using a real TLS-protected query.
-- [ ] Negative connection tests completed without exposing credentials.
-- [ ] Migration 001 and 002 applied to a disposable MySQL 8 instance and schema inspected.
-- [ ] Backup retention/access policy and restoration drill documented and tested.
-- [ ] Hosting, database, object storage, email and job service costs checked against current provider pricing.
+- [x] Server-only MySQL pool uses bounded settings and production requires TLS.
+- [x] Optional Aiven CA PEM configuration supports local file path or protected deployment environment value while retaining certificate verification.
+- [x] Health endpoints return 200/503 and suppress raw driver errors.
+- [x] Versioned migration runner uses a ledger and SHA-256 checksums.
+- [x] Repeatable reference seed creates role/permission definitions only; it creates no users and does not assign grants.
+- [x] `npm run db:verify` implements a strict `SELECT 1` plus active TLS cipher check with verified certificates.
+- [x] CI applied migrations 001/002 to a fresh MySQL 8 instance and safely reran the migration command.
+- [x] CI seeded twice and verified the expected 2 migrations, 22 permission definitions and 7 role definitions.
+- [x] CI tested a deliberate failed connection without printing raw network/credential diagnostics.
+- [x] CI logical dump restored into a separate disposable database with matching base-table count and migration ledger.
+- [x] Backup, recovery and least-privilege access policy documented; provider pricing comparison reviewed from current official list-price pages.
+- [ ] **Blocking gate:** run `npm run db:verify` against the actual Aiven MySQL service and record successful TLS-verified `SELECT 1`. CI cannot substitute for this live endpoint test.
+- [ ] Before production: verify actual Aiven plan backup retention and complete a provider-managed restore drill; approve business RPO/RTO targets and final provider spend ceiling.
+
+Evidence:
+- CI success for commit `a09e0ce70edadc748ea8f86032245d812e2ea1ad`: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38029874336
+- Lockfile/build workflow success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38029874322
+- TLS validation command and backup/access policy: `docs/phase-01-database-infrastructure.md`, `docs/database-migrations.md`, `docs/database-backup-and-access.md`
+- Public list-price comparison: `docs/provider-cost-review-2026-10.md`
+
+**Sign-off rule:** Phase 01 reaches 100% only after the live Aiven TLS query succeeds. The provider-level restore drill and final business budget approval remain explicit pre-production safeguards.
 
 ## Phase 02 — Business rules
 
