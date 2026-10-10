@@ -65,15 +65,39 @@ Evidence:
 
 **Sign-off rule:** The requirements and traceability artifacts are complete as a reviewable baseline. Phase 02 is not formally signed off until an authorized business owner and the relevant finance/accounting approver record acceptance. No actual legal entity, tax registration/rate, approval threshold, bank detail or entity-to-brand mapping may be inferred.
 
-## Phase 03 — Data model and API
+## Phase 03 — System architecture and data modelling
 
-- [x] Initial schema migration exists.
-- [x] Expansion schema draft exists for identity, catalog, quotations, approval requests, reminders, document metadata, email outbox, tax rules and configuration versions.
-- [ ] Schema reviewed for MySQL syntax and applied to disposable MySQL 8.
-- [ ] Data relationships, indexes, delete rules and tenant/legal-entity scoping reviewed.
-- [ ] Migration rollback/recovery strategy tested.
-- [ ] API runtime schemas implemented and OpenAPI synchronized.
-- [ ] API integration/contract tests pass.
+**Design completion gate: COMPLETE** (reviewed schema, relationship diagram, migration plan and API specification committed; CI validated on the recorded revision).
+
+- [x] Core and expansion schema migrations documented and committed: 001 initial model; 002 identity/catalog/workflows/configuration; 003 issue snapshots/adjustment numbering/payment reversal/typed approval references.
+- [x] MySQL 8.0 schema for users, roles, permissions, legal entities, brands/mappings, customers, catalog items, invoices/lines/snapshots, payments/allocations/reversals, quotations/lines, tax rules, reminders, approvals, audit events and document/email metadata reviewed.
+- [x] Relationship cardinality, foreign keys, unique constraints, checks, indexes, deletion/update rules, and transactional-only invariants reviewed.
+- [x] Immutable issue-time snapshot boundary and exact-decimal money contract specified.
+- [x] ERD committed in `docs/phase-03-relationship-diagram.md`.
+- [x] Migration ordering, preflight, backfill, rollout, forward-repair/recovery and retention plan committed in `docs/phase-03-migration-and-retention-plan.md`.
+- [x] OpenAPI 3.1 API contract and explicit implemented/planned endpoint status committed in `docs/openapi.yaml`.
+- [x] OpenAPI structural validation added to CI; validates YAML, local references, unique operation IDs, path parameter declarations, response definitions and implementation-status markers.
+- [x] Shared response/error envelope with request IDs and current customer/catalog routes aligned to camelCase response schemas and pagination metadata.
+- [x] Fresh MySQL 8 CI applies and reruns migrations, seeds role/permission definitions twice, checks safe failure behavior, restores a logical dump, tests health success/failure, validates OpenAPI, runs lint, TypeScript and production build.
+- [x] **Phase 03 completion gate:** design deliverables reviewed and CI passed on commit `f197fad347c57f752f799a6a54f381912a96c369`.
+
+Evidence:
+- CI success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38033713634
+- Lockfile workflow success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38033713635
+- Architecture, schema review, API contract and acceptance: `docs/phase-03-schema-api-design.md`
+- Relationship diagram: `docs/phase-03-relationship-diagram.md`
+- Migration/retention plan: `docs/phase-03-migration-and-retention-plan.md`
+- OpenAPI contract and validator: `docs/openapi.yaml`, `scripts/validate-openapi.mjs`
+
+### Separate prerequisites before production or claims that the future workflows are live
+
+- [ ] Inspect the actual Aiven schema/data before applying migration 003; disposition historical issued invoices without issue snapshots and legacy approval requests without typed targets through a reviewed backfill/exception.
+- [ ] Verify runtime database privileges prevent UPDATE/DELETE of `invoice_issue_snapshots`.
+- [ ] Implement and test routes marked `planned` in OpenAPI. Current implemented routes are health, customer list/create and catalog item list/create only.
+- [ ] Add API integration/security tests for invoice/payment/quotation/approval/document/email/reminder/report/export workflows as they are implemented.
+- [ ] Complete Phase 02 business/finance/tax approvals for actual issuer entities, numbering, tax, currency, payment and workflow configuration before enabling invoice issuance.
+
+These are explicit implementation/production gates, not missing design artifacts. Do not infer that migration 003 has been applied to Aiven or that planned API operations are live.
 
 ## Phase 04 — UI
 
