@@ -105,6 +105,15 @@ const expectedImplemented = new Set([
   "POST /api/v1/customers",
   "GET /api/v1/catalog/items",
   "POST /api/v1/catalog/items",
+  "GET /api/v1/auth/csrf",
+  "POST /api/v1/auth/login",
+  "POST /api/v1/auth/logout",
+  "GET /api/v1/auth/me",
+  "POST /api/v1/auth/activate",
+  "POST /api/v1/auth/sessions/revoke-all",
+  "GET /api/v1/users",
+  "POST /api/v1/users/invitations",
+  "PATCH /api/v1/users/{userId}",
 ]);
 for (const endpoint of expectedImplemented) {
   if (!implemented.has(endpoint)) fail(`known implemented route missing or not marked implemented: ${endpoint}`);
