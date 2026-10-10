@@ -1,9 +1,15 @@
 import "server-only";
 
-import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
-import { promisify } from "node:util";
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual, type ScryptOptions } from "node:crypto";
 
-const scrypt = promisify(scryptCallback);
+function deriveKey(password: string, salt: Buffer, length: number, options: ScryptOptions): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scryptCallback(password, salt, length, options, (error, key) => {
+      if (error) reject(error);
+      else resolve(key as Buffer);
+    });
+  });
+}
 const COST = 32768;
 const BLOCK_SIZE = 8;
 const PARALLELIZATION = 1;
@@ -21,7 +27,7 @@ export async function hashPassword(password: string): Promise<string> {
   const policyError = validatePasswordPolicy(password);
   if (policyError) throw new Error("Password does not meet the password policy");
   const salt = randomBytes(16);
-  const key = (await scrypt(password, salt, KEY_LENGTH, {
+  const key = (await deriveKey(password, salt, KEY_LENGTH, {
     N: COST, r: BLOCK_SIZE, p: PARALLELIZATION, maxmem: MAXMEM,
   })) as Buffer;
   return `scrypt$${COST}$${BLOCK_SIZE}$${PARALLELIZATION}$${salt.toString("base64url")}$${key.toString("base64url")}`;
@@ -52,7 +58,7 @@ export async function verifyPassword(password: string, encoded: string | null | 
     return false;
   }
   try {
-    const actual = (await scrypt(password, salt, expected.length, {
+    const actual = (await deriveKey(password, salt, expected.length, {
       N: n, r, p, maxmem: MAXMEM,
     })) as Buffer;
     return timingSafeEqual(actual, expected);
@@ -63,7 +69,7 @@ export async function verifyPassword(password: string, encoded: string | null | 
 
 async function burnPasswordCheck(value: string): Promise<void> {
   const salt = Buffer.from("FxAuthDummySalt01");
-  await scrypt(value, salt, KEY_LENGTH, {
+  await deriveKey(value, salt, KEY_LENGTH, {
     N: COST, r: BLOCK_SIZE, p: PARALLELIZATION, maxmem: MAXMEM,
   });
 }
