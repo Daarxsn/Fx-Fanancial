@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       sourceIp: context.sourceIp,
       userAgent: context.userAgent,
     });
-    const response = jsonNoStore({ data: { sessionsRevoked: true } });
+    const response = jsonNoStore({ data: { loggedOut: true, sessionsRevoked: true } });
     response.cookies.set(sessionCookieName, "", { ...sessionCookieOptions(), maxAge: 0, expires: new Date(0) });
     response.cookies.set(csrfCookieName, "", { ...csrfCookieOptions(), maxAge: 0, expires: new Date(0) });
     return response;
