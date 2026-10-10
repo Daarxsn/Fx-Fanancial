@@ -32,16 +32,17 @@ Evidence:
 - [x] CI logical dump restored into a separate disposable database with matching base-table count and migration ledger.
 - [x] Runtime health endpoint returned 200 for a healthy database and generic 503 for an unavailable database, without raw diagnostics.
 - [x] Backup, recovery and least-privilege access policy documented; provider pricing comparison reviewed from current official list-price pages.
-- [ ] **Blocking gate:** run `npm run db:verify` against the actual Aiven MySQL service and record successful TLS-verified `SELECT 1`. CI cannot substitute for this live endpoint test.
+- [x] **Live completion gate:** developer ran `npm run db:verify` against the configured Aiven service; `SELECT 1` succeeded, MySQL reported an active TLS cipher, and certificate validation remained enabled (`rejectUnauthorized=true`).
 - [ ] Before production: verify actual Aiven plan backup retention and complete a provider-managed restore drill; approve business RPO/RTO targets and final provider spend ceiling.
 
 Evidence:
+- Live verification (developer-provided output, 2026-10-10): `PASS: SELECT 1 succeeded and MySQL reports an active TLS cipher.` and `Certificate verification was enabled (rejectUnauthorized=true).`
 - CI success for commit `1f5aa08189c4bde09ac0d2a32e142a0c577ae6e5`: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38030068615
 - Lockfile/build workflow success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38030068593
-- TLS validation command and backup/access policy: `docs/phase-01-database-infrastructure.md`, `docs/database-migrations.md`, `docs/database-backup-and-access.md`
+- Verification command and backup/access policy: `docs/phase-01-database-infrastructure.md`, `docs/database-migrations.md`, `docs/database-backup-and-access.md`
 - Public list-price comparison: `docs/provider-cost-review-2026-10.md`
 
-**Sign-off rule:** Phase 01 reaches 100% only after the live Aiven TLS query succeeds. The provider-level restore drill and final business budget approval remain explicit pre-production safeguards.
+**Sign-off rule:** Phase 01's specified completion gate has passed and the phase is recorded as complete. The provider-level restore drill, approval of business RPO/RTO targets, and final budget decision remain pre-production safeguards.
 
 ## Phase 02 — Business rules
 
@@ -93,7 +94,7 @@ Evidence:
 ## Evidence notes
 
 - The GitHub Actions workflows prove dependency installation, lint, TypeScript, secret scanning and production build for the specific successful revision; they do not prove database connectivity or that migrations were applied.
-- The database migrations and seed script exist, but applying them to a disposable MySQL 8 instance and verifying Aiven TLS remain outstanding.
+- The database migrations and seed script have been applied and tested against disposable MySQL 8 in CI; the live Aiven TLS verification gate has since passed. Provider-level backup/restore verification remains outstanding.
 - Local Mac status cannot be observed by GitHub Actions or this remote repository audit. Verify with `git status -sb`, `git rev-parse HEAD`, and `git rev-parse origin/main`.
 
 **Sign-off rule:** Phase 00's repository foundation is signed off based on the developer-confirmed clean/synchronized worktree and passing CI/lockfile workflows. This tracker/acceptance update triggers another CI run. Phase 01 remains in progress until its database integration and recovery tests have evidence.
