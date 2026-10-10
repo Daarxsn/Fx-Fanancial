@@ -26,7 +26,7 @@ function hashPassword(password) {
   });
 }
 
-async function seedUser(roleKey, email, status = "ACTIVE", password = "Phase Five Strong Password!") {
+async function seedUser(roleKey, email, status = "ACTIVE", password = "Phase Five Strong Password!", legalEntityIds = []) {
   const userId = randomUUID();
   const hash = status === "ACTIVE" ? await hashPassword(password) : null;
   await db.execute(
@@ -36,6 +36,12 @@ async function seedUser(roleKey, email, status = "ACTIVE", password = "Phase Fiv
   const [roles] = await db.execute("SELECT id FROM app_roles WHERE role_key=? LIMIT 1", [roleKey]);
   assert.equal(roles.length, 1, `role template ${roleKey} exists`);
   await db.execute("INSERT INTO user_roles (user_id,role_id) VALUES (?,?)", [userId, roles[0].id]);
+  for (const legalEntityId of new Set(legalEntityIds)) {
+    await db.execute(
+      "INSERT INTO user_legal_entity_access (user_id, legal_entity_id, granted_by) VALUES (?, ?, NULL)",
+      [userId, legalEntityId],
+    );
+  }
   return { userId, email, password };
 }
 
@@ -69,9 +75,9 @@ async function call(path, options = {}, jar = new Map(), { csrf = true } = {}) {
   if (jar.size) headers.Cookie = cookieHeader(jar);
   if (options.body) headers["Content-Type"] = "application/json";
   if (method !== "GET" && method !== "HEAD") {
-    headers.Origin = baseUrl;
-    headers["Sec-Fetch-Site"] = "same-origin";
-    if (csrf && jar.get("fx_csrf")) headers["X-CSRF-Token"] = jar.get("fx_csrf");
+    headers.Origin ??= baseUrl;
+    headers["Sec-Fetch-Site"] ??= "same-origin";
+    if (csrf && jar.get("fx_csrf")) headers["X-CSRF-Token"] ??= jar.get("fx_csrf");
   }
   const response = await fetch(new URL(path, baseUrl), { ...options, headers, cache: "no-store" });
   const text = await response.text();
@@ -134,8 +140,14 @@ function assertPage(body, limit) {
 
 try {
   const suffix = randomUUID().replaceAll("-", "").slice(0, 10);
+  const testLegalEntityId = randomUUID();
+  await db.execute(
+    "INSERT INTO legal_entities (id, legal_name, display_name, address_json, currency, is_active) " +
+    "VALUES (?, ?, ?, JSON_OBJECT('line1', 'CI-only fixture'), 'INR', TRUE)",
+    [testLegalEntityId, "CI Test Legal Entity " + suffix, "CI Test Entity " + suffix],
+  );
   const staff = await seedUser("invoice_creator", "staff-" + suffix + "@example.invalid");
-  const viewer = await seedUser("auditor", "viewer-" + suffix + "@example.invalid", "ACTIVE", "Viewer Strong Password #5!");
+  const viewer = await seedUser("auditor", "viewer-" + suffix + "@example.invalid", "ACTIVE", "Viewer Strong Password #5!", [testLegalEntityId]);
   const admin = await seedUser("system_admin", "admin-" + suffix + "@example.invalid", "ACTIVE", "Admin Strong Password #5!");
   const suspended = await seedUser("auditor", "suspended-" + suffix + "@example.invalid", "SUSPENDED", "Suspended Password #5!");
 
@@ -163,6 +175,26 @@ try {
     "unsafe session-authenticated request without CSRF token must be denied",
   );
   assert.equal(noCsrf.body.error.code, "CSRF_INVALID");
+  const wrongOrigin = await expectStatus(
+    call("/api/v1/customers", {
+      method: "POST",
+      headers: { Origin: "https://untrusted.example", "Sec-Fetch-Site": "cross-site" },
+      body: JSON.stringify({ name: "Cross-origin CSRF attempt" }),
+    }, staffSession.jar),
+    403,
+    "cross-origin unsafe request must be denied",
+  );
+  assert.equal(wrongOrigin.body.error.code, "CSRF_INVALID");
+  const wrongCsrf = await expectStatus(
+    call("/api/v1/customers", {
+      method: "POST",
+      headers: { "X-CSRF-Token": "wrong-token-value" },
+      body: JSON.stringify({ name: "Invalid CSRF token attempt" }),
+    }, staffSession.jar),
+    403,
+    "wrong CSRF token must be denied",
+  );
+  assert.equal(wrongCsrf.body.error.code, "CSRF_INVALID");
 
   const customerName = "Phase 05 Auth Test Customer " + suffix;
   const created = await call("/api/v1/customers", {
@@ -196,6 +228,9 @@ try {
   assert.equal(invalid.body.error.code, "VALIDATION_ERROR");
 
   const viewerSession = await login(viewer);
+  const viewerProfile = await call("/api/v1/auth/me", {}, viewerSession.jar);
+  assert.equal(viewerProfile.response.status, 200);
+  assert.deepEqual(viewerProfile.body.data.user.legalEntityIds, [testLegalEntityId], "entity scope is resolved from the database, not a client claim");
   const viewerList = await call("/api/v1/customers?limit=25&offset=0", {}, viewerSession.jar);
   assert.equal(viewerList.response.status, 200, "read-only role can read customers");
   const viewerWrite = await expectStatus(
@@ -213,6 +248,30 @@ try {
   assert.equal(suspendedAttempt.response.status, 401, "suspended account cannot log in");
 
   const adminSession = await login(admin);
+  const selfAdminChange = await expectStatus(
+    call("/api/v1/users/" + admin.userId, {
+      method: "PATCH", body: JSON.stringify({ accountStatus: "SUSPENDED" }),
+    }, adminSession.jar),
+    403,
+    "administrator cannot modify their own privileged account through the user-admin endpoint",
+  );
+  assert.equal(selfAdminChange.body.error.code, "FORBIDDEN");
+
+  const financePrivilegeEscalation = await expectStatus(
+    call("/api/v1/users/invitations", {
+      method: "POST",
+      body: JSON.stringify({
+        email: "forbidden-admin-" + suffix + "@example.invalid",
+        displayName: "Forbidden Admin Invitation",
+        roleKeys: ["system_admin"],
+        legalEntityIds: [],
+      }),
+    }, financeSession.jar),
+    403,
+    "finance administrator without users:manage cannot invite or assign users",
+  );
+  assert.equal(financePrivilegeEscalation.body.error.code, "FORBIDDEN");
+
   const invitation = await call("/api/v1/users/invitations", {
     method: "POST",
     body: JSON.stringify({
@@ -264,6 +323,20 @@ try {
   assert.equal(logout.response.status, 200);
   const afterLogout = await call("/api/v1/customers", { headers: { Cookie: oldStaffCookie } });
   assert.equal(afterLogout.response.status, 401, "logout revokes the database session, even if an old cookie is replayed");
+
+  const scopeRemoved = await call("/api/v1/users/" + viewer.userId, {
+    method: "PATCH",
+    body: JSON.stringify({ legalEntityIds: [] }),
+  }, adminSession.jar);
+  assert.equal(scopeRemoved.response.status, 200, "authorized administrator can change legal-entity scope");
+  assert.deepEqual(scopeRemoved.body.data.legalEntityIds, []);
+  assert.equal(scopeRemoved.body.data.sessionsRevokedOnPrivilegeChange, true);
+  const staleAfterScopeChange = await expectStatus(
+    call("/api/v1/customers", {}, viewerSession.jar),
+    401,
+    "removing a user's entity scope revokes the prior session",
+  );
+  assert.equal(staleAfterScopeChange.body.error.code, "UNAUTHENTICATED");
 
   const revokeSession = await login(viewer);
   const revokedAll = await call("/api/v1/auth/sessions/revoke-all", { method: "POST", body: "{}" }, revokeSession.jar);
