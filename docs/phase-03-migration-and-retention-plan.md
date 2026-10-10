@@ -85,6 +85,6 @@ Paginated API lists must cap page size (default 25, max 100), use deterministic 
 - [x] Migration 003 preflight, history backfill, cutover and recovery risks documented.
 - [x] Retention/deletion rules differentiated by data class and pending company approval.
 - [x] Production-safe rollout process documented; no live Aiven migration is implied.
-- [ ] Migration 003 passes repository CI after assertions are updated for three migration records.
+- [x] Migration 003 passes fresh MySQL 8 CI with three migration records, repeat migration, seed idempotency and logical dump/restore verification. Evidence: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38033993752
 - [ ] Existing Aiven schema/data inventory confirms whether historical snapshot and approval backfills are needed; no production migration until reviewed.
 - [ ] Runtime DB grants enforce snapshot immutability and least privilege.
