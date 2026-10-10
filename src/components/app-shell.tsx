@@ -60,13 +60,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setTheme((current) => {
-      const next = current === "light" ? "dark" : "light";
-      document.documentElement.dataset.theme = next;
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    try {
       window.localStorage.setItem("fx-theme", next);
-      return next;
-    });
-  }, []);
+    } catch {
+      // The active theme still changes for this session when storage is unavailable.
+    }
+  }, [theme]);
 
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
@@ -102,7 +104,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="workspace-switcher">
           <span className="workspace-switcher__symbol"><Icon name="building" size={17} /></span>
           <span><strong>Falchion Xeniaa</strong><small>Workspace foundation</small></span>
-          <Icon name="chevron-down" size={16} />
         </div>
 
         <nav className="sidebar-nav" aria-label="Workspace">
