@@ -12,7 +12,8 @@
     "db:seed:reference": "tsx scripts/seed-reference.ts",
     "db:verify": "tsx scripts/verify-db.ts",
     "api:validate": "node scripts/validate-openapi.mjs",
-    "api:contract-test": "node scripts/verify-master-data-api.mjs"
+    "api:contract-test": "node scripts/verify-master-data-api.mjs",
+    "ui:validate": "node scripts/validate-ui-foundation.mjs"
   },
   "dependencies": {
     "mysql2": "^3.24.5",
