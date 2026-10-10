@@ -5,7 +5,7 @@ export type IconName =
   | "chart" | "shield" | "settings" | "chevron-right" | "chevron-down"
   | "menu" | "close" | "sun" | "moon" | "arrow-up-right" | "plus"
   | "search" | "clock" | "check" | "alert" | "file" | "building"
-  | "sparkles" | "calendar" | "activity" | "lock" | "mail" | "credit-card";
+  | "sparkles" | "calendar" | "activity" | "lock" | "mail" | "credit-card" | "eye" | "eye-off";
 
 const paths: Record<IconName, ReactNode> = {
   overview: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="4" rx="1.5"/><rect x="14" y="10" width="7" height="11" rx="1.5"/><rect x="3" y="13" width="7" height="8" rx="1.5"/></>,
@@ -37,6 +37,8 @@ const paths: Record<IconName, ReactNode> = {
   lock: <><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></>,
   mail: <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></>,
   "credit-card": <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></>,
+  eye: <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></>,
+  "eye-off": <><path d="m3 3 18 18"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3.2 3.9M6.2 6.4C3.5 8.1 2 12 2 12s3.5 6 10 6a10 10 0 0 0 2.4-.3"/><path d="M9.8 9.8a3.1 3.1 0 0 0 4.4 4.4"/></>,
 };
 
 export function Icon({ name, size = 20, strokeWidth = 1.8, ...props }: SVGProps<SVGSVGElement> & {
