@@ -6,7 +6,7 @@ This tracker records verified implementation evidence. Do not mark infrastructur
 
 - [x] Lockfile committed and CI uses `npm ci`.
 - [x] Clean CI checkout installs and builds on supported Node.js 24.
-- [ ] Developer Mac worktree reconciled and verified clean after pulling the latest remote commit.
+- [x] Developer Mac worktree reconciled and verified clean after pulling the latest remote commit.
 - [x] Gitleaks secret scan passed on the tracked repository history after full-history checkout was configured.
 - [x] Environment conventions documented for local development, CI/test, staging and production.
 - [x] Contribution, review, security reporting and coding standards documented.
@@ -14,8 +14,8 @@ This tracker records verified implementation evidence. Do not mark infrastructur
 - [x] Phase 00 acceptance checklist updated with links to CI evidence.
 
 Evidence:
-- CI success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38028829948
-- Lockfile bootstrap success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38028829946
+- CI success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38029253509
+- Lockfile bootstrap success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38029253557
 - Acceptance record: `docs/phase-00-acceptance.md`
 
 ## Phase 01 — Database infrastructure
@@ -82,4 +82,4 @@ Evidence:
 - The database migrations and seed script exist, but applying them to a disposable MySQL 8 instance and verifying Aiven TLS remain outstanding.
 - Local Mac status cannot be observed by GitHub Actions or this remote repository audit. Verify with `git status -sb`, `git rev-parse HEAD`, and `git rev-parse origin/main`.
 
-**Sign-off rule:** Phase 00 is pending only the developer-local clean/synchronized working-tree confirmation. Phase 01 remains in progress until its database integration and recovery tests have evidence.
+**Sign-off rule:** Phase 00's repository foundation is signed off based on the developer-confirmed clean/synchronized worktree and passing CI/lockfile workflows. This tracker/acceptance update triggers another CI run. Phase 01 remains in progress until its database integration and recovery tests have evidence.
