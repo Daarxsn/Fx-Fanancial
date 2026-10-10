@@ -1,4 +1,4 @@
-import type { SVGProps } from "react";
+import type { ReactNode, SVGProps } from "react";
 
 export type IconName =
   | "overview" | "invoice" | "quote" | "users" | "box" | "wallet"
@@ -7,7 +7,7 @@ export type IconName =
   | "search" | "clock" | "check" | "alert" | "file" | "building"
   | "sparkles" | "calendar" | "activity" | "lock" | "mail" | "credit-card";
 
-const paths: Record<IconName, React.ReactNode> = {
+const paths: Record<IconName, ReactNode> = {
   overview: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="4" rx="1.5"/><rect x="14" y="10" width="7" height="11" rx="1.5"/><rect x="3" y="13" width="7" height="8" rx="1.5"/></>,
   invoice: <><path d="M7 3.75h7l4 4v12.5a1.75 1.75 0 0 1-1.75 1.75h-7.5A1.75 1.75 0 0 1 7 20.25z"/><path d="M14 3.75v4h4M10 13h5M10 16.5h5"/></>,
   quote: <><path d="M6 4h12a2 2 0 0 1 2 2v13l-4-2-4 2-4-2-2 2V6a2 2 0 0 1 2-2Z"/><path d="M9 9h6M9 12h6"/></>,
