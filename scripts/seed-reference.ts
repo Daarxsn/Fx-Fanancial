@@ -115,7 +115,7 @@ async function main() {
         `INSERT INTO app_roles (id, role_key, display_name, description, is_system_role)
          VALUES (?, ?, ?, ?, TRUE)
          ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), description = VALUES(description)`,
-        [randomUUID(), roleKey, displayName, "Reference role; review and assign permissions explicitly before use."],
+        [randomUUID(), roleKey, displayName, "Least-privilege reference role template; user role assignment remains a separate explicit operation."],
       );
     }
 
@@ -145,7 +145,7 @@ async function main() {
       }
     }
     await connection.commit();
-    console.info(`Reference seed completed: ${permissions.length} permission definitions and ${roles.length} role definitions. No users or role grants were created.`);
+    console.info(`Reference seed completed: ${permissions.length} permission definitions, ${roles.length} role definitions, and baseline role-permission templates. No user accounts, user-role assignments, or legal-entity scopes were created.`);
   } catch (error) {
     await connection.rollback();
     throw error;
