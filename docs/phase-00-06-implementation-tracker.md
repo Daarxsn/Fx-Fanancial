@@ -1,21 +1,28 @@
 # Phase 00–06 Implementation Tracker
 
-This tracker is the single sign-off checklist for the foundation work. It must be updated with evidence, not optimistic assumptions.
+This tracker records verified implementation evidence. Do not mark infrastructure or application behavior complete solely because documentation or source files exist.
 
 ## Phase 00 — Foundation
 
-- [ ] Lockfile committed and CI uses `npm ci`.
-- [ ] Clean checkout installs and builds on supported Node.js.
-- [ ] Local worktree reconciled without losing local changes.
-- [ ] Secret scan reviewed across tracked files and Git history.
-- [ ] Environment conventions documented for development, test, staging and production.
-- [ ] Contribution, review, security reporting and coding standards documented.
-- [ ] CI success recorded against the exact final commit.
+- [x] Lockfile committed and CI uses `npm ci`.
+- [x] Clean CI checkout installs and builds on supported Node.js 24.
+- [ ] Developer Mac worktree reconciled and verified clean after pulling the latest remote commit.
+- [x] Gitleaks secret scan passed on the tracked repository history after full-history checkout was configured.
+- [x] Environment conventions documented for local development, CI/test, staging and production.
+- [x] Contribution, review, security reporting and coding standards documented.
+- [x] CI and lockfile bootstrap passed for revision `2121950b4fe3c1b9130f9ad8c45813261082df2b`.
+- [x] Phase 00 acceptance checklist updated with links to CI evidence.
+
+Evidence:
+- CI success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38028829948
+- Lockfile bootstrap success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38028829946
+- Acceptance record: `docs/phase-00-acceptance.md`
 
 ## Phase 01 — Database infrastructure
 
-- [ ] Versioned migration runner with migration ledger.
-- [ ] Safe repeatable development seed script; no production sample identities.
+- [x] Server-only MySQL connection foundation and health endpoint source files exist.
+- [x] Versioned migration runner and migration ledger implementation exist in repository.
+- [x] Development reference seed script exists; production use is not implied.
 - [ ] Aiven connection verified using a real TLS-protected query.
 - [ ] Negative connection tests completed without exposing credentials.
 - [ ] Migration 001 and 002 applied to a disposable MySQL 8 instance and schema inspected.
@@ -69,12 +76,10 @@ This tracker is the single sign-off checklist for the foundation work. It must b
 - [ ] Audit and cross-entity access tests pass.
 - [ ] Snapshot immutability verified after configuration changes.
 
-## Evidence recorded so far
+## Evidence notes
 
-- GitHub Actions run for commit `b6d17f29127e67e663334f96030d29428002a255` reported success for the current lint/typecheck/build workflow.
-- The remote repository had no committed `package-lock.json` at the time of audit.
-- Aiven TLS query, migration application, backup/restore drill, auth and protected business workflows have not been verified in this repository audit.
-- `database/migrations/002_identity_catalog_workflows.sql` is a schema draft until tested against a real disposable MySQL 8 instance.
-- Local Mac worktree status is not available from this execution environment.
+- The GitHub Actions workflows prove dependency installation, lint, TypeScript, secret scanning and production build for the specific successful revision; they do not prove database connectivity or that migrations were applied.
+- The database migrations and seed script exist, but applying them to a disposable MySQL 8 instance and verifying Aiven TLS remain outstanding.
+- Local Mac status cannot be observed by GitHub Actions or this remote repository audit. Verify with `git status -sb`, `git rev-parse HEAD`, and `git rev-parse origin/main`.
 
-**Rule:** Never mark the phase complete based on docs alone. Keep each box unchecked until the evidence exists.
+**Sign-off rule:** Phase 00 is pending only the developer-local clean/synchronized working-tree confirmation. Phase 01 remains in progress until its database integration and recovery tests have evidence.
