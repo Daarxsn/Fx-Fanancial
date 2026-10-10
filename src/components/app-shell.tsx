@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "@/components/icon";
-import { IconButton } from "@/components/ui";
+import { IconButton, LoadingState } from "@/components/ui";
 
 type NavItem = { label: string; href: string; icon: IconName; badge?: string };
 type NavGroup = { label: string; items: NavItem[] };
@@ -44,6 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string; displayName: string; roles: string[] } | null>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
+  const [authPath, setAuthPath] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -61,15 +62,24 @@ export function AppShell({ children }: { children: ReactNode }) {
       .then((body) => {
         if (!active) return;
         setCurrentUser(body?.data?.user ?? null);
+        setAuthPath(pathname);
         setAuthLoaded(true);
       })
       .catch(() => {
         if (!active) return;
         setCurrentUser(null);
+        setAuthPath(pathname);
         setAuthLoaded(true);
       });
     return () => { active = false; };
   }, [pathname]);
+
+  const authCheckedForPath = authLoaded && authPath === pathname;
+
+  useEffect(() => {
+    if (pathname === "/login" || pathname === "/activate" || !authCheckedForPath || currentUser) return;
+    router.replace("/login");
+  }, [authCheckedForPath, currentUser, pathname, router]);
 
   const signOut = useCallback(async () => {
     let csrfToken = "";
@@ -194,6 +204,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span>Falchion Xeniaa · Internal finance workspace</span>
           <span><Icon name="shield" size={14} /> Protected account access</span>
         </footer>
+      </div>
+    );
+  }
+
+  if (!authCheckedForPath || !currentUser) {
+    return (
+      <div className="app-shell app-shell--auth-check">
+        <main className="main-content" role="status" aria-live="polite">
+          <LoadingState label={authCheckedForPath ? "Redirecting to sign in…" : "Verifying your session…"} />
+        </main>
       </div>
     );
   }
