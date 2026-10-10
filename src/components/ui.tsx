@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/icon";
 
@@ -202,6 +202,199 @@ export function PageHeader({
       </div>
       {action ? <div className="page-header__action">{action}</div> : null}
     </div>
+  );
+}
+
+
+export function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return <p className="field-error" id={id} role="alert">{message}</p>;
+}
+
+type FieldBaseProps = {
+  id: string;
+  label: string;
+  hint?: string;
+  error?: string;
+  required?: boolean;
+};
+
+export function TextField({
+  id,
+  label,
+  hint,
+  error,
+  required = false,
+  className = "",
+  ...inputProps
+}: FieldBaseProps & Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "className" | "aria-describedby" | "aria-invalid">) {
+  const hintId = hint ? `${id}-hint` : undefined;
+  const errorId = error ? `${id}-error` : undefined;
+  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+  return (
+    <div className="form-field">
+      <label className="form-label" htmlFor={id}>{label}{required ? <span className="form-required" aria-hidden="true"> *</span> : null}</label>
+      <input
+        {...inputProps}
+        id={id}
+        required={required}
+        className={`form-control ${error ? "form-control--invalid" : ""} ${className}`.trim()}
+        aria-invalid={Boolean(error)}
+        aria-describedby={describedBy}
+      />
+      {hint ? <p className="form-hint" id={hintId}>{hint}</p> : null}
+      <FieldError id={errorId ?? `${id}-error`} message={error} />
+    </div>
+  );
+}
+
+export function TextAreaField({
+  id,
+  label,
+  hint,
+  error,
+  required = false,
+  className = "",
+  ...textareaProps
+}: FieldBaseProps & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "id" | "className" | "aria-describedby" | "aria-invalid">) {
+  const hintId = hint ? `${id}-hint` : undefined;
+  const errorId = error ? `${id}-error` : undefined;
+  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+  return (
+    <div className="form-field">
+      <label className="form-label" htmlFor={id}>{label}{required ? <span className="form-required" aria-hidden="true"> *</span> : null}</label>
+      <textarea
+        {...textareaProps}
+        id={id}
+        required={required}
+        className={`form-control form-control--textarea ${error ? "form-control--invalid" : ""} ${className}`.trim()}
+        aria-invalid={Boolean(error)}
+        aria-describedby={describedBy}
+      />
+      {hint ? <p className="form-hint" id={hintId}>{hint}</p> : null}
+      <FieldError id={errorId ?? `${id}-error`} message={error} />
+    </div>
+  );
+}
+
+export function SelectField({
+  id,
+  label,
+  hint,
+  error,
+  required = false,
+  options,
+  placeholder,
+  className = "",
+  ...selectProps
+}: FieldBaseProps & {
+  options: { value: string; label: string; disabled?: boolean }[];
+  placeholder?: string;
+} & Omit<SelectHTMLAttributes<HTMLSelectElement>, "id" | "className" | "aria-describedby" | "aria-invalid">) {
+  const hintId = hint ? `${id}-hint` : undefined;
+  const errorId = error ? `${id}-error` : undefined;
+  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+  return (
+    <div className="form-field">
+      <label className="form-label" htmlFor={id}>{label}{required ? <span className="form-required" aria-hidden="true"> *</span> : null}</label>
+      <select
+        {...selectProps}
+        id={id}
+        required={required}
+        className={`form-control form-control--select ${error ? "form-control--invalid" : ""} ${className}`.trim()}
+        aria-invalid={Boolean(error)}
+        aria-describedby={describedBy}
+      >
+        {placeholder ? <option value="">{placeholder}</option> : null}
+        {options.map((option) => <option key={option.value} value={option.value} disabled={option.disabled}>{option.label}</option>)}
+      </select>
+      {hint ? <p className="form-hint" id={hintId}>{hint}</p> : null}
+      <FieldError id={errorId ?? `${id}-error`} message={error} />
+    </div>
+  );
+}
+
+export type DataColumn<Row> = {
+  key: string;
+  label: string;
+  render?: (row: Row) => ReactNode;
+  align?: "start" | "center" | "end";
+};
+
+export function DataTable<Row extends object>({
+  rows,
+  columns,
+  rowKey,
+  caption,
+  loading = false,
+  error,
+  onRetry,
+  emptyTitle = "No records yet",
+  emptyDescription = "Records will appear here when data is available.",
+}: {
+  rows: Row[];
+  columns: DataColumn<Row>[];
+  rowKey: (row: Row) => string;
+  caption: string;
+  loading?: boolean;
+  error?: string;
+  onRetry?: () => void;
+  emptyTitle?: string;
+  emptyDescription?: string;
+}) {
+  if (loading) return <LoadingState label={`Loading ${caption.toLowerCase()}`} />;
+  if (error) return <ErrorState title={`Unable to load ${caption.toLowerCase()}`} description={error} onRetry={onRetry} />;
+  if (!rows.length) return <EmptyState title={emptyTitle} description={emptyDescription} />;
+  return (
+    <div className="data-table-scroll" role="region" aria-label={caption} tabIndex={0}>
+      <table className="data-table">
+        <caption className="visually-hidden">{caption}</caption>
+        <thead><tr>{columns.map((column) => <th scope="col" key={column.key} className={`data-table__align--${column.align ?? "start"}`}>{column.label}</th>)}</tr></thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={rowKey(row)}>
+              {columns.map((column) => (
+                <td key={column.key} className={`data-table__align--${column.align ?? "start"}`}>
+                  {column.render ? column.render(row) : String((row as Record<string, unknown>)[column.key] ?? "—")}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function PaginationControls({
+  offset,
+  limit,
+  visibleCount,
+  total,
+  hasMore,
+  onPageChange,
+}: {
+  offset: number;
+  limit: number;
+  visibleCount: number;
+  total?: number;
+  hasMore: boolean;
+  onPageChange: (nextOffset: number) => void;
+}) {
+  const first = visibleCount === 0 ? 0 : offset + 1;
+  const last = total === undefined ? offset + visibleCount : Math.min(offset + visibleCount, total);
+  return (
+    <nav className="pagination-controls" aria-label="Table pagination">
+      <p>{total === undefined ? `Showing ${first}–${last}` : `Showing ${first}–${last} of ${total}`}</p>
+      <div>
+        <Button variant="secondary" size="sm" disabled={offset <= 0} onClick={() => onPageChange(Math.max(0, offset - limit))}>
+          <Icon name="chevron-right" size={14} className="pagination-controls__previous" /> Previous
+        </Button>
+        <Button variant="secondary" size="sm" disabled={!hasMore} onClick={() => onPageChange(offset + limit)}>
+          Next <Icon name="chevron-right" size={14} />
+        </Button>
+      </div>
+    </nav>
   );
 }
 
