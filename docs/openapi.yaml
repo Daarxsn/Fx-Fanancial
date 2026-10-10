@@ -1022,6 +1022,37 @@ components:
       name: fileId
       required: true
       schema: { $ref: "#/components/schemas/Uuid" }
+  responses:
+    BadRequest:
+      description: Malformed JSON or query parameters
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing/invalid session
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Authenticated but not permitted or out of scope
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource missing or intentionally concealed outside caller scope
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: State, duplicate idempotency or concurrency conflict
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationError:
+      description: Body fails schema or domain validation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
   schemas:
     Uuid:
       type: string
@@ -1056,36 +1087,6 @@ components:
               type: object
               additionalProperties: { type: string }
             requestId: { type: string, format: uuid }
-    BadRequest:
-      description: Malformed JSON or query parameters
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    Unauthorized:
-      description: Missing/invalid session
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    Forbidden:
-      description: Authenticated but not permitted or out of scope
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    NotFound:
-      description: Resource missing or intentionally concealed outside caller scope
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    Conflict:
-      description: State, duplicate idempotency or concurrency conflict
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-    ValidationError:
-      description: Body fails schema or domain validation
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
     SuccessMeta:
       type: object
       required: [meta]
