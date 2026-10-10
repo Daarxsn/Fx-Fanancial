@@ -65,12 +65,10 @@ Current route implementation is intentionally scoped:
 Implemented in `src/components/ui.tsx`:
 
 | Component | Behavior |
-| `TextField`, `SelectField`, `TextAreaField` | Labelled controls, hint/error descriptions, required state and `aria-invalid` support |
-| `FieldError` | Field-level validation message wired by described-by ID |
-| `DataTable` | Semantic table/caption, responsive horizontal scroller and loading/empty/error states |
-| `PaginationControls` | Bounded previous/next controls with accessible navigation label and range metadata |
 |---|---|
 | `Button`, `IconButton` | Shared variants/sizes, disabled state, icon labels and pressed/expanded state support |
+| `TextField`, `SelectField`, `TextAreaField` | Labelled controls, hint/error descriptions, required state and `aria-invalid` support |
+| `FieldError` | Field-level validation message wired by described-by ID |
 | `Card` | Standardized bordered surface and page section primitive |
 | `StatusBadge` | Neutral/success/warning/danger/info semantic status treatment |
 | `PageHeader`, `Breadcrumbs` | Consistent page title, description, route hierarchy and optional actions |
@@ -78,6 +76,8 @@ Implemented in `src/components/ui.tsx`:
 | `EmptyState` | Clear title/explanation, optional icon and optional action slot |
 | `ErrorState` | Safe, recoverable error panel and optional retry action |
 | `InlineAlert` | Informational, success, warning or error feedback with semantic role |
+| `DataTable` | Semantic table/caption, responsive horizontal scroller and loading/empty/error states |
+| `PaginationControls` | Bounded previous/next controls with accessible navigation label and range metadata |
 | `ConfirmDialog` | Accessible modal semantics, Escape-to-close, keyboard focus trap, initial focus, close/cancel behavior and busy state |
 | `ToastRegion` | Live-region feedback, dismissal control and automatic timeout |
 
