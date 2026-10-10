@@ -107,7 +107,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [router]);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("fx-theme");
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage.getItem("fx-theme");
+    } catch {
+      // Theme preference storage may be blocked; keep the workspace usable with light mode.
+    }
     const nextTheme = stored === "dark" || stored === "light" ? stored : "light";
     // This one-time state sync hydrates the persisted preference after SSR, avoiding hydration mismatch.
     // eslint-disable-next-line react-hooks/set-state-in-effect
