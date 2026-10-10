@@ -957,6 +957,202 @@ paths:
               schema: { $ref: "#/components/schemas/AuditEventListResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/auth/csrf:
+    get:
+      tags: [Authentication]
+      summary: Issue a short-lived anonymous CSRF bootstrap cookie and token
+      operationId: getCsrfToken
+      x-implementation-status: implemented
+      security: []
+      responses:
+        "200":
+          description: Short-lived CSRF token; token value also appears in a host-only SameSite=Strict cookie
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CsrfResponse" }
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Exchange email/password credentials for a revocable server-side session
+      operationId: login
+      x-implementation-status: implemented
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginInput" }
+      responses:
+        "200":
+          description: Authenticated user data; session token is set only in an HttpOnly cookie
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "429":
+          description: Account or source rate limit exceeded
+          headers:
+            Retry-After:
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Revoke the current session and clear authentication cookies
+      operationId: logout
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
+      responses:
+        "200":
+          description: Session revoked; cookies cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LogoutResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/auth/me:
+    get:
+      tags: [Authentication]
+      summary: Return the current session's live database-backed permissions and scope
+      operationId: getCurrentUser
+      x-implementation-status: implemented
+      responses:
+        "200":
+          description: Current active user and session expiration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/auth/activate:
+    post:
+      tags: [Authentication]
+      summary: Activate an invited account using a single-use token and set a password
+      operationId: activateAccount
+      x-implementation-status: implemented
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ActivationInput" }
+      responses:
+        "200":
+          description: Account activated; user must sign in separately
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ActivationResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "429":
+          description: Activation attempt rate limit exceeded
+          headers:
+            Retry-After:
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/v1/auth/sessions/revoke-all:
+    post:
+      tags: [Authentication]
+      summary: Revoke every active session for the current user
+      operationId: revokeAllSessions
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
+      responses:
+        "200":
+          description: All sessions revoked and current cookies cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LogoutResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/users:
+    get:
+      tags: [Users]
+      summary: List users and role assignment summaries for authorized administrators
+      operationId: listUsers
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Offset" }
+      responses:
+        "200":
+          description: User page; password hashes, invitation tokens and session tokens are never included
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/users/invitations:
+    post:
+      tags: [Users]
+      summary: Create an invitation and return its single-use token to an authorized caller once
+      operationId: createUserInvitation
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserInvitationInput" }
+      responses:
+        "201":
+          description: Invitation created for out-of-band delivery; token is returned once and is never logged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserInvitationResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "429":
+          description: Invitation creation rate limit exceeded
+          headers:
+            Retry-After:
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/v1/users/{userId}:
+    parameters:
+      - { $ref: "#/components/parameters/UserId" }
+    patch:
+      tags: [Users]
+      summary: Update account status, roles or legal-entity scopes and revoke existing sessions
+      operationId: updateUserAccess
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserAccessUpdateInput" }
+      responses:
+        "200":
+          description: Updated user access summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
 components:
   securitySchemes:
     cookieAuth:
@@ -977,6 +1173,12 @@ components:
       in: query
       name: offset
       schema: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
+    CsrfToken:
+      in: header
+      name: X-CSRF-Token
+      required: true
+      description: Double-submit token matching the host-only fx_csrf cookie; state-changing requests also require same-origin Origin or Referer.
+      schema: { type: string, minLength: 32, maxLength: 128 }
     CustomerId:
       in: path
       name: customerId
@@ -1015,6 +1217,11 @@ components:
     ApprovalId:
       in: path
       name: approvalId
+      required: true
+      schema: { $ref: "#/components/schemas/Uuid" }
+    UserId:
+      in: path
+      name: userId
       required: true
       schema: { $ref: "#/components/schemas/Uuid" }
     FileId:
@@ -1692,3 +1899,172 @@ components:
           type: array
           items: { $ref: "#/components/schemas/AuditEvent" }
         meta: { $ref: "#/components/schemas/Meta" }
+
+    CsrfResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [csrfToken]
+          properties:
+            csrfToken: { type: string, minLength: 32, maxLength: 128 }
+        meta: { $ref: "#/components/schemas/Meta" }
+    LoginInput:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, minLength: 3, maxLength: 320 }
+        password: { type: string, minLength: 1, maxLength: 256, writeOnly: true }
+    AuthUser:
+      type: object
+      required: [id, email, displayName, roles, permissions, legalEntityIds]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        roles:
+          type: array
+          items: { $ref: "#/components/schemas/RoleKey" }
+        permissions:
+          type: array
+          items: { type: string }
+        legalEntityIds:
+          type: array
+          items: { $ref: "#/components/schemas/Uuid" }
+    RoleKey:
+      type: string
+      enum: [system_admin, finance_admin, invoice_creator, invoice_issuer, payment_recorder, approver, auditor]
+    LoginResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [user, expiresAt]
+          properties:
+            user: { $ref: "#/components/schemas/AuthUser" }
+            expiresAt: { type: integer, format: int64, description: Unix timestamp in seconds; absolute session limit is eight hours. }
+        meta: { $ref: "#/components/schemas/Meta" }
+    LogoutResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [loggedOut]
+          properties:
+            loggedOut: { type: boolean }
+            sessionsRevoked: { type: boolean }
+        meta: { $ref: "#/components/schemas/Meta" }
+    ActivationInput:
+      type: object
+      additionalProperties: false
+      required: [token, password]
+      properties:
+        token: { type: string, minLength: 32, maxLength: 256, writeOnly: true }
+        password: { type: string, minLength: 12, maxLength: 128, writeOnly: true, description: New password is hashed using scrypt before persistence. }
+    ActivationResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [activated, message]
+          properties:
+            activated: { type: boolean, const: true }
+            message: { type: string }
+        meta: { $ref: "#/components/schemas/Meta" }
+    UserInvitationInput:
+      type: object
+      additionalProperties: false
+      required: [email, displayName, roleKeys]
+      properties:
+        email: { type: string, format: email, maxLength: 320 }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        roleKeys:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/RoleKey" }
+        legalEntityIds:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/Uuid" }
+    UserInvitationResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [userId, email, displayName, roleKeys, legalEntityIds, activationToken, expiresInHours, delivery]
+          properties:
+            userId: { $ref: "#/components/schemas/Uuid" }
+            email: { type: string, format: email }
+            displayName: { type: string }
+            roleKeys:
+              type: array
+              items: { $ref: "#/components/schemas/RoleKey" }
+            legalEntityIds:
+              type: array
+              items: { $ref: "#/components/schemas/Uuid" }
+            activationToken: { type: string, writeOnly: true, minLength: 32 }
+            expiresInHours: { type: integer, const: 24 }
+            delivery: { type: string, const: manual-secure-channel, description: No email provider is currently configured; caller must deliver the token securely. }
+        meta: { $ref: "#/components/schemas/Meta" }
+    UserAccessUpdateInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        accountStatus: { type: string, enum: [ACTIVE, SUSPENDED, DEACTIVATED] }
+        roleKeys:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/RoleKey" }
+        legalEntityIds:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/Uuid" }
+    UserRecord:
+      type: object
+      required: [id, email, displayName, accountStatus, roleKeys, legalEntityCount, createdAt]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        accountStatus: { type: string, enum: [INVITED, ACTIVE, SUSPENDED, DEACTIVATED] }
+        roleKeys:
+          type: array
+          items: { $ref: "#/components/schemas/RoleKey" }
+        legalEntityCount: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        lastLoginAt: { type: [string, "null"], format: date-time }
+    UserResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          allOf:
+            - $ref: "#/components/schemas/UserRecord"
+            - type: object
+              properties:
+                legalEntityIds:
+                  type: array
+                  items: { $ref: "#/components/schemas/Uuid" }
+                sessionsRevokedOnPrivilegeChange: { type: boolean }
+        meta: { $ref: "#/components/schemas/Meta" }
+    UserListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/UserRecord" }
+        meta:
+          $ref: "#/components/schemas/Meta"
