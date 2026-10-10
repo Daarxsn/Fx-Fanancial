@@ -139,7 +139,7 @@ Evidence:
 The Phase 04 **UI foundation** is complete; these separate workflow and release-QA gates do not change the foundation sign-off.
 ## Phase 05 — Authentication and access control
 
-**Acceptance gate: COMPLETE for authentication, RBAC and all currently implemented protected surfaces.** The latest full CI and lockfile workflows both passed on code revision `d79f5ce006d88f909e26e043815cc1059c87ddfa`.
+**Acceptance gate: COMPLETE for authentication, RBAC and all currently implemented protected surfaces.** The latest full CI and lockfile workflows both passed on code revision `36af6321f4584726acc7226775c4d6343bd7aac1`.
 
 - [x] Migration 004 adds password hashes, revocable database sessions, single-use invitations, rate-limit buckets and security-event records.
 - [x] Scrypt password hashing/verification and a 12–128 character password policy; raw passwords are never persisted.
@@ -154,13 +154,14 @@ The Phase 04 **UI foundation** is complete; these separate workflow and release-
 - [x] Rate limits on normalized email, invitation tokens and invitation creation; IP throttling is used only with explicitly trusted proxy headers. Rate-limit buckets use keyed digests.
 - [x] Authentication security events store fixed event types/outcomes with keyed HMAC hashes for subject/source IP/user-agent; raw credentials, session/CSRF/invitation tokens and raw provider errors are not logged.
 - [x] CI negative tests verify unauthenticated API denial, anonymous page redirects, forged client-claim denial, missing/wrong/cross-origin CSRF rejection, read-only role denial, user-admin denial, finance-to-admin escalation denial, suspended-account denial, single-use invitation behavior, self-admin change denial, session revocation after role/status/entity-scope change, logout/revoke-all, absolute/idle expiry and 429 rate-limit behavior.
+- [x] Client navigation shows a session-verification state rather than workspace children while `/api/v1/auth/me` is pending, and redirects to sign-in when the session check fails.
 - [x] Existing protected master-data contract tests continue to cover actual login, customer/catalog create/list, response/request IDs, pagination, input validation and exact-decimal serialization.
 - [x] Latest full CI passed MySQL 8 migrations 001–004, migration/seed idempotency, logical restore, health success/failure, OpenAPI validation, negative auth/API suite, UI foundation checks, lint, TypeScript and production build.
 - [x] **Phase 05 completion gate: PASSED** for the implemented authentication/RBAC foundation and current protected routes.
 
 Evidence:
-- CI success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38072091391
-- Lockfile/bootstrap success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38072091101
+- CI success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38072384541
+- Lockfile/bootstrap success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38072384583
 - Requirements and setup: `docs/phase-05-authentication-rbac.md`
 - Auth utilities: `src/lib/auth/session.ts`, `authorize.ts`, `csrf.ts`, `password.ts`, `rate-limit.ts`, `security-events.ts`
 - Navigation guard and server validation: `src/proxy.ts`, `src/app/(workspace)/layout.tsx`

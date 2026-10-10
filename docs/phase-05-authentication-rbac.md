@@ -1,6 +1,6 @@
 # Phase 05 — Authentication and Access Control
 
-**Status:** **Phase 05 acceptance gate PASSED** for the implemented local-password authentication and current protected API surface on commit `c658017901f5b8b54d34eadabdf2e9ac32bbf39a`. CI and lockfile/bootstrap both passed, including negative authorization, idle/absolute expiry, revocation, migration 004, OpenAPI validation, lint, TypeScript and production build. This does not imply that future business APIs, SSO/MFA, automated invitation delivery or a live Aiven rollout are complete.
+**Status:** **Phase 05 acceptance gate PASSED** for the implemented local-password authentication and current protected API surface on code revision `36af6321f4584726acc7226775c4d6343bd7aac1`. CI and lockfile/bootstrap passed, including negative authorization, idle/absolute expiry, revocation, migration 004, OpenAPI validation, lint, TypeScript and production build. The shared client shell also gates workspace rendering while the current session is checked. This does not imply that future business APIs, SSO/MFA, automated invitation delivery or a live Aiven rollout are complete.
 
 ## 1. Implemented authentication strategy and limits
 
@@ -111,6 +111,7 @@ The CI API contract test was upgraded from client-signed permission claims to da
 - Unauthenticated customer reads are denied with 401.
 - Anonymous workspace page requests redirect to sign-in before content is served.
 - A forged, client-claimed signed permission payload without a matching database session cannot authenticate.
+- The server-side workspace layout redirects unauthenticated requests; client-side navigation stays behind a loading/redirect state while `/api/v1/auth/me` verifies the current session.
 - Authenticated writes without a CSRF header are rejected.
 - Wrong CSRF tokens and cross-origin / `Sec-Fetch-Site: cross-site` unsafe requests are rejected.
 - An invoice-creator role can use allowed master-data routes.
@@ -124,7 +125,7 @@ The CI API contract test was upgraded from client-signed permission claims to da
 - Account rate limits return 429 with `Retry-After`.
 - Existing customer/catalog request validation, response envelopes, pagination and exact-decimal serialization remain covered.
 
-**Completion gate: PASSED** for the implemented authentication and currently exposed protected surfaces. Evidence: [CI run 38054060318](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38054060318) and [lockfile/bootstrap run 38054060283](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38054060283), both on `c658017901f5b8b54d34eadabdf2e9ac32bbf39a`.
+**Completion gate: PASSED** for the implemented authentication and currently exposed protected surfaces. Evidence: [CI run 38072384541](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38072384541) and [lockfile/bootstrap run 38072384583](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38072384583), both on code revision `36af6321f4584726acc7226775c4d6343bd7aac1`.
 
 ## 9. Remaining production decisions and limitations
 
