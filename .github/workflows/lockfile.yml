@@ -42,7 +42,7 @@ jobs:
           DATABASE_NAME: ci_placeholder
           DATABASE_USER: ci_placeholder
           DATABASE_PASSWORD: ci_placeholder
-          DATABASE_SSL: "false"
+          DATABASE_SSL: "true"
           SESSION_SECRET: "ci-only-session-secret-value-not-for-production-000000"
       - name: Commit lockfile if it changed
         run: |
