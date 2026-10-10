@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import Link from "next/link";
 import { Icon, type IconName } from "@/components/icon";
 
 export function Button({
@@ -172,7 +173,7 @@ export function Breadcrumbs({ items }: { items: { label: string; href?: string }
           <li key={`${item.label}-${index}`}>
             {index > 0 ? <Icon name="chevron-right" size={14} /> : null}
             {item.href && index < items.length - 1
-              ? <a href={item.href}>{item.label}</a>
+              ? <Link href={item.href}>{item.label}</Link>
               : <span aria-current={index === items.length - 1 ? "page" : undefined}>{item.label}</span>}
           </li>
         ))}
@@ -230,6 +231,10 @@ export function ConfirmDialog({
   const cancelRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const busyRef = useRef(busy);
+  const onCloseRef = useRef(onClose);
+  busyRef.current = busy;
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -237,8 +242,8 @@ export function ConfirmDialog({
     cancelRef.current?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) {
-        onClose();
+      if (event.key === "Escape" && !busyRef.current) {
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -265,7 +270,7 @@ export function ConfirmDialog({
       document.removeEventListener("keydown", onKeyDown);
       previousFocusRef.current?.focus();
     };
-  }, [open, busy, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
