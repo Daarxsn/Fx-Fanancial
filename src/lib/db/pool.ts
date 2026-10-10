@@ -1,6 +1,7 @@
 import "server-only";
 
 import mysql from "mysql2/promise";
+import { verifiedMysqlTlsOptions } from "@/lib/db/tls-options";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -43,9 +44,7 @@ function createPool(): mysql.Pool {
     database: requiredEnv("DATABASE_NAME"),
     user: requiredEnv("DATABASE_USER"),
     password: requiredEnv("DATABASE_PASSWORD"),
-    ...(sslSetting === "true"
-      ? { ssl: { rejectUnauthorized: true } }
-      : {}),
+    ...(sslSetting === "true" ? { ssl: verifiedMysqlTlsOptions() } : {}),
     waitForConnections: true,
     connectionLimit: 5,
     maxIdle: 2,
