@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Gitleaks scans the commit range from the merge base, so it needs history.
+          fetch-depth: 0
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
