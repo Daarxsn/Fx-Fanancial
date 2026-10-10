@@ -4,8 +4,13 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { resolveSessionToken, readSessionTokenFromRequest, readCsrfTokenFromRequest } from "@/lib/auth/session";
 
+export type CsrfFailureReason = "ORIGIN_MISSING" | "ORIGIN_MISMATCH" | "CROSS_SITE" | "TOKEN_MISSING" | "TOKEN_MISMATCH" | "SESSION_INVALID" | "SESSION_TOKEN_MISMATCH";
+
 export class CsrfError extends Error {
-  constructor() { super("CSRF_INVALID"); this.name = "CsrfError"; }
+  constructor(public readonly reason: CsrfFailureReason) {
+    super("CSRF_INVALID");
+    this.name = "CsrfError";
+  }
 }
 
 function constantTimeEqual(left: string, right: string): boolean {
@@ -16,13 +21,13 @@ function constantTimeEqual(left: string, right: string): boolean {
 
 function assertSameOrigin(request: NextRequest): void {
   const source = request.headers.get("origin") ?? request.headers.get("referer");
-  if (!source) throw new CsrfError();
+  if (!source) throw new CsrfError("ORIGIN_MISSING");
   try {
-    if (new URL(source).origin !== request.nextUrl.origin) throw new CsrfError();
+    if (new URL(source).origin !== request.nextUrl.origin) throw new CsrfError("ORIGIN_MISMATCH");
   } catch {
-    throw new CsrfError();
+    throw new CsrfError("ORIGIN_MISMATCH");
   }
-  if (request.headers.get("sec-fetch-site") === "cross-site") throw new CsrfError();
+  if (request.headers.get("sec-fetch-site") === "cross-site") throw new CsrfError("CROSS_SITE");
 }
 
 export function createCsrfToken(): string {
@@ -36,14 +41,16 @@ export async function assertCsrf(
   assertSameOrigin(request);
   const cookieToken = readCsrfTokenFromRequest(request);
   const headerToken = request.headers.get("x-csrf-token");
-  if (!cookieToken || !headerToken || !constantTimeEqual(cookieToken, headerToken)) throw new CsrfError();
+  if (!cookieToken || !headerToken) throw new CsrfError("TOKEN_MISSING");
+  if (!constantTimeEqual(cookieToken, headerToken)) throw new CsrfError("TOKEN_MISMATCH");
   if (options.checkSession === false) return;
 
   const rawSession = readSessionTokenFromRequest(request);
   if (!rawSession) return;
   const session = await resolveSessionToken(rawSession);
-  if (!session || !constantTimeEqual(
+  if (!session) throw new CsrfError("SESSION_INVALID");
+  if (!constantTimeEqual(
     createHash("sha256").update(cookieToken).digest("hex"),
     session.csrfTokenHash,
-  )) throw new CsrfError();
+  )) throw new CsrfError("SESSION_TOKEN_MISMATCH");
 }
