@@ -1,6 +1,7 @@
 import mysql from "mysql2/promise";
 import { randomUUID } from "node:crypto";
 import { loadProjectEnv } from "./load-env";
+import { verifiedMysqlTlsOptions } from "../src/lib/db/tls-options";
 
 loadProjectEnv();
 
@@ -69,7 +70,7 @@ async function main() {
     database: requiredEnv("DATABASE_NAME"),
     user: requiredEnv("DATABASE_USER"),
     password: requiredEnv("DATABASE_PASSWORD"),
-    ...(sslSetting === "true" ? { ssl: { rejectUnauthorized: true } } : {}),
+    ...(sslSetting === "true" ? { ssl: verifiedMysqlTlsOptions() } : {}),
     connectTimeout: 10000,
   });
 
