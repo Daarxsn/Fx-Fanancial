@@ -19,27 +19,48 @@ function constantTimeEqual(left: string, right: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function expectedOrigin(request: NextRequest): string {
+  const configured = process.env.APP_ORIGIN?.trim();
+  if (configured) {
+    try {
+      const url = new URL(configured);
+      if (!["http:", "https:"].includes(url.protocol) || url.username || url.password ||
+          url.pathname !== "/" || url.search || url.hash) {
+        throw new Error("Invalid APP_ORIGIN");
+      }
+      if (process.env.NODE_ENV === "production" && url.protocol !== "https:") {
+        throw new Error("Production APP_ORIGIN must use HTTPS");
+      }
+      return url.origin;
+    } catch {
+      throw new CsrfError("ORIGIN_MISMATCH");
+    }
+  }
+
+  // Next can represent the internal request URL using localhost behind a proxy. Validate
+  // against the actual Host header and the proxy's forwarded scheme instead. Configure
+  // APP_ORIGIN in production when the public authority differs from the Host received by Next.
+  const host = request.headers.get("host");
+  const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const protocol = forwardedProtocol || request.nextUrl.protocol.replace(/:$/, "");
+  if (!host || !["http", "https"].includes(protocol)) throw new CsrfError("ORIGIN_MISMATCH");
+  try {
+    return new URL(`${protocol}://${host}`).origin;
+  } catch {
+    throw new CsrfError("ORIGIN_MISMATCH");
+  }
+}
+
 function assertSameOrigin(request: NextRequest): void {
   const source = request.headers.get("origin") ?? request.headers.get("referer");
   if (!source) throw new CsrfError("ORIGIN_MISSING");
+  let sourceOrigin: string;
   try {
-    const sourceOrigin = new URL(source).origin;
-    const expectedOrigin = request.nextUrl.origin;
-    if (sourceOrigin !== expectedOrigin) {
-      // Host/origin metadata only; never print cookies, tokens or credentials.
-      console.warn("CSRF origin mismatch", {
-        sourceOrigin,
-        expectedOrigin,
-        host: request.headers.get("host"),
-        forwardedHost: request.headers.get("x-forwarded-host"),
-        forwardedProto: request.headers.get("x-forwarded-proto"),
-      });
-      throw new CsrfError("ORIGIN_MISMATCH");
-    }
-  } catch (error) {
-    if (error instanceof CsrfError) throw error;
+    sourceOrigin = new URL(source).origin;
+  } catch {
     throw new CsrfError("ORIGIN_MISMATCH");
   }
+  if (sourceOrigin !== expectedOrigin(request)) throw new CsrfError("ORIGIN_MISMATCH");
   if (request.headers.get("sec-fetch-site") === "cross-site") throw new CsrfError("CROSS_SITE");
 }
 
