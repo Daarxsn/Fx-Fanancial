@@ -162,6 +162,8 @@ jobs:
           kill "$server_pid" 2>/dev/null || true
           wait "$server_pid" 2>/dev/null || true
           trap - EXIT
+      - name: Validate responsive and accessibility UI foundation
+        run: npm run ui:validate
       - name: Lint
         run: npm run lint
       - name: TypeScript
