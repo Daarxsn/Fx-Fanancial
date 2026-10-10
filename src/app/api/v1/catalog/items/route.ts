@@ -46,7 +46,23 @@ export async function GET(request: NextRequest) {
        FROM catalog_items ${where} ORDER BY name ASC, id ASC LIMIT ? OFFSET ?`,
       [...params, limit, offset],
     );
-    return jsonNoStore({ data: rows, page: { limit, offset, hasMore: rows.length === limit } });
+    return jsonNoStore({
+      data: rows.map((row) => ({
+        id: row.id,
+        itemCode: row.item_code,
+        itemType: row.item_type,
+        name: row.name,
+        customerDescription: row.customer_description,
+        unitCode: row.unit_code,
+        defaultUnitPrice: row.default_unit_price,
+        currency: row.currency,
+        defaultTaxCode: row.default_tax_code,
+        isActive: Boolean(row.is_active),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+      pagination: { limit, offset, hasMore: rows.length === limit },
+    });
   } catch (error) {
     return apiError(error);
   }
@@ -92,7 +108,21 @@ export async function POST(request: NextRequest) {
       connection.release();
     }
 
-    return jsonNoStore({ data: { id, itemCode: parsed.itemCode || null, itemType: parsed.itemType, name: parsed.name, defaultUnitPrice: parsed.defaultUnitPrice, currency: parsed.currency, isActive: true } }, 201);
+    return jsonNoStore({
+      data: {
+        id,
+        itemCode: parsed.itemCode?.trim() || null,
+        itemType: parsed.itemType,
+        name: parsed.name,
+        customerDescription: parsed.customerDescription,
+        internalDescription: parsed.internalDescription ?? null,
+        unitCode: parsed.unitCode,
+        defaultUnitPrice: parsed.defaultUnitPrice,
+        currency: parsed.currency,
+        defaultTaxCode: parsed.defaultTaxCode ?? null,
+        isActive: true,
+      },
+    }, 201);
   } catch (error) {
     return apiError(error);
   }
