@@ -44,14 +44,24 @@ Evidence:
 
 **Sign-off rule:** Phase 01's specified completion gate has passed and the phase is recorded as complete. The provider-level restore drill, approval of business RPO/RTO targets, and final budget decision remain pre-production safeguards.
 
-## Phase 02 — Business rules
+## Phase 02 — Product requirements and business rules
 
-- [ ] Invoice lifecycle, independent payment/approval/email states and cancellation/credit-note policy approved.
-- [ ] Invoice numbering scope and financial-year boundary approved.
-- [ ] Currency, tax, discounts and rounding approved by the business/accounting owner.
-- [ ] Payment terms, overpayment/refund/TDS and multi-currency scope approved.
-- [ ] Roles, approval thresholds and separation-of-duties rules approved.
-- [ ] Requirements traceable to implementation and automated tests.
+- [x] Comprehensive requirements baseline drafted in `docs/phase-02-business-rules.md`: domain boundaries; invoice/quotation lifecycle; independent state dimensions; transactional issue gate; numbering and financial-year policy; currency/discount/rounding; tax and statutory-document requirements; terms/payments/allocations/reversals; cancellation/corrections; roles/RBAC and separation of duties; PDFs/email/reminders; reports/exports; audit/security; acceptance criteria.
+- [x] Explicit rule that POS, Digitech and Coworks are brand/business-line labels only until the business confirms mappings; no brand is assumed to be a legal entity or GST registration.
+- [x] Proposed defaults are labelled as proposals; technical INR schema default is not treated as approved business policy.
+- [x] Traceability matrix added in `docs/phase-02-feature-traceability.md`, with requirement IDs BR-001–BR-096, observable acceptance criteria, verification methods and owner/dependency.
+- [x] Unresolved business, finance, tax/legal and security decisions captured in the approval register with fail-safe behavior.
+- [ ] **Formal completion gate:** authorized business owner approves requirements revision 1.0.
+- [ ] Finance/accounting owner approves financial policies and tax-rule requirements within their remit; tax/legal review completed where required.
+- [ ] After policy sign-off, approved actual entity mappings, numbering, currency, tax and approval configuration are provided before any production issuance.
+- [ ] Runtime implementation and automated tests for these requirements are verified in Phases 03–06 and applicable later delivery work; documentation alone is not runtime evidence.
+
+Evidence:
+- Requirements: `docs/phase-02-business-rules.md`
+- Feature traceability and acceptance criteria: `docs/phase-02-feature-traceability.md`
+- Supporting schema/design baseline: `database/migrations/001_initial_schema.sql`, `database/migrations/002_identity_catalog_workflows.sql`, `docs/phase-03-schema-api-design.md`, `docs/phase-05-authentication-rbac.md`, `docs/phase-06-company-brand-legal-entity.md`
+
+**Sign-off rule:** The requirements and traceability artifacts are complete as a reviewable baseline. Phase 02 is not formally signed off until an authorized business owner and the relevant finance/accounting approver record acceptance. No actual legal entity, tax registration/rate, approval threshold, bank detail or entity-to-brand mapping may be inferred.
 
 ## Phase 03 — Data model and API
 
