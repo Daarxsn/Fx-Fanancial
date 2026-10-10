@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
-import { createHmac, randomUUID } from "node:crypto";
+import { createHmac, createHash, randomBytes, randomUUID, scrypt as scryptCallback } from "node:crypto";
 import mysql from "mysql2/promise";
 
 const baseUrl = process.env.API_TEST_BASE_URL ?? "http://127.0.0.1:3002";
 const sessionSecret = process.env.SESSION_SECRET;
-if (!sessionSecret || sessionSecret.length < 32) {
-  throw new Error("SESSION_SECRET must be set to a CI-only value of at least 32 characters");
-}
+if (!sessionSecret || sessionSecret.length < 32) throw new Error("A CI-only SESSION_SECRET of at least 32 characters is required");
 
-const connection = await mysql.createConnection({
+const db = await mysql.createConnection({
   host: process.env.DATABASE_HOST ?? "127.0.0.1",
   port: Number(process.env.DATABASE_PORT ?? "3306"),
   database: process.env.DATABASE_NAME ?? "falchion_ci",
@@ -18,111 +16,274 @@ const connection = await mysql.createConnection({
   connectTimeout: 10000,
 });
 
-const userId = randomUUID();
-const sessionEmail = `phase3-api-${userId}@example.invalid`;
-try {
-  await connection.execute(
-    `INSERT INTO app_users
-       (id, email, display_name, identity_provider, provider_subject, account_status)
-     VALUES (?, ?, ?, 'ci-contract-test', ?, 'ACTIVE')`,
-    [userId, sessionEmail, "Phase 03 API Contract Test", userId],
-  );
-} finally {
-  await connection.end();
-}
-
-const payload = Buffer.from(JSON.stringify({
-  userId,
-  email: sessionEmail,
-  permissions: ["customers:read", "customers:write", "catalog:read", "catalog:write"],
-  legalEntityIds: [],
-  expiresAt: Math.floor(Date.now() / 1000) + 3600,
-})).toString("base64url");
-const signature = createHmac("sha256", sessionSecret).update(payload).digest("base64url");
-const cookie = `fx_session=${payload}.${signature}`;
-
-async function request(path, options = {}) {
-  const response = await fetch(new URL(path, baseUrl), {
-    ...options,
-    headers: {
-      Cookie: cookie,
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers ?? {}),
-    },
-    cache: "no-store",
+function hashPassword(password) {
+  return new Promise((resolve, reject) => {
+    const salt = randomBytes(16);
+    scryptCallback(password, salt, 64, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }, (error, key) => {
+      if (error) return reject(error);
+      resolve("scrypt$32768$8$1$" + salt.toString("base64url") + "$" + key.toString("base64url"));
+    });
   });
-  const requestId = response.headers.get("x-request-id");
-  const body = await response.json();
-  assert.ok(requestId, `X-Request-Id missing on ${path}`);
-  if (body?.meta?.requestId) assert.equal(body.meta.requestId, requestId, `meta.requestId mismatch on ${path}`);
-  if (body?.error?.requestId) assert.equal(body.error.requestId, requestId, `error.requestId mismatch on ${path}`);
-  return { response, body, requestId };
 }
 
+async function seedUser(roleKey, email, status = "ACTIVE", password = "Phase Five Strong Password!") {
+  const userId = randomUUID();
+  const hash = status === "ACTIVE" ? await hashPassword(password) : null;
+  await db.execute(
+    "INSERT INTO app_users (id,email,display_name,identity_provider,provider_subject,password_hash,account_status) VALUES (?,?,?,'local_password',?,?,?)",
+    [userId, email, "Phase 05 CI User", email, hash, status],
+  );
+  const [roles] = await db.execute("SELECT id FROM app_roles WHERE role_key=? LIMIT 1", [roleKey]);
+  assert.equal(roles.length, 1, `role template ${roleKey} exists`);
+  await db.execute("INSERT INTO user_roles (user_id,role_id) VALUES (?,?)", [userId, roles[0].id]);
+  return { userId, email, password };
+}
+
+function cookiePairs(response) {
+  const getSetCookie = response.headers.getSetCookie?.bind(response.headers);
+  const rows = getSetCookie ? getSetCookie() : [response.headers.get("set-cookie")].filter(Boolean);
+  return rows.map((row) => row.split(";")[0]).filter(Boolean);
+}
+function jarFrom(pairs = []) {
+  const jar = new Map();
+  for (const pair of pairs) {
+    const index = pair.indexOf("=");
+    if (index > 0) jar.set(pair.slice(0, index), pair.slice(index + 1));
+  }
+  return jar;
+}
+function cookieHeader(jar) {
+  return [...jar.entries()].map(([key, value]) => key + "=" + value).join("; ");
+}
+function applyCookies(jar, response) {
+  for (const pair of cookiePairs(response)) {
+    const index = pair.indexOf("=");
+    if (index < 0) continue;
+    const key = pair.slice(0, index);
+    const value = pair.slice(index + 1);
+    if (!value) jar.delete(key);
+    else jar.set(key, value);
+  }
+}
+function assertRequestId(response, body) {
+  const requestId = response.headers.get("x-request-id");
+  assert.ok(requestId, "X-Request-Id must be returned");
+  if (body?.meta?.requestId) assert.equal(body.meta.requestId, requestId);
+  if (body?.error?.requestId) assert.equal(body.error.requestId, requestId);
+}
+async function call(path, options = {}, jar = new Map(), { csrf = true } = {}) {
+  const method = (options.method ?? "GET").toUpperCase();
+  const headers = { ...(options.headers ?? {}) };
+  if (jar.size) headers.Cookie = cookieHeader(jar);
+  if (options.body) headers["Content-Type"] = "application/json";
+  if (method !== "GET" && method !== "HEAD") {
+    headers.Origin = baseUrl;
+    headers["Sec-Fetch-Site"] = "same-origin";
+    if (csrf && jar.get("fx_csrf")) headers["X-CSRF-Token"] = jar.get("fx_csrf");
+  }
+  const response = await fetch(new URL(path, baseUrl), { ...options, headers, cache: "no-store" });
+  const text = await response.text();
+  const body = text ? JSON.parse(text) : null;
+  assertRequestId(response, body);
+  applyCookies(jar, response);
+  return { response, body, jar };
+}
+async function getCsrf() {
+  const jar = new Map();
+  const response = await fetch(new URL("/api/v1/auth/csrf", baseUrl), { cache: "no-store" });
+  const body = await response.json();
+  assertRequestId(response, body);
+  applyCookies(jar, response);
+  assert.equal(typeof jar.get("fx_csrf"), "string");
+  assert.equal(body.data.csrfToken, jar.get("fx_csrf"));
+  const setCookies = cookiePairs(response);
+  const csrfSetCookie = setCookies.find((item) => item.startsWith("fx_csrf="));
+  assert.ok(csrfSetCookie);
+  const rawHeaders = response.headers.getSetCookie?.() ?? [response.headers.get("set-cookie") ?? ""];
+  const csrfHeader = rawHeaders.find((item) => item.startsWith("fx_csrf=")) ?? "";
+  assert.match(csrfHeader, /SameSite=Strict/i);
+  assert.doesNotMatch(csrfHeader, /HttpOnly/i);
+  return jar;
+}
+async function login(user) {
+  const jar = await getCsrf();
+  const result = await call("/api/v1/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email: user.email, password: user.password }),
+  }, jar);
+  assert.equal(result.response.status, 200, "login should succeed for active account with correct credentials");
+  assert.equal(result.body.data.user.email, user.email);
+  assert.ok(Array.isArray(result.body.data.user.roles));
+  assert.ok(Array.isArray(result.body.data.user.permissions));
+  assert.ok(jar.get("fx_session"));
+  const rawHeaders = result.response.headers.getSetCookie?.() ?? [result.response.headers.get("set-cookie") ?? ""];
+  const sessionHeader = rawHeaders.find((item) => item.startsWith("fx_session=")) ?? "";
+  const csrfHeader = rawHeaders.find((item) => item.startsWith("fx_csrf=")) ?? "";
+  assert.match(sessionHeader, /HttpOnly/i, "session cookie must be HttpOnly");
+  assert.match(sessionHeader, /SameSite=Lax/i);
+  assert.match(sessionHeader, /Path=\//i);
+  assert.doesNotMatch(sessionHeader, /Secure/i, "development cookie is non-Secure; production config enables Secure");
+  assert.doesNotMatch(csrfHeader, /HttpOnly/i, "CSRF cookie needs to be readable by same-origin client code");
+  return { jar, body: result.body };
+}
+async function expectStatus(promise, status, label) {
+  const result = await promise;
+  assert.equal(result.response.status, status, label);
+  return result;
+}
 function assertPage(body, limit) {
   assert.ok(Array.isArray(body.data), "list response data must be an array");
   assert.equal(body.meta.pagination.limit, limit);
   assert.equal(typeof body.meta.pagination.offset, "number");
   assert.equal(typeof body.meta.pagination.hasMore, "boolean");
-  assert.equal("page" in body, false, "legacy top-level page field must be normalized");
+  assert.equal("page" in body, false, "legacy top-level page field must not be returned");
 }
 
-const suffix = userId.replaceAll("-", "").slice(0, 10);
-const customerName = `Phase 03 Contract Customer ${suffix}`;
-const customerEmail = `customer-${suffix}@example.invalid`;
+try {
+  const suffix = randomUUID().replaceAll("-", "").slice(0, 10);
+  const staff = await seedUser("invoice_creator", "staff-" + suffix + "@example.invalid");
+  const viewer = await seedUser("auditor", "viewer-" + suffix + "@example.invalid", "ACTIVE", "Viewer Strong Password #5!");
+  const admin = await seedUser("system_admin", "admin-" + suffix + "@example.invalid", "ACTIVE", "Admin Strong Password #5!");
+  const suspended = await seedUser("auditor", "suspended-" + suffix + "@example.invalid", "SUSPENDED", "Suspended Password #5!");
 
-const createCustomer = await request("/api/v1/customers", {
-  method: "POST",
-  body: JSON.stringify({ name: customerName, email: customerEmail }),
-});
-assert.equal(createCustomer.response.status, 201, "customer create status");
-assert.equal(createCustomer.body.data.name, customerName);
-assert.equal(createCustomer.body.data.email, customerEmail);
-assert.equal(createCustomer.body.data.isActive, true);
-assert.ok(createCustomer.body.meta.requestId);
-assert.equal("billing_address_json" in createCustomer.body.data, false);
+  const anonymousList = await expectStatus(call("/api/v1/customers"), 401, "unauthenticated customer reads must be denied");
+  assert.equal(anonymousList.body.error.code, "UNAUTHENTICATED");
+  const forgedPayload = Buffer.from(JSON.stringify({
+    userId: staff.userId, email: staff.email, permissions: ["users:manage", "customers:write"],
+    legalEntityIds: ["all"], expiresAt: Math.floor(Date.now() / 1000) + 3600,
+  })).toString("base64url");
+  const forgedSignature = createHmac("sha256", sessionSecret).update(forgedPayload).digest("base64url");
+  const forged = await call("/api/v1/users", { headers: { Cookie: "fx_session=" + forgedPayload + "." + forgedSignature } });
+  assert.equal(forged.response.status, 401, "client-claimed signed permission payload without a database session must not authenticate");
 
-const listCustomers = await request(`/api/v1/customers?query=${encodeURIComponent(customerName)}&status=all&limit=25&offset=0`);
-assert.equal(listCustomers.response.status, 200, "customer list status");
-assertPage(listCustomers.body, 25);
-assert.ok(listCustomers.body.data.some((row) => row.id === createCustomer.body.data.id));
-assert.equal("billing_address_json" in (listCustomers.body.data[0] ?? {}), false);
+  const staffSession = await login(staff);
+  const noCsrf = await expectStatus(
+    call("/api/v1/customers", { method: "POST", body: JSON.stringify({ name: "CSRF bypass attempt" }) }, staffSession.jar, { csrf: false }),
+    403,
+    "unsafe session-authenticated request without CSRF token must be denied",
+  );
+  assert.equal(noCsrf.body.error.code, "CSRF_INVALID");
 
-const itemCode = `PH3-${suffix.toUpperCase()}`;
-const createCatalog = await request("/api/v1/catalog/items", {
-  method: "POST",
-  body: JSON.stringify({
-    itemCode,
-    itemType: "SERVICE",
-    name: `Phase 03 Contract Service ${suffix}`,
-    customerDescription: "CI-only catalog contract fixture",
-    internalDescription: "Not production data",
-    unitCode: "unit",
-    defaultUnitPrice: "12.3400",
-    currency: "INR",
-    defaultTaxCode: "",
-  }),
-});
-assert.equal(createCatalog.response.status, 201, "catalog create status");
-assert.equal(createCatalog.body.data.itemCode, itemCode);
-assert.equal(createCatalog.body.data.defaultUnitPrice, "12.3400");
-assert.equal(createCatalog.body.data.currency, "INR");
-assert.equal(createCatalog.body.data.isActive, true);
-assert.equal("default_unit_price" in createCatalog.body.data, false);
+  const customerName = "Phase 05 Auth Test Customer " + suffix;
+  const created = await call("/api/v1/customers", {
+    method: "POST", body: JSON.stringify({ name: customerName, email: "customer-" + suffix + "@example.invalid" }),
+  }, staffSession.jar);
+  assert.equal(created.response.status, 201, "authorized staff role can create a customer");
+  assert.equal(created.body.data.name, customerName);
+  const list = await call("/api/v1/customers?query=" + encodeURIComponent(customerName) + "&status=all&limit=25&offset=0", {}, staffSession.jar);
+  assert.equal(list.response.status, 200);
+  assertPage(list.body, 25);
+  assert.ok(list.body.data.some((row) => row.id === created.body.data.id));
+  assert.equal("billing_address_json" in list.body.data[0], false);
 
-const listCatalog = await request(`/api/v1/catalog/items?query=${encodeURIComponent(itemCode)}&status=all&limit=25&offset=0`);
-assert.equal(listCatalog.response.status, 200, "catalog list status");
-assertPage(listCatalog.body, 25);
-assert.ok(listCatalog.body.data.some((row) => row.id === createCatalog.body.data.id));
-assert.equal(typeof listCatalog.body.data.find((row) => row.id === createCatalog.body.data.id)?.defaultUnitPrice, "string");
+  const itemCode = "PH5-" + suffix.toUpperCase();
+  const item = await call("/api/v1/catalog/items", {
+    method: "POST",
+    body: JSON.stringify({
+      itemCode, itemType: "SERVICE", name: "Phase 05 CI service",
+      customerDescription: "CI-only auth test fixture", internalDescription: "Not production data",
+      unitCode: "unit", defaultUnitPrice: "12.3400", currency: "INR", defaultTaxCode: "",
+    }),
+  }, staffSession.jar);
+  assert.equal(item.response.status, 201);
+  assert.equal(item.body.data.defaultUnitPrice, "12.3400");
+  const invalid = await call("/api/v1/customers", {
+    method: "POST", body: JSON.stringify({ name: "   ", unexpected: "rejected" }),
+  }, staffSession.jar);
+  assert.equal(invalid.response.status, 422);
+  assert.equal(invalid.body.error.code, "VALIDATION_ERROR");
 
-const invalidCustomer = await request("/api/v1/customers", {
-  method: "POST",
-  body: JSON.stringify({ name: "   ", unexpected: "must be rejected" }),
-});
-assert.equal(invalidCustomer.response.status, 422, "invalid input must return 422");
-assert.equal(invalidCustomer.body.error.code, "VALIDATION_ERROR");
-assert.equal(typeof invalidCustomer.body.error.fields.name, "string");
-assert.ok(invalidCustomer.body.error.requestId);
+  const viewerSession = await login(viewer);
+  const viewerList = await call("/api/v1/customers?limit=25&offset=0", {}, viewerSession.jar);
+  assert.equal(viewerList.response.status, 200, "read-only role can read customers");
+  const viewerWrite = await expectStatus(
+    call("/api/v1/customers", { method: "POST", body: JSON.stringify({ name: "Forbidden read-only write" }) }, viewerSession.jar),
+    403,
+    "read-only role cannot create customers",
+  );
+  assert.equal(viewerWrite.body.error.code, "FORBIDDEN");
+  const userAdminDenied = await expectStatus(call("/api/v1/users", {}, viewerSession.jar), 403, "read-only role cannot access user administration");
 
-console.log("PASS: implemented customer/catalog routes match response envelope, requestId header, pagination, camelCase fields, exact-decimal serialization and validation error contracts.");
+  const suspendedLoginCsrf = await getCsrf();
+  const suspendedAttempt = await call("/api/v1/auth/login", {
+    method: "POST", body: JSON.stringify({ email: suspended.email, password: suspended.password }),
+  }, suspendedLoginCsrf);
+  assert.equal(suspendedAttempt.response.status, 401, "suspended account cannot log in");
+
+  const adminSession = await login(admin);
+  const invitation = await call("/api/v1/users/invitations", {
+    method: "POST",
+    body: JSON.stringify({
+      email: "invitee-" + suffix + "@example.invalid",
+      displayName: "Invited CI User",
+      roleKeys: ["auditor"],
+      legalEntityIds: [],
+    }),
+  }, adminSession.jar);
+  assert.equal(invitation.response.status, 201, "system admin with users:manage can create invitation");
+  assert.ok(invitation.body.data.activationToken);
+  const invitee = { email: invitation.body.data.email, password: "Invitee Strong Password #5!" };
+
+  const activationCsrf = await getCsrf();
+  const activated = await call("/api/v1/auth/activate", {
+    method: "POST",
+    body: JSON.stringify({ token: invitation.body.data.activationToken, password: invitee.password }),
+  }, activationCsrf);
+  assert.equal(activated.response.status, 200, "valid invitation activates an account");
+  assert.equal(activated.body.data.activated, true);
+  const activationReplayCsrf = await getCsrf();
+  const replay = await call("/api/v1/auth/activate", {
+    method: "POST",
+    body: JSON.stringify({ token: invitation.body.data.activationToken, password: "Another Strong Password #5!" }),
+  }, activationReplayCsrf);
+  assert.equal(replay.response.status, 400, "invitation token is single-use");
+
+  const inviteeSession = await login(invitee);
+  assert.ok(inviteeSession.body.data.user.permissions.includes("customers:read"));
+  assert.ok(!inviteeSession.body.data.user.permissions.includes("customers:write"), "auditor role has no customer write permission");
+  const roleChange = await call("/api/v1/users/" + invitation.body.data.userId, {
+    method: "PATCH", body: JSON.stringify({ roleKeys: ["invoice_creator"] }),
+  }, adminSession.jar);
+  assert.equal(roleChange.response.status, 200);
+  assert.equal(roleChange.body.data.sessionsRevokedOnPrivilegeChange, true);
+  const staleAfterPrivilegeChange = await expectStatus(call("/api/v1/customers", {}, inviteeSession.jar), 401, "role change revokes existing sessions");
+  assert.equal(staleAfterPrivilegeChange.body.error.code, "UNAUTHENTICATED");
+
+  const newInviteeSession = await login(invitee);
+  const suspend = await call("/api/v1/users/" + invitation.body.data.userId, {
+    method: "PATCH", body: JSON.stringify({ accountStatus: "SUSPENDED" }),
+  }, adminSession.jar);
+  assert.equal(suspend.response.status, 200);
+  const staleAfterSuspend = await expectStatus(call("/api/v1/customers", {}, newInviteeSession.jar), 401, "account suspension revokes sessions immediately");
+
+  const oldStaffCookie = cookieHeader(new Map(staffSession.jar));
+  const logout = await call("/api/v1/auth/logout", { method: "POST", body: "{}" }, staffSession.jar);
+  assert.equal(logout.response.status, 200);
+  const afterLogout = await call("/api/v1/customers", { headers: { Cookie: oldStaffCookie } });
+  assert.equal(afterLogout.response.status, 401, "logout revokes the database session, even if an old cookie is replayed");
+
+  const revokeSession = await login(viewer);
+  const revokedAll = await call("/api/v1/auth/sessions/revoke-all", { method: "POST", body: "{}" }, revokeSession.jar);
+  assert.equal(revokedAll.response.status, 200);
+  const afterRevokeAll = await call("/api/v1/customers", { headers: { Cookie: cookieHeader(revokeSession.jar) } });
+  assert.equal(afterRevokeAll.response.status, 401, "revoke-all invalidates existing session tokens");
+
+  const rateCsrf = await getCsrf();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const result = await call("/api/v1/auth/login", {
+      method: "POST", body: JSON.stringify({ email: "rate-" + suffix + "@example.invalid", password: "Incorrect Strong Password" }),
+    }, rateCsrf);
+    assert.equal(result.response.status, 401, "failed credentials use a generic response before the threshold");
+  }
+  const rateLimited = await call("/api/v1/auth/login", {
+    method: "POST", body: JSON.stringify({ email: "rate-" + suffix + "@example.invalid", password: "Incorrect Strong Password" }),
+  }, rateCsrf);
+  assert.equal(rateLimited.response.status, 429, "account-based login throttle activates at the configured threshold");
+  assert.ok(Number(rateLimited.response.headers.get("retry-after")) > 0);
+
+  const dbSessions = await db.execute("SELECT COUNT(*) AS count FROM auth_sessions WHERE user_id=?", [staff.userId]);
+  assert.ok(Number(dbSessions[0][0].count) >= 1);
+  console.log("PASS: auth negative tests cover unauthenticated reads, forged client permission claims, missing CSRF, role denial, login/account status, single-use activation, role-change/session revocation, logout, revoke-all and rate limits. Customer/catalog API contracts and decimal serialization also pass.");
+} finally {
+  await db.end();
+}
