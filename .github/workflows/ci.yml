@@ -136,6 +136,32 @@ jobs:
 
       - name: Validate OpenAPI contract
         run: npm run api:validate
+      - name: Verify implemented customer and catalog API contracts
+        env:
+          DATABASE_HOST: 127.0.0.1
+          DATABASE_PORT: 3306
+          DATABASE_NAME: falchion_ci
+          DATABASE_USER: root
+          DATABASE_PASSWORD: ci_root_password
+          DATABASE_SSL: "false"
+          SESSION_SECRET: "ci-only-session-secret-value-not-for-production-000000"
+          API_TEST_BASE_URL: http://127.0.0.1:3002
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/next dev --hostname 127.0.0.1 --port 3002 > "$RUNNER_TEMP/next-api-contract.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready="false"
+          for attempt in $(seq 1 30); do
+            status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3002/api/v1/customers || true)"
+            if [ "$status" = "401" ]; then ready="true"; break; fi
+            sleep 2
+          done
+          test "$ready" = "true"
+          npm run api:contract-test
+          kill "$server_pid" 2>/dev/null || true
+          wait "$server_pid" 2>/dev/null || true
+          trap - EXIT
       - name: Lint
         run: npm run lint
       - name: TypeScript
