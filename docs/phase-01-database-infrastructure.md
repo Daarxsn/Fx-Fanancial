@@ -2,7 +2,7 @@
 
 ## Implemented in the repository
 
-- Server-only MySQL 2 connection pool with bounded settings (connection limit 5, max idle 2, bounded wait queue, 10-second connect timeout and keep-alive). Production explicitly rejects `DATABASE_SSL=false`.
+- Server-only mysql2 connection pool with bounded settings (connection limit 5, max idle 2, bounded wait queue, 10-second connect timeout and keep-alive). Production explicitly rejects `DATABASE_SSL=false`.
 - Verified TLS options support system trust plus an optional CA PEM via `DATABASE_SSL_CA_PATH` (local file) or `DATABASE_SSL_CA` (protected deployment environment value). Certificate validation is never disabled when TLS is on.
 - Server-side database health check and non-cached health endpoints (`/api/health` and `/api/v1/health`) return HTTP 200 or 503 with generic status and no raw driver diagnostics.
 - MySQL 8 schema migrations 001 and 002 with migration ledger and SHA-256 checksum verification.
