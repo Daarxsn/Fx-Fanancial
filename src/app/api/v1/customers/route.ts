@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
 import { requirePermission } from "@/lib/auth/authorize";
+import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { customerCreateSchema } from "@/lib/validation/master-data";
 
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await assertCsrf(request);
     const actor = await requirePermission("customers:write");
     const parsed = customerCreateSchema.parse(await request.json());
     const id = randomUUID();
