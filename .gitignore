@@ -26,3 +26,6 @@ pnpm-debug.log*
 # OS/editor files
 .DS_Store
 .vscode/
+
+# TypeScript build cache
+tsconfig.tsbuildinfo
