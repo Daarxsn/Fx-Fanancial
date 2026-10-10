@@ -24,6 +24,8 @@ tags:
   - name: Communications
   - name: Reports
   - name: Audit
+  - name: Authentication
+  - name: Users
 security:
   - cookieAuth: []
 paths:
@@ -90,6 +92,8 @@ paths:
       summary: Create a customer master record
       operationId: createCustomer
       x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
       requestBody:
         required: true
         content:
@@ -169,6 +173,8 @@ paths:
       summary: Create a catalog item
       operationId: createCatalogItem
       x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
       requestBody:
         required: true
         content:
@@ -2010,7 +2016,7 @@ components:
             legalEntityIds:
               type: array
               items: { $ref: "#/components/schemas/Uuid" }
-            activationToken: { type: string, writeOnly: true, minLength: 32 }
+            activationToken: { type: string, minLength: 32, description: Single-use bearer secret returned once; never log or persist it in frontend storage. }
             expiresInHours: { type: integer, const: 24 }
             delivery: { type: string, const: manual-secure-channel, description: No email provider is currently configured; caller must deliver the token securely. }
         meta: { $ref: "#/components/schemas/Meta" }
@@ -2050,14 +2056,20 @@ components:
       required: [data, meta]
       properties:
         data:
-          allOf:
-            - $ref: "#/components/schemas/UserRecord"
-            - type: object
-              properties:
-                legalEntityIds:
-                  type: array
-                  items: { $ref: "#/components/schemas/Uuid" }
-                sessionsRevokedOnPrivilegeChange: { type: boolean }
+          type: object
+          required: [id, email, displayName, accountStatus, roleKeys, legalEntityIds, sessionsRevokedOnPrivilegeChange]
+          properties:
+            id: { $ref: "#/components/schemas/Uuid" }
+            email: { type: string, format: email }
+            displayName: { type: string }
+            accountStatus: { type: string, enum: [INVITED, ACTIVE, SUSPENDED, DEACTIVATED] }
+            roleKeys:
+              type: array
+              items: { $ref: "#/components/schemas/RoleKey" }
+            legalEntityIds:
+              type: array
+              items: { $ref: "#/components/schemas/Uuid" }
+            sessionsRevokedOnPrivilegeChange: { type: boolean }
         meta: { $ref: "#/components/schemas/Meta" }
     UserListResponse:
       type: object
