@@ -45,7 +45,20 @@ export async function GET(request: NextRequest) {
        FROM customers ${where} ORDER BY name ASC, id ASC LIMIT ? OFFSET ?`,
       [...params, limit, offset],
     );
-    return jsonNoStore({ data: rows, page: { limit, offset, hasMore: rows.length === limit } });
+    return jsonNoStore({
+      data: rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        billingAddress: row.billing_address_json,
+        taxIdentifier: row.tax_identifier,
+        isActive: Boolean(row.is_active),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+      pagination: { limit, offset, hasMore: rows.length === limit },
+    });
   } catch (error) {
     return apiError(error);
   }
@@ -83,7 +96,18 @@ export async function POST(request: NextRequest) {
       connection.release();
     }
 
-    return jsonNoStore({ data: { id, name: parsed.name, email, phone, isActive: true } }, 201);
+    return jsonNoStore({
+      data: {
+        id,
+        name: parsed.name,
+        email,
+        phone,
+        billingAddress: parsed.billingAddress ?? null,
+        taxIdentifier,
+        notes: parsed.notes ?? null,
+        isActive: true,
+      },
+    }, 201);
   } catch (error) {
     return apiError(error);
   }
