@@ -36,7 +36,11 @@ export async function writeSecurityEvent(
 }
 
 export function requestSecurityContext(request: Request) {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const sourceIp = forwarded?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || null;
+  // Forwarded headers are caller-controlled unless the deployment proxy strips inbound
+  // copies and sets its own values. Trust them only after that proxy behavior is configured.
+  const trustedProxyHeaders = process.env.TRUST_PROXY_HEADERS === "true";
+  const forwarded = trustedProxyHeaders ? request.headers.get("x-forwarded-for") : null;
+  const realIp = trustedProxyHeaders ? request.headers.get("x-real-ip") : null;
+  const sourceIp = forwarded?.split(",")[0]?.trim() || realIp?.trim() || null;
   return { sourceIp, userAgent: request.headers.get("user-agent") };
 }
