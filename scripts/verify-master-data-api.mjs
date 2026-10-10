@@ -111,7 +111,7 @@ async function login(user) {
     method: "POST",
     body: JSON.stringify({ email: user.email, password: user.password }),
   }, jar);
-  assert.equal(result.response.status, 200, "login should succeed for active account with correct credentials");
+  assert.equal(result.response.status, 200, "login should succeed for active account with correct credentials; received " + result.response.status + " " + JSON.stringify(result.body?.error ?? null));
   assert.equal(result.body.data.user.email, user.email);
   assert.ok(Array.isArray(result.body.data.user.roles));
   assert.ok(Array.isArray(result.body.data.user.permissions));
