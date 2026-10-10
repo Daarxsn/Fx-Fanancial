@@ -16,6 +16,19 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root_password
+          MYSQL_DATABASE: falchion_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_root_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,6 +45,56 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: MySQL 8 migration, seed, failure-safety and restore integration
+        env:
+          DATABASE_HOST: 127.0.0.1
+          DATABASE_PORT: 3306
+          DATABASE_NAME: falchion_ci
+          DATABASE_USER: root
+          DATABASE_PASSWORD: ci_root_password
+          DATABASE_SSL: "false"
+          MYSQL_ROOT_PASSWORD: ci_root_password
+        run: |
+          set -euo pipefail
+          npm run db:migrate
+          npm run db:migrate
+          npm run db:seed:reference
+          npm run db:seed:reference
+
+          # Verify migration ledger and repeatable seed counts without dumping row contents.
+          migration_count="$(node -e 'const mysql=require("mysql2/promise"); (async()=>{const c=await mysql.createConnection({host:process.env.DATABASE_HOST,port:Number(process.env.DATABASE_PORT),database:process.env.DATABASE_NAME,user:process.env.DATABASE_USER,password:process.env.DATABASE_PASSWORD}); const [r]=await c.query("SELECT COUNT(*) AS n FROM schema_migrations"); console.log(r[0].n); await c.end()})().catch(()=>process.exit(1))')"
+          test "$migration_count" = "2"
+
+          # Negative network-path test: the verifier must fail without exposing raw diagnostics.
+          if DATABASE_PORT=1 DATABASE_SSL=true npm run db:verify > "$RUNNER_TEMP/db-negative-test.log" 2>&1; then
+            echo "Expected database verification to fail on the deliberately closed port."
+            exit 1
+          fi
+          if grep -E 'ci_root_password|127\.0\.0\.1|ECONNREFUSED|Access denied for user' "$RUNNER_TEMP/db-negative-test.log"; then
+            echo "Negative connection test exposed database diagnostics."
+            exit 1
+          fi
+
+          # Restore a logical dump into an isolated database and compare base-table counts.
+          if ! command -v mysqldump >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install --yes mysql-client
+          fi
+          client_config="$RUNNER_TEMP/mysql-client.cnf"
+          printf '[client]\nhost=127.0.0.1\nport=3306\nuser=root\npassword=%s\n' "$MYSQL_ROOT_PASSWORD" > "$client_config"
+          chmod 600 "$client_config"
+          mysqldump --defaults-extra-file="$client_config" --single-transaction --routines --triggers --events falchion_ci > "$RUNNER_TEMP/falchion-ci.sql"
+          test -s "$RUNNER_TEMP/falchion-ci.sql"
+          mysql --defaults-extra-file="$client_config" -e 'CREATE DATABASE falchion_ci_restore'
+          mysql --defaults-extra-file="$client_config" falchion_ci_restore < "$RUNNER_TEMP/falchion-ci.sql"
+          source_tables="$(mysql --defaults-extra-file="$client_config" -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='falchion_ci' AND table_type='BASE TABLE'")"
+          restored_tables="$(mysql --defaults-extra-file="$client_config" -Nse "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='falchion_ci_restore' AND table_type='BASE TABLE'")"
+          restored_migrations="$(mysql --defaults-extra-file="$client_config" falchion_ci_restore -Nse 'SELECT COUNT(*) FROM schema_migrations')"
+          test "$source_tables" -gt 0
+          test "$source_tables" = "$restored_tables"
+          test "$restored_migrations" = "2"
+          echo "PASS: MySQL 8 migrations/idempotency, repeated reference seed, safe failure behavior and logical dump/restore verified."
+
       - name: Lint
         run: npm run lint
       - name: TypeScript
