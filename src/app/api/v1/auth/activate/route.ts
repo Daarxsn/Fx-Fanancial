@@ -24,7 +24,7 @@ type InvitationRow = RowDataPacket & {
   account_status: string;
   consumed_at: Date | null;
   revoked_at: Date | null;
-  expires_at: Date;
+  expires_at_unix: number;
 };
 
 export async function POST(request: NextRequest) {
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     const tokenHash = createHash("sha256").update(parsed.token).digest("hex");
     const [rows] = await pool.execute<InvitationRow[]>(
-      `SELECT i.id, i.user_id, i.consumed_at, i.revoked_at, i.expires_at,
+      `SELECT i.id, i.user_id, i.consumed_at, i.revoked_at, UNIX_TIMESTAMP(i.expires_at) AS expires_at_unix,
               u.email, u.account_status
          FROM account_invitation_tokens i
          JOIN app_users u ON u.id = i.user_id
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     );
     const invite = rows[0];
     const currentlyValid = invite && invite.account_status === "INVITED" &&
-      !invite.consumed_at && !invite.revoked_at && new Date(invite.expires_at).getTime() > Date.now();
+      !invite.consumed_at && !invite.revoked_at && Number(invite.expires_at_unix) * 1000 > Date.now();
     if (!invite || !currentlyValid) {
       await writeSecurityEvent(pool, {
         eventType: "auth.invitation.activation_failed",
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     try {
       await connection.beginTransaction();
       const [lockedRows] = await connection.execute<InvitationRow[]>(
-        `SELECT i.id, i.user_id, i.consumed_at, i.revoked_at, i.expires_at,
+        `SELECT i.id, i.user_id, i.consumed_at, i.revoked_at, UNIX_TIMESTAMP(i.expires_at) AS expires_at_unix,
                 u.email, u.account_status
            FROM account_invitation_tokens i
            JOIN app_users u ON u.id = i.user_id
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       );
       const locked = lockedRows[0];
       if (!locked || locked.account_status !== "INVITED" || locked.consumed_at ||
-          locked.revoked_at || new Date(locked.expires_at).getTime() <= Date.now()) {
+          locked.revoked_at || Number(locked.expires_at_unix) * 1000 <= Date.now()) {
         await connection.rollback();
         return jsonNoStore({ error: { code: "INVITATION_INVALID", message: "This invitation is invalid, expired or already used." } }, 400);
       }
