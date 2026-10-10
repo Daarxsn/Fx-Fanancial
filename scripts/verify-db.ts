@@ -3,8 +3,6 @@ import type { RowDataPacket } from "mysql2";
 import { loadProjectEnv } from "./load-env";
 import { verifiedMysqlTlsOptions } from "../src/lib/db/tls-options";
 
-loadProjectEnv();
-
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
@@ -55,6 +53,8 @@ function safeFailureCategory(error: unknown, depth = 0): string {
 }
 
 async function main(): Promise<void> {
+  loadProjectEnv();
+
   if (requiredEnv("DATABASE_SSL").toLowerCase() !== "true") {
     throw new Error("DATABASE_SSL=true is required for the verified TLS check");
   }
