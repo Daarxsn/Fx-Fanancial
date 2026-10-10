@@ -24,7 +24,7 @@ const checks = [
   ["mobile/tablet breakpoints are defined", sources.css.includes("@media (max-width: 1120px)") && sources.css.includes("@media (max-width: 900px)") && sources.css.includes("@media (max-width: 650px)")],
   ["reduced-motion preferences are respected", sources.css.includes("@media (prefers-reduced-motion: reduce)")],
   ["loading, empty, error and success/notice primitives exist", sources.primitives.includes("function LoadingState") && sources.primitives.includes("function EmptyState") && sources.primitives.includes("function ErrorState") && sources.primitives.includes("function InlineAlert")],
-  ["live notification region and confirmation dialog are accessible", sources.primitives.includes("aria-live=") && sources.primitives.includes('role="dialog"') && sources.primitives.includes("aria-modal=\"true\"") && sources.primitives.includes("event.key === \"Tab\"")],
+  ["live notification region and confirmation dialog are accessible", sources.primitives.includes("aria-live=") && sources.primitives.includes('role="dialog"') && sources.primitives.includes('aria-modal="true"') && sources.primitives.includes('event.key !== "Tab"')],
   ["route-level loading, error and not-found experiences exist", sources.loading.includes("LoadingState") && sources.error.includes('role="alert"') && sources.notFound.includes("This page isn’t here.")],
   ["unimplemented financial work is not shown as live data", sources.overview.includes("No activity is being shown") && sources.sectionPage.includes("not implemented yet")],
 ];
