@@ -37,12 +37,14 @@ export function IconButton({
   icon,
   onClick,
   pressed,
+  expanded,
   className = "",
 }: {
   label: string;
   icon: IconName;
   onClick: () => void;
   pressed?: boolean;
+  expanded?: boolean;
   className?: string;
 }) {
   return (
@@ -51,6 +53,7 @@ export function IconButton({
       type="button"
       aria-label={label}
       aria-pressed={pressed}
+      aria-expanded={expanded}
       onClick={onClick}
     >
       <Icon name={icon} size={19} />
