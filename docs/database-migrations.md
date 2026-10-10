@@ -67,7 +67,7 @@ This seed is idempotent and creates permission and role definitions only. It cre
 
 ## Test evidence and scope
 
-CI runs migrations 001 and 002 against a fresh disposable MySQL 8 instance, repeats the migration and seed commands, validates the migration ledger, asserts the deliberately broken connection path fails without printing connection details, and restores a logical dump into a separate database to compare base-table and migration-ledger counts.
+CI runs migrations 001–003 against a fresh disposable MySQL 8 instance, repeats the migration and seed commands, validates all three migration-ledger records and reference seed counts, asserts the deliberately broken connection path fails without printing connection details, and restores a logical dump into a separate database to compare base-table and migration-ledger counts.
 
 CI's disposable, non-TLS database proves schema compatibility and operational mechanics; it does not prove connectivity to the live Aiven instance, CA/hostname verification, managed-provider backup retention, or real production restoration.
 
