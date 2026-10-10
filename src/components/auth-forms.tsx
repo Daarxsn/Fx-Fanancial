@@ -84,7 +84,7 @@ export function LoginForm() {
             placeholder="Enter your password"
           />
           <button className="auth-password-toggle" type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"}>
-            <Icon name={showPassword ? "close" : "overview"} size={17} />
+            <Icon name={showPassword ? "eye-off" : "eye"} size={17} />
           </button>
         </div>
         <Button type="submit" size="lg" disabled={busy} className="auth-submit">
