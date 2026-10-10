@@ -94,6 +94,46 @@ jobs:
           test "$restored_migrations" = "2"
           echo "PASS: MySQL 8 migrations/idempotency, repeated reference seed, safe failure behavior and logical dump/restore verified."
 
+      - name: Verify health endpoint success and safe failure responses
+        env:
+          DATABASE_HOST: 127.0.0.1
+          DATABASE_PORT: 3306
+          DATABASE_NAME: falchion_ci
+          DATABASE_USER: root
+          DATABASE_PASSWORD: ci_root_password
+          DATABASE_SSL: "false"
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/next dev --hostname 127.0.0.1 --port 3000 > "$RUNNER_TEMP/next-health-ok.log" 2>&1 &
+          healthy_pid=$!
+          trap 'kill "$healthy_pid" 2>/dev/null || true' EXIT
+          healthy_code=""
+          for attempt in $(seq 1 30); do
+            healthy_code="$(curl -sS -o "$RUNNER_TEMP/health-ok.json" -w '%{http_code}' http://127.0.0.1:3000/api/health || true)"
+            if [ "$healthy_code" = "200" ]; then break; fi
+            sleep 2
+          done
+          test "$healthy_code" = "200"
+          node -e 'const h=JSON.parse(require("node:fs").readFileSync(process.env.RUNNER_TEMP+"/health-ok.json","utf8")); if(h.status!=="ok" || h.checks?.database!=="ok") process.exit(1); console.log("PASS: health endpoint returns 200 for a reachable database.")'
+          kill "$healthy_pid" 2>/dev/null || true
+          wait "$healthy_pid" 2>/dev/null || true
+          trap - EXIT
+
+          DATABASE_PORT=1 ./node_modules/.bin/next dev --hostname 127.0.0.1 --port 3001 > "$RUNNER_TEMP/next-health-fail.log" 2>&1 &
+          failing_pid=$!
+          trap 'kill "$failing_pid" 2>/dev/null || true' EXIT
+          failing_code=""
+          for attempt in $(seq 1 30); do
+            failing_code="$(curl -sS -o "$RUNNER_TEMP/health-fail.json" -w '%{http_code}' http://127.0.0.1:3001/api/health || true)"
+            if [ "$failing_code" = "503" ]; then break; fi
+            sleep 2
+          done
+          test "$failing_code" = "503"
+          node -e 'const h=JSON.parse(require("node:fs").readFileSync(process.env.RUNNER_TEMP+"/health-fail.json","utf8")); if(h.status!=="degraded" || h.checks?.database!=="error" || JSON.stringify(h).match(/ECONNREFUSED|127\\.0\\.0\\.1|ci_root_password/)) process.exit(1); console.log("PASS: unavailable database returns a generic 503 without raw diagnostics.")'
+          kill "$failing_pid" 2>/dev/null || true
+          wait "$failing_pid" 2>/dev/null || true
+          trap - EXIT
+
       - name: Lint
         run: npm run lint
       - name: TypeScript
