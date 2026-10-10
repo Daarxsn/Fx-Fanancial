@@ -278,7 +278,7 @@ try {
     [absoluteExpiryUser.userId],
   );
   assert.equal(absoluteSessionRows.length, 1);
-  await db.execute("UPDATE auth_sessions SET expires_at=DATE_SUB(NOW(3), INTERVAL 1 SECOND) WHERE id=?", [absoluteSessionRows[0].id]);
+  await db.execute("UPDATE auth_sessions SET created_at=DATE_SUB(NOW(3), INTERVAL 9 HOUR), expires_at=DATE_SUB(NOW(3), INTERVAL 1 SECOND) WHERE id=?", [absoluteSessionRows[0].id]);
   const absoluteExpired = await expectStatus(call("/api/v1/customers", {}, absoluteExpirySession.jar), 401, "absolute session expiry is enforced");
   assert.equal(absoluteExpired.body.error.code, "UNAUTHENTICATED");
 
