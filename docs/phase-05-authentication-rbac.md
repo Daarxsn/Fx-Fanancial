@@ -46,13 +46,13 @@ Migration `004_auth_sessions_and_security.sql` adds session, invitation, rate-li
 | Scope | Current limit | Response |
 |---|---|---|
 | Login per normalized email | 5 attempts per 15-minute window | HTTP 429 with `Retry-After` |
-| Login per source IP | 20 attempts per 15-minute window | HTTP 429 with `Retry-After` |
+| Login per source IP | 20 attempts per 15-minute window, only when a trusted proxy source IP is configured | HTTP 429 with `Retry-After` |
 | Invitation activation token | 10 attempts per 15-minute window | HTTP 429 with `Retry-After` |
 | Invitation create per administrator | 20 attempts per 15-minute window | HTTP 429 with `Retry-After` |
 
-Rate-limit identifiers are HMAC digests rather than raw emails, tokens or IPs. These are per-database buckets, not a distributed edge/WAF rate limit. In deployment, configure a trusted reverse proxy and do not accept spoofable `X-Forwarded-For` from arbitrary clients; `requestSecurityContext` should only be trusted behind a controlled proxy.
+Rate-limit identifiers are HMAC digests rather than raw emails, tokens or IPs. These are per-database buckets, not a distributed edge/WAF rate limit. IP-based throttling and source-IP event metadata use forwarded headers only when `TRUST_PROXY_HEADERS=true`. Set that flag only when the application is reachable through a trusted ingress that strips inbound client-supplied `X-Forwarded-For` / `X-Real-IP` and writes its own values. When the flag is unset, the app deliberately ignores those headers, skips the IP bucket, and retains the email and invitation-token throttles. Do not expose the application directly while trusting proxy headers.
 
-Security events record action, outcome and optional actor/subject/network metadata. Subject/IP/user-agent are keyed hashes; credentials, passwords, session cookies, CSRF tokens and invitation bearer tokens are not persisted to logs. Auth events are separate from business audit events.
+Security events record action, outcome and optional actor/subject/network metadata. Subject/IP/user-agent values are keyed HMAC digests using `SESSION_SECRET`, including source metadata copied to session rows; credentials, passwords, session cookies, CSRF tokens and invitation bearer tokens are not persisted to logs. Auth events are separate from business audit events.
 
 ## 5. Roles and permission templates
 
@@ -112,11 +112,13 @@ The CI API contract test was upgraded from client-signed permission claims to da
 - Anonymous workspace page requests redirect to sign-in before content is served.
 - A forged, client-claimed signed permission payload without a matching database session cannot authenticate.
 - Authenticated writes without a CSRF header are rejected.
+- Wrong CSRF tokens and cross-origin / `Sec-Fetch-Site: cross-site` unsafe requests are rejected.
 - An invoice-creator role can use allowed master-data routes.
 - An auditor can read but cannot write customer records or list users.
+- A finance administrator without `users:manage` cannot create invitations or escalate privileges; an administrator cannot edit their own privileged account through the user-management endpoint.
 - Suspended accounts cannot log in.
 - Valid invitation activation works; replaying its token fails.
-- Role changes invalidate old sessions; suspended accounts lose access.
+- Role changes and entity-scope changes invalidate old sessions; tests verify that removing an assigned entity scope revokes the prior session. Suspended accounts lose access.
 - Logout invalidates replayed old cookies; revoke-all invalidates existing sessions.
 - Idle and absolute session expiry both deny a previously valid cookie.
 - Account rate limits return 429 with `Retry-After`.
@@ -128,7 +130,8 @@ The CI API contract test was upgraded from client-signed permission claims to da
 
 - Confirm whether company-managed OIDC/SSO, MFA and step-up are required before general production rollout. Local-password authentication is implemented for invited users; that is not a substitute for those requirements if policy mandates them.
 - Configure secure invitation delivery and password recovery before relying on manual activation token transfer at scale.
-- Review trusted proxy/source-IP handling and external edge rate limiting before production deployment.
+- Configure `TRUST_PROXY_HEADERS=true` only after verifying that a trusted ingress overwrites forwarded headers and blocks direct app access; otherwise leave it unset and rely on the email/invitation throttles until a trusted source-IP signal is available.
+- Review external edge/WAF rate limiting and security-event/session retention before production deployment.
 - Apply migration 004 and seed role templates only after confirming the intended Aiven database, backup/restore readiness and appropriate runtime grants.
 - Assign no actual users or entity scopes until the authorized business owner approves the staff roster, roles and legal-entity mappings.
 - The permission and account tables exist, but each future invoice/payment/file/export/report handler must independently enforce permission and entity scope before that feature can ship.

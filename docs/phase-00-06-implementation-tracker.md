@@ -139,40 +139,45 @@ Evidence:
 The Phase 04 **UI foundation** is complete; these separate workflow and release-QA gates do not change the foundation sign-off.
 ## Phase 05 — Authentication and access control
 
-**Acceptance gate: COMPLETE for the implemented authentication and currently exposed protected surfaces.** Negative authorization and lifecycle tests passed in CI on commit `c658017901f5b8b54d34eadabdf2e9ac32bbf39a`.
+**Acceptance gate: COMPLETE for authentication, RBAC and all currently implemented protected surfaces.** The latest full CI and lockfile workflows both passed on code revision `d79f5ce006d88f909e26e043815cc1059c87ddfa`.
 
-- [x] Migration 004 adds credential hashes, hashed/revocable sessions, invitations, database rate-limit buckets and sanitized security-event logging.
-- [x] Scrypt password hashing/verification and 12–128 character password policy; no plaintext password persistence.
-- [x] Opaque, hashed server-side sessions; current roles, permissions and legal-entity scopes load from the database per protected request rather than trusting cookie claims.
-- [x] Eight-hour absolute and 30-minute idle session expiry; logout, revoke-all, account-status changes, role changes and entity-scope changes revoke active sessions.
-- [x] Session cookie security flags and same-origin double-submit CSRF protection on cookie-authenticated writes.
-- [x] Sign-in and invitation activation UI; current-user/sign-out control; protected workspace page group and cookie-less navigation proxy; server layout validates the actual session.
-- [x] User invitation, activation, directory and status/role/scope administration routes with audited privilege changes and last-admin protection.
-- [x] Seven least-privilege role templates; seed applies role-permission mappings only when the mapping table is empty and never seeds actual users/assignments/scopes.
-- [x] First administrator one-time bootstrap command with explicit confirmation and private environment variables.
-- [x] CI negative tests prove: unauthenticated API reads denied; anonymous workspace pages redirect to sign-in; forged client claims without a DB session are denied; missing CSRF is denied; read-only roles cannot write or administer users; suspended accounts cannot sign in; invitation replay fails; role/status changes invalidate sessions; logout/revoke-all invalidate old cookies; rate limits return 429; idle and absolute expiration reject previously valid cookies.
-- [x] Latest completed CI validates migrations/seed/restore, health endpoints, OpenAPI, auth/API contract tests, UI foundation, lint, TypeScript and production build.
-- [x] **Phase 05 completion gate: PASSED** for the currently implemented surface.
+- [x] Migration 004 adds password hashes, revocable database sessions, single-use invitations, rate-limit buckets and security-event records.
+- [x] Scrypt password hashing/verification and a 12–128 character password policy; raw passwords are never persisted.
+- [x] Opaque session secret generated on successful login; only its hash is stored in MySQL. The session cookie is HttpOnly, SameSite=Lax and Secure in production; the raw session token is not returned in JSON or stored in web storage.
+- [x] Eight-hour absolute and 30-minute idle expiry; session validation checks revocation, expiry, account status and live role/permission/entity-scope assignments.
+- [x] Login, logout, current-user endpoint, invitation activation and self-service revoke-all implemented; logout/privilege changes revoke server-side sessions.
+- [x] Cookie-authenticated mutations verify same-origin/Referer, Fetch Metadata and double-submit CSRF token; tests reject missing/wrong CSRF tokens and cross-origin unsafe requests.
+- [x] Server-side workspace route layout validates the session and redirects anonymous/revoked users before protected workspace content renders. The proxy is only an early navigation filter; database-backed layout and API checks remain authoritative.
+- [x] Role and permission enforcement on existing protected routes; distinct system administrator, finance administrator, invoice creator, invoice issuer, payment recorder, approver and auditor/read-only role templates.
+- [x] User invitations, activation, user directory and status/role/scope changes require authorization; privilege changes revoke sessions, self-administration is denied, system-admin assignment is restricted and last-active-admin demotion/suspension is prevented.
+- [x] One-time first-admin bootstrap requires explicit confirmation and private environment values; it creates no committed/default credentials.
+- [x] Rate limits on normalized email, invitation tokens and invitation creation; IP throttling is used only with explicitly trusted proxy headers. Rate-limit buckets use keyed digests.
+- [x] Authentication security events store fixed event types/outcomes with keyed HMAC hashes for subject/source IP/user-agent; raw credentials, session/CSRF/invitation tokens and raw provider errors are not logged.
+- [x] CI negative tests verify unauthenticated API denial, anonymous page redirects, forged client-claim denial, missing/wrong/cross-origin CSRF rejection, read-only role denial, user-admin denial, finance-to-admin escalation denial, suspended-account denial, single-use invitation behavior, self-admin change denial, session revocation after role/status/entity-scope change, logout/revoke-all, absolute/idle expiry and 429 rate-limit behavior.
+- [x] Existing protected master-data contract tests continue to cover actual login, customer/catalog create/list, response/request IDs, pagination, input validation and exact-decimal serialization.
+- [x] Latest full CI passed MySQL 8 migrations 001–004, migration/seed idempotency, logical restore, health success/failure, OpenAPI validation, negative auth/API suite, UI foundation checks, lint, TypeScript and production build.
+- [x] **Phase 05 completion gate: PASSED** for the implemented authentication/RBAC foundation and current protected routes.
 
 Evidence:
-- CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38054060318
-- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38054060283
+- CI success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38072091391
+- Lockfile/bootstrap success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38072091101
 - Requirements and setup: `docs/phase-05-authentication-rbac.md`
 - Auth utilities: `src/lib/auth/session.ts`, `authorize.ts`, `csrf.ts`, `password.ts`, `rate-limit.ts`, `security-events.ts`
-- Request navigation gate and server validation: `src/proxy.ts`, `src/app/(workspace)/layout.tsx`
-- Auth routes: `src/app/api/v1/auth/**`, `src/app/api/v1/users/**`
-- Negative tests: `scripts/verify-master-data-api.mjs`
-- First administrator bootstrap: `scripts/bootstrap-admin.ts`
+- Navigation guard and server validation: `src/proxy.ts`, `src/app/(workspace)/layout.tsx`
+- Auth/admin routes: `src/app/api/v1/auth/**`, `src/app/api/v1/users/**`
+- Negative test suite: `scripts/verify-master-data-api.mjs`, invoked by `npm run auth:security-test`
+- First-admin bootstrap: `scripts/bootstrap-admin.ts`
 
-### Explicit production and future-feature boundaries
+### Separate production activation and future-feature gates
 
-- [ ] Run migration 004 and role-template seed on the intended Aiven database after verified backup/restore preflight.
-- [ ] Set a high-entropy `SESSION_SECRET` and the correct public `APP_ORIGIN` in the server environment before production sign-in is enabled.
-- [ ] Run `npm run auth:bootstrap-admin` once against the selected database with private environment values; assign no unapproved legal-entity scopes.
-- [ ] Implement/test later invoice, payment, quotation, approval, document/download, email, reminder, report/export routes with their own permission and legal-entity scope checks before exposing them.
-- [ ] Add OIDC/SSO, MFA, recovery and automated email delivery only if required by company policy; these are not represented as implemented.
+- [ ] Apply migration 004 and the reference role-template seed to the intended Aiven database after a verified backup/restore preflight. CI against disposable MySQL does not claim the live database has been migrated.
+- [ ] Set a high-entropy `SESSION_SECRET` and the exact public HTTPS `APP_ORIGIN` in the server environment before enabling production sign-in.
+- [ ] Keep `TRUST_PROXY_HEADERS` unset unless the deployment ingress strips inbound forwarded headers, writes trusted values and blocks direct application access. IP rate-limiting and source-IP logging require this explicit setup.
+- [ ] Run `npm run auth:bootstrap-admin` once against the selected target with private environment variables; assign no unapproved users or legal-entity scopes.
+- [ ] Implement and add scoped negative authorization tests for future invoice, quotation, payment, approval, PDF/document, email, reminder, reporting/export and audit-search handlers before exposing them.
+- [ ] Add SSO/MFA/password recovery/automated invitation delivery only if company policy requires them; they are not represented as implemented.
 
-The phase gate is complete for authentication and currently implemented surfaces. These deployment/future-work requirements are separate release gates, not a claim that planned finance endpoints are already live.
+The gate is complete for the implemented local-password/session/RBAC foundation and currently exposed protected surfaces. Production activation and planned finance APIs remain explicitly separate.
 ## Phase 06 — Company/brand/legal entity
 
 - [ ] Legal entities and brand mappings confirmed by the business owner.
