@@ -21,6 +21,30 @@ The command is intentionally strict: it refuses `DATABASE_SSL=false`, connects w
 
 Aiven supplies a per-service host and port and provides a project CA certificate in the service's connection information. If needed, download the CA and set `DATABASE_SSL_CA_PATH=/absolute/path/to/ca.pem` locally; deployment secret stores can provide PEM contents through `DATABASE_SSL_CA`. Do not set both. TLS certificate validation is always enabled when `DATABASE_SSL=true`; never disable certificate validation to work around certificate errors. See [Aiven's MySQL CLI connection guide](https://aiven.io/docs/products/mysql/howto/connect-from-cli).
 
+## Safe failure categories
+
+The verifier reports only one fixed category, never the underlying driver message. Use this table to troubleshoot locally:
+
+| Reported category | Check |
+|---|---|
+| `configuration` | Ensure `DATABASE_SSL=true`, valid integer port 1–65535, all required variables set, and only one CA setting configured. |
+| `local-env-or-ca-file` | Confirm the file exists and that `.env.local` / PEM file is readable. The PEM path must be absolute or relative to the project root. Do not paste its contents. |
+| `dns-resolution` | Copy the Aiven service hostname exactly from the authenticated service connection panel; use hostname only, without `https://`, quotes, or a port suffix. |
+| `network-or-ip-allowlist` | Confirm the Aiven service is running, use its service port, verify outbound connectivity, and add the current client IP to the Aiven allowed IP ranges if the service uses an IP filter. |
+| `authentication-or-grants` | Re-enter the exact database username/password locally; confirm the account is active and has connect/query grants on the selected database. Avoid URL-encoding passwords manually in a plain password field. |
+| `database-name` | Copy the database name from Aiven's connection information; confirm the database exists and is spelled exactly. |
+| `tls-certificate-or-handshake` | Download the current CA PEM from the Aiven service's connection information and set `DATABASE_SSL_CA_PATH` to its absolute path. Keep `rejectUnauthorized=true`; never bypass certificate checks. |
+| `tls-or-query-verification` | Confirm the account can run `SELECT 1`, and that the server session reports an active TLS cipher. Check Aiven's connection mode and endpoint. |
+| `unclassified` | Re-check the above without exposing credentials. If still failing, inspect the redacted category only and consult Aiven service events/support; don't enable raw error output in shared logs. |
+
+To inspect which variables are present without printing values, run:
+
+```bash
+node -e 'for (const k of ["DATABASE_HOST","DATABASE_PORT","DATABASE_NAME","DATABASE_USER","DATABASE_PASSWORD","DATABASE_SSL","DATABASE_SSL_CA_PATH","DATABASE_SSL_CA"]) console.log(k + "=" + (process.env[k] ? "SET" : "MISSING"))'
+```
+
+That command checks the shell environment only, not `.env.local`. Do not use `cat .env.local`, `env`, `printenv`, or shell tracing such as `set -x` for troubleshooting.
+
 ## Apply pending migrations
 
 Against a known, disposable database first:
