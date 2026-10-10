@@ -426,8 +426,11 @@ export function ConfirmDialog({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const busyRef = useRef(busy);
   const onCloseRef = useRef(onClose);
-  busyRef.current = busy;
-  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    busyRef.current = busy;
+    onCloseRef.current = onClose;
+  }, [busy, onClose]);
 
   useEffect(() => {
     if (!open) return;
