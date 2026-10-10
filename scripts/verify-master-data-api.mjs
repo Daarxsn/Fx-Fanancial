@@ -108,6 +108,7 @@ async function login(user) {
   assert.ok(Array.isArray(result.body.data.user.roles));
   assert.ok(Array.isArray(result.body.data.user.permissions));
   assert.ok(jar.get("fx_session"));
+  assert.equal(JSON.stringify(result.body).includes(jar.get("fx_session")), false, "raw session token must never appear in response JSON");
   const rawHeaders = result.response.headers.getSetCookie?.() ?? [result.response.headers.get("set-cookie") ?? ""];
   const sessionHeader = rawHeaders.find((item) => item.startsWith("fx_session=")) ?? "";
   const csrfHeader = rawHeaders.find((item) => item.startsWith("fx_csrf=")) ?? "";
@@ -140,6 +141,13 @@ try {
 
   const anonymousList = await expectStatus(call("/api/v1/customers"), 401, "unauthenticated customer reads must be denied");
   assert.equal(anonymousList.body.error.code, "UNAUTHENTICATED");
+
+  for (const path of ["/", "/customers"]) {
+    const pageResponse = await fetch(new URL(path, baseUrl), { redirect: "manual", cache: "no-store" });
+    assert.ok([307, 308].includes(pageResponse.status), `anonymous workspace page ${path} must redirect to sign-in`);
+    const redirectTarget = pageResponse.headers.get("location");
+    assert.ok(redirectTarget && new URL(redirectTarget, baseUrl).pathname === "/login", `anonymous workspace page ${path} redirects to /login`);
+  }
   const forgedPayload = Buffer.from(JSON.stringify({
     userId: staff.userId, email: staff.email, permissions: ["users:manage", "customers:write"],
     legalEntityIds: ["all"], expiresAt: Math.floor(Date.now() / 1000) + 3600,
@@ -262,6 +270,28 @@ try {
   assert.equal(revokedAll.response.status, 200);
   const afterRevokeAll = await call("/api/v1/customers", { headers: { Cookie: cookieHeader(revokeSession.jar) } });
   assert.equal(afterRevokeAll.response.status, 401, "revoke-all invalidates existing session tokens");
+
+  const absoluteExpiryUser = await seedUser("auditor", "absolute-expiry-" + suffix + "@example.invalid", "ACTIVE", "Absolute Expiry Password #5!");
+  const absoluteExpirySession = await login(absoluteExpiryUser);
+  const [absoluteSessionRows] = await db.execute(
+    "SELECT id FROM auth_sessions WHERE user_id=? AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1",
+    [absoluteExpiryUser.userId],
+  );
+  assert.equal(absoluteSessionRows.length, 1);
+  await db.execute("UPDATE auth_sessions SET expires_at=DATE_SUB(NOW(3), INTERVAL 1 SECOND) WHERE id=?", [absoluteSessionRows[0].id]);
+  const absoluteExpired = await expectStatus(call("/api/v1/customers", {}, absoluteExpirySession.jar), 401, "absolute session expiry is enforced");
+  assert.equal(absoluteExpired.body.error.code, "UNAUTHENTICATED");
+
+  const idleExpiryUser = await seedUser("auditor", "idle-expiry-" + suffix + "@example.invalid", "ACTIVE", "Idle Expiry Password #5!");
+  const idleExpirySession = await login(idleExpiryUser);
+  const [idleSessionRows] = await db.execute(
+    "SELECT id FROM auth_sessions WHERE user_id=? AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1",
+    [idleExpiryUser.userId],
+  );
+  assert.equal(idleSessionRows.length, 1);
+  await db.execute("UPDATE auth_sessions SET last_seen_at=DATE_SUB(NOW(3), INTERVAL 31 MINUTE) WHERE id=?", [idleSessionRows[0].id]);
+  const idleExpired = await expectStatus(call("/api/v1/customers", {}, idleExpirySession.jar), 401, "idle session expiry is enforced");
+  assert.equal(idleExpired.body.error.code, "UNAUTHENTICATED");
 
   const rateCsrf = await getCsrf();
   for (let attempt = 0; attempt < 5; attempt++) {
