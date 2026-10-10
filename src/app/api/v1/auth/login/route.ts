@@ -6,7 +6,7 @@ import { pool } from "@/lib/db/pool";
 import { assertCsrf } from "@/lib/auth/csrf";
 import { verifyPassword } from "@/lib/auth/password";
 import { consumeRateLimit, clearEmailRateLimit } from "@/lib/auth/rate-limit";
-import { requestSecurityContext, writeSecurityEvent } from "@/lib/auth/security-events";
+import { hashSecurityIdentifier, requestSecurityContext, writeSecurityEvent } from "@/lib/auth/security-events";
 import {
   csrfCookieName, csrfCookieOptions, newSessionSecret, resolveSessionToken,
   sessionCookieName, sessionCookieOptions, hashSessionToken,
@@ -108,8 +108,8 @@ export async function POST(request: NextRequest) {
           user.id,
           tokenHash,
           csrfHash,
-          context.sourceIp ? createHash("sha256").update(context.sourceIp).digest("hex") : null,
-          context.userAgent ? createHash("sha256").update(context.userAgent).digest("hex") : null,
+          hashSecurityIdentifier(context.sourceIp),
+          hashSecurityIdentifier(context.userAgent),
         ],
       );
       await connection.execute("UPDATE app_users SET last_login_at = NOW(3) WHERE id = ?", [user.id]);
