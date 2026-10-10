@@ -50,6 +50,8 @@ Evidence:
 - [x] Explicit rule that POS, Digitech and Coworks are brand/business-line labels only until the business confirms mappings; no brand is assumed to be a legal entity or GST registration.
 - [x] Proposed defaults are labelled as proposals; technical INR schema default is not treated as approved business policy.
 - [x] Traceability matrix added in `docs/phase-02-feature-traceability.md`, with requirement IDs BR-001–BR-096, observable acceptance criteria, verification methods and owner/dependency.
+- [x] Focused decision and approval packet added at `docs/phase-02-signoff-packet.md`; it collects 12 policy decisions, required evidence, approver roles and sign-off statements.
+- [x] Public product evidence reviewed and kept separate from legal/tax evidence; official CBIC/GST references linked in the requirements document.
 - [x] Unresolved business, finance, tax/legal and security decisions captured in the approval register with fail-safe behavior.
 - [ ] **Formal completion gate:** authorized business owner approves requirements revision 1.0.
 - [ ] Finance/accounting owner approves financial policies and tax-rule requirements within their remit; tax/legal review completed where required.
