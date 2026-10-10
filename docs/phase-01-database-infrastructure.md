@@ -13,16 +13,17 @@
 
 ## Automated verification evidence
 
-CI at commit `a09e0ce70edadc748ea8f86032245d812e2ea1ad` passed all of the following:
+CI at commit `1f5aa08189c4bde09ac0d2a32e142a0c577ae6e5` passed all of the following:
 - Gitleaks history scan.
 - Fresh MySQL 8.0 service: migrations 001 and 002 applied; migration command rerun to test idempotency.
 - Reference seed run twice and exact counts verified (2 migration rows, 22 permission definitions, 7 role definitions).
 - Deliberately closed-port check confirms the TLS verifier fails safely and does not print raw network/credential diagnostics.
+- Runtime health endpoint tests return 200 for a reachable MySQL service and generic 503 for an unavailable service, without raw diagnostics.
 - Logical database dump restored into a separate disposable database; source/restored base-table counts and migration ledger checked.
 - Lint, TypeScript and production build.
 
-Run: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38029874336  
-Lockfile workflow: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38029874322
+Run: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38030068615  
+Lockfile workflow: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38030068593
 
 These automated checks prove schema/seed/restore mechanics in a disposable MySQL 8 service. They do not prove connection to the user's live Aiven service or provider-managed backup retention.
 
