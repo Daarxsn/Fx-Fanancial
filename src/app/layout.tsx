@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   },
   description: "Internal finance workspace for Falchion Xeniaa.",
   robots: { index: false, follow: false },
+  referrer: "no-referrer",
 };
 
 export default function RootLayout({
