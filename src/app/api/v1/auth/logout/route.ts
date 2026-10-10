@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    await assertCsrf(request, { checkSession: false });
+    await assertCsrf(request);
     const session = await getSession();
     const context = requestSecurityContext(request);
     if (session) {
