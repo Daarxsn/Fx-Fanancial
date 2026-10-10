@@ -36,7 +36,11 @@ export async function POST(request: NextRequest) {
     const parsed = loginSchema.parse(await request.json());
     const context = requestSecurityContext(request);
     const emailLimit = await consumeRateLimit("EMAIL", parsed.email, 5);
-    const ipLimit = await consumeRateLimit("IP", context.sourceIp ?? "unknown-source", 20);
+    // Do not trust arbitrary X-Forwarded-For values as client IPs. If no trusted proxy
+    // is configured, email-based throttling remains active and the IP bucket is skipped.
+    const ipLimit = context.sourceIp
+      ? await consumeRateLimit("IP", context.sourceIp, 20)
+      : { allowed: true, retryAfterSeconds: 0 };
     if (!emailLimit.allowed || !ipLimit.allowed) {
       await writeSecurityEvent(pool, {
         eventType: "auth.login.rate_limited",
