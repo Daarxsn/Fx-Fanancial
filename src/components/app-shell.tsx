@@ -79,6 +79,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (mobileOpen) {
+      mobileWasOpen.current = true;
       const previousOverflow = document.body.style.overflow;
       document.body.style.overflow = "hidden";
       window.requestAnimationFrame(() => document.querySelector<HTMLAnchorElement>("#primary-navigation a")?.focus());
