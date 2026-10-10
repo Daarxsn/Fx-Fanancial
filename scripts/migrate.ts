@@ -3,6 +3,9 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import mysql from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
+import { loadProjectEnv } from "./load-env";
+
+loadProjectEnv();
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -91,9 +94,10 @@ async function main() {
   }
 }
 
-main().catch((error: unknown) => {
-  // Print only a controlled message. The mysql error object may contain infrastructure details.
-  const message = error instanceof Error ? error.message : "Unknown migration error";
-  console.error(`Migration failed: ${message}`);
+main().catch(() => {
+  // Driver errors can reveal hostnames, database names, or infrastructure details.
+  console.error(
+    "Migration failed. Check required DATABASE_* settings, TLS configuration, database grants, and migration SQL. Raw database diagnostics are intentionally suppressed.",
+  );
   process.exitCode = 1;
 });
