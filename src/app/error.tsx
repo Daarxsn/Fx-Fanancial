@@ -18,7 +18,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
       <p>Your work hasn’t been changed by this display error. Retry the view or return to the overview.</p>
       <div className="system-state-page__actions">
         <Button onClick={reset}>Try again</Button>
-        <Button variant="secondary"><a href="/">Back to overview</a></Button>
+        <a className="button button--secondary" href="/">Back to overview</a>
       </div>
     </div>
   );
