@@ -27,17 +27,16 @@ Lockfile workflow: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38030068
 
 These automated checks prove schema/seed/restore mechanics in a disposable MySQL 8 service. They do not prove connection to the user's live Aiven service or provider-managed backup retention.
 
-## The outstanding completion gate
+## Live Aiven completion-gate evidence
 
-The requested phase definition explicitly requires a real Aiven query over verified TLS. This cannot be truthfully inferred from CI's disposable database. After pulling the latest changes and verifying the Aiven values in the ignored local `.env.local`, run:
+On 2026-10-10, the developer ran `npm run db:verify` against the configured Aiven service. It returned:
 
-```bash
-npm run db:verify
-```
+- `PASS: SELECT 1 succeeded and MySQL reports an active TLS cipher.`
+- `Certificate verification was enabled (rejectUnauthorized=true).`
 
-A successful run prints a pass message stating that `SELECT 1` succeeded and the server reported an active TLS cipher. Certificate verification is enabled. The script suppresses raw driver diagnostics so hosts, database names, account names, and credentials are not printed. If needed, set `DATABASE_SSL_CA_PATH` to the CA PEM downloaded from the authenticated Aiven Console, or `DATABASE_SSL_CA` in a protected deployment environment. Never disable certificate validation to work around errors.
+This verifies that a real query succeeded and MySQL reported an active TLS cipher while certificate verification remained enabled. The verifier did not print connection credentials or raw driver diagnostics.
 
-**Phase 01 is not 100% signed off until that command succeeds against the real Aiven service.** Do not share `.env.local`, passwords, connection URIs, CA private keys (if any), or raw logs.
+**Phase 01's specified completion gate has passed.** Keep the CA PEM and `.env.local` private; never disable certificate validation to work around TLS errors.
 
 ## Backup, access and cost readiness
 
