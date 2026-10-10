@@ -63,11 +63,11 @@ npm run db:seed:reference
 npm run db:seed:reference
 ```
 
-This seed is idempotent and creates permission and role definitions only. It creates no user accounts and grants no permissions to roles; assign grants only after approval of the access-control policy. Reference seeding is blocked in production by default.
+This seed creates the 22 permission definitions and seven named role definitions. On the first run only, if `role_permissions` is empty, it assigns reviewed least-privilege permission templates to those role definitions (53 mappings). It does not create user accounts, assign roles to users, or grant legal-entity scopes. It never overwrites a non-empty/customized role-permission mapping set on rerun. Reference seeding is blocked in production by default unless explicitly enabled; run it only in the intended target after reviewing the grants.
 
 ## Test evidence and scope
 
-CI runs migrations 001–003 against a fresh disposable MySQL 8 instance, repeats the migration and seed commands, validates all three migration-ledger records and reference seed counts, asserts the deliberately broken connection path fails without printing connection details, and restores a logical dump into a separate database to compare base-table and migration-ledger counts.
+CI runs migrations 001–004 against a fresh disposable MySQL 8 instance, repeats the migration and seed commands, validates all four migration-ledger records, the 22 permission definitions, seven role definitions and 53 baseline role-permission mappings, asserts the deliberately broken connection path fails without printing connection details, and restores a logical dump into a separate database to compare base-table and migration-ledger counts.
 
 CI's disposable, non-TLS database proves schema compatibility and operational mechanics; it does not prove connectivity to the live Aiven instance, CA/hostname verification, managed-provider backup retention, or real production restoration.
 
