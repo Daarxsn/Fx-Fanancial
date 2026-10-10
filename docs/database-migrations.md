@@ -4,7 +4,7 @@
 
 - Install with `npm ci` under Node.js 24.
 - Local CLI scripts load `.env.local` first and then `.env` without replacing variables already supplied by the shell. Real values belong only in ignored `.env.local` or deployment secret stores.
-- Required variables: `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_SSL`.
+- Required variables: `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_SSL`. If the provider CA is not in the Node.js system trust store, set exactly one of `DATABASE_SSL_CA_PATH` (local PEM file path) or `DATABASE_SSL_CA` (PEM contents in a protected deployment environment). Never commit the CA file or private database credentials.
 - Production must set `DATABASE_SSL=true`. The runtime pool, migration runner and seed script require TLS in production and validate server certificates.
 - Use a dedicated development/integration database. Never point the migration or seed scripts at production during development.
 - Migrations use MySQL multi-statements. MySQL DDL is not generally transactional; a failure can leave a partially applied migration. Stop, inspect the schema, restore from a verified backup or follow an approved repair procedure, then continue. Never edit an already-applied migration; add a new numbered migration.
@@ -19,7 +19,7 @@ npm run db:verify
 
 The command is intentionally strict: it refuses `DATABASE_SSL=false`, connects with `rejectUnauthorized: true`, performs `SELECT 1`, and checks that MySQL reports a non-empty `Ssl_cipher`. Success prints only a pass statement and TLS verification setting. Failure prints a generic error to avoid leaking hosts, account names, or database details. The Aiven TLS completion gate is not met until this command actually passes against the configured Aiven service.
 
-Aiven supplies a per-service host and port and provides a project CA certificate in the service's connection information. Use the CA/hostname validation supported by the Node MySQL client and never disable certificate validation to work around certificate errors. See [Aiven's MySQL CLI connection guide](https://aiven.io/docs/products/mysql/howto/connect-from-cli).
+Aiven supplies a per-service host and port and provides a project CA certificate in the service's connection information. If needed, download the CA and set `DATABASE_SSL_CA_PATH=/absolute/path/to/ca.pem` locally; deployment secret stores can provide PEM contents through `DATABASE_SSL_CA`. Do not set both. TLS certificate validation is always enabled when `DATABASE_SSL=true`; never disable certificate validation to work around certificate errors. See [Aiven's MySQL CLI connection guide](https://aiven.io/docs/products/mysql/howto/connect-from-cli).
 
 ## Apply pending migrations
 
