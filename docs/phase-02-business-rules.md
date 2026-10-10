@@ -27,6 +27,12 @@ These concepts MUST remain separate:
 5. **User:** human account with explicit permissions and legal-entity scope.
 6. **Invoice, quotation, payment and document:** distinct records linked by stable IDs, not merely names or labels.
 
+### Public evidence reviewed (context only, not tax/legal proof)
+
+The public Falchion Xeniaa website markets a restaurant-management/POS suite under the Falchion Xeniaa name and lists POS as a product capability ([official website](https://falchionxeniaa.com/), [contact page](https://falchionxeniaa.com/contact-us/)). That supports treating “POS” as a public product/business-line label for requirements purposes, but it does **not** establish which legal person contracts with customers, holds a GSTIN, issues a specific invoice, or whether every module/brand is an independent legal entity. The reviewed public pages did not establish the legal/tax relationship of “Digitech” or “Coworks” to a legal billing entity. Do not infer that relationship from product branding, company marketing or absence of public results.
+
+Before activation, the owner must verify the candidate legal entity name and corporate identifiers directly against authoritative MCA/company records and verify every relevant GSTIN/status and e-invoice applicability through current official GST systems or the appointed tax professional. Public marketing pages and third-party company directories are not substitutes for those records.
+
 ### Entity relationship rules
 
 - POS, Digitech and Coworks MUST initially be treated as brand/business-line labels only. No legal-entity or GST-registration mapping is activated without business confirmation.
