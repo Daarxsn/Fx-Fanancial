@@ -27,15 +27,17 @@ export async function consumeRateLimit(
       [key, scope],
     );
     const [rows] = await connection.execute<(RowDataPacket & {
-      window_started_at: Date; attempt_count: number; blocked_until: Date | null;
+      window_started_ms: number; attempt_count: number; blocked_until_ms: number | null;
     })[]>(
-      "SELECT window_started_at, attempt_count, blocked_until FROM auth_rate_limits WHERE bucket_key = ? FOR UPDATE",
+      "SELECT CAST(UNIX_TIMESTAMP(window_started_at) * 1000 AS UNSIGNED) AS window_started_ms, " +
+      "attempt_count, CAST(UNIX_TIMESTAMP(blocked_until) * 1000 AS UNSIGNED) AS blocked_until_ms " +
+      "FROM auth_rate_limits WHERE bucket_key = ? FOR UPDATE",
       [key],
     );
     const bucket = rows[0];
     const now = Date.now();
-    const windowStarted = new Date(bucket.window_started_at).getTime();
-    const blockedUntil = bucket.blocked_until ? new Date(bucket.blocked_until).getTime() : 0;
+    const windowStarted = Number(bucket.window_started_ms);
+    const blockedUntil = bucket.blocked_until_ms ? Number(bucket.blocked_until_ms) : 0;
     if (blockedUntil > now) {
       await connection.commit();
       return { allowed: false, retryAfterSeconds: Math.ceil((blockedUntil - now) / 1000) };
