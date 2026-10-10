@@ -14,6 +14,7 @@
     "auth:bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
     "api:validate": "node scripts/validate-openapi.mjs",
     "api:contract-test": "node scripts/verify-master-data-api.mjs",
+    "auth:security-test": "node scripts/verify-master-data-api.mjs",
     "ui:validate": "node scripts/validate-ui-foundation.mjs"
   },
   "dependencies": {
