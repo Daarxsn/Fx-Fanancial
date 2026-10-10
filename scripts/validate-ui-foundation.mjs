@@ -8,6 +8,7 @@ const sources = {
   overview: await readFile("src/app/(workspace)/page.tsx", "utf8"),
   sectionPage: await readFile("src/app/(workspace)/[section]/page.tsx", "utf8"),
   workspaceLayout: await readFile("src/app/(workspace)/layout.tsx", "utf8"),
+  proxy: await readFile("src/proxy.ts", "utf8"),
   loading: await readFile("src/app/loading.tsx", "utf8"),
   error: await readFile("src/app/error.tsx", "utf8"),
   notFound: await readFile("src/app/not-found.tsx", "utf8"),
@@ -29,6 +30,7 @@ const checks = [
   ["route-level loading, error and not-found experiences exist", sources.loading.includes("LoadingState") && sources.error.includes('role="alert"') && sources.notFound.includes("This page isn’t here.")],
   ["unimplemented financial work is not shown as live data", sources.overview.includes("No activity is being shown") && sources.sectionPage.includes("not implemented yet")],
   ["workspace pages require a server-side active session", sources.workspaceLayout.includes("getSession()") && sources.workspaceLayout.includes('redirect("/login")')],
+  ["cookie-less workspace navigation is redirected before rendering", sources.proxy.includes('request.cookies.get("fx_session")') && sources.proxy.includes('NextResponse.redirect(new URL("/login", request.url))') && sources.proxy.includes('pathname.startsWith("/api/")')],
 ];
 
 for (const [name, pass] of checks) {

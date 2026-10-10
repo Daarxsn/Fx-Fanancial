@@ -1,6 +1,6 @@
 # Phase 05 — Authentication and Access Control
 
-**Status:** Implementation in progress pending current CI evidence. The repository now contains a local-password sign-in flow, opaque database-backed sessions, CSRF checks, invitations/activation, role-based permissions, user administration, revocation, rate limits and security events. Do not call the release gate complete until the negative authorization suite passes on the latest commit and production configuration is reviewed.
+**Status:** **Phase 05 acceptance gate PASSED** for the implemented local-password authentication and current protected API surface on commit `c658017901f5b8b54d34eadabdf2e9ac32bbf39a`. CI and lockfile/bootstrap both passed, including negative authorization, idle/absolute expiry, revocation, migration 004, OpenAPI validation, lint, TypeScript and production build. This does not imply that future business APIs, SSO/MFA, automated invitation delivery or a live Aiven rollout are complete.
 
 ## 1. Implemented authentication strategy and limits
 
@@ -34,7 +34,7 @@ External OIDC/SSO, MFA/step-up, password reset/recovery, automated invitation em
 ## 3. CSRF and same-origin protection
 
 - Cookie-authenticated unsafe requests require an `X-CSRF-Token` header matching the readable, host-only `fx_csrf` cookie.
-- State-changing requests must include an `Origin` or `Referer` whose origin matches the request origin; `Sec-Fetch-Site: cross-site` is rejected.
+- State-changing requests must include an `Origin` or `Referer` matching the expected origin; `Sec-Fetch-Site: cross-site` is rejected. `APP_ORIGIN` may pin the exact public origin (scheme and host, no path); in production it must use HTTPS. If unset, the checker compares the origin with the received `Host` and the first `X-Forwarded-Proto` value or request protocol. Behind a reverse proxy, set `APP_ORIGIN` to the public origin and allow forwarding headers only from the trusted proxy.
 - For an authenticated request, the CSRF token hash must also match the hash stored against the current server-side session.
 - CSRF validation is applied to login, logout, invitation activation, session revocation, invitation/user administration and customer/catalog mutations. Authentication/authorization still runs independently after CSRF validation.
 - CSRF rejections return a generic client error. Server diagnostics, when enabled in logs, contain only a fixed reason category, never the actual cookie/header token.
@@ -109,6 +109,7 @@ Do not store these in a tracked `.env` file, paste them into chat, or include th
 The CI API contract test was upgraded from client-signed permission claims to database-created test users with seeded role grants and actual sign-in. It is designed to assert:
 
 - Unauthenticated customer reads are denied with 401.
+- Anonymous workspace page requests redirect to sign-in before content is served.
 - A forged, client-claimed signed permission payload without a matching database session cannot authenticate.
 - Authenticated writes without a CSRF header are rejected.
 - An invoice-creator role can use allowed master-data routes.
@@ -117,10 +118,11 @@ The CI API contract test was upgraded from client-signed permission claims to da
 - Valid invitation activation works; replaying its token fails.
 - Role changes invalidate old sessions; suspended accounts lose access.
 - Logout invalidates replayed old cookies; revoke-all invalidates existing sessions.
+- Idle and absolute session expiry both deny a previously valid cookie.
 - Account rate limits return 429 with `Retry-After`.
 - Existing customer/catalog request validation, response envelopes, pagination and exact-decimal serialization remain covered.
 
-**Completion gate is pending until** current CI passes this test suite plus OpenAPI validation, MySQL 8 migration/seed/restore, UI validation, lint, TypeScript and production build on the same revision. After CI succeeds, keep the test evidence link and commit SHA here and in the Phase 00–06 tracker.
+**Completion gate: PASSED** for the implemented authentication and currently exposed protected surfaces. Evidence: [CI run 38054060318](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38054060318) and [lockfile/bootstrap run 38054060283](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38054060283), both on `c658017901f5b8b54d34eadabdf2e9ac32bbf39a`.
 
 ## 9. Remaining production decisions and limitations
 
@@ -131,4 +133,4 @@ The CI API contract test was upgraded from client-signed permission claims to da
 - Assign no actual users or entity scopes until the authorized business owner approves the staff roster, roles and legal-entity mappings.
 - The permission and account tables exist, but each future invoice/payment/file/export/report handler must independently enforce permission and entity scope before that feature can ship.
 
-Do not call Phase 05 fully accepted until its negative authorization tests pass against the current code revision. Do not confuse automated CI success with production SSO/MFA approval, mail configuration, or a live Aiven migration.
+Phase 05 is accepted for the local-password/session/RBAC foundation and its current protected surfaces. Future invoice/payment/document/download/export routes must add entity-scope and negative authorization tests when implemented. CI success is not production SSO/MFA approval, mail configuration, approval of actual user/entity assignments, or a live Aiven migration.

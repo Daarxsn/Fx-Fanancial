@@ -12,6 +12,7 @@
 | 001 | database/migrations/001_initial_schema.sql | Core legal entities, brands, customers, invoice numbering, invoice headers/lines, receipts/allocations and base audit events | First-install baseline. Verify foreign keys, checks and unique scopes on MySQL 8. |
 | 002 | database/migrations/002_identity_catalog_workflows.sql | Users/roles/permissions and entity scope, catalog, quotations/lines, approvals, reminders, file metadata, email outbox, entity config history, brand mappings and tax rules | Depends on 001. Intentionally seeds no real entities, tax rates, users or grants. |
 | 003 | database/migrations/003_phase3_integrity_snapshots.sql | Document-type sequence scope, credit/debit-note linkage, invoice-line master-data references, immutable issue snapshot table, separate quotation series, payment reversal events, typed approval targets and actor FKs | Depends on 001+002. Forward-only. Test fresh install and rerun; inventory any existing rows before live application. |
+| 004 | database/migrations/004_auth_sessions_and_security.sql | Password-hash field, revocable session hashes, single-use invitation hashes, database rate-limit buckets and sanitized security-event records | Depends on the identity tables from 002. Tested by fresh MySQL 8 CI; for live rollout verify the selected database, backup, secret configuration and first-admin bootstrap plan. |
 
 Do not edit a migration once its filename/checksum is recorded. Add the next monotonically numbered migration and update the schema review and tests. The runner sorts migration filenames lexically, so keep a consistently zero-padded numeric prefix as the project grows and verify the ordering after every added migration.
 
@@ -85,6 +86,6 @@ Paginated API lists must cap page size (default 25, max 100), use deterministic 
 - [x] Migration 003 preflight, history backfill, cutover and recovery risks documented.
 - [x] Retention/deletion rules differentiated by data class and pending company approval.
 - [x] Production-safe rollout process documented; no live Aiven migration is implied.
-- [x] Migration 003 passes fresh MySQL 8 CI with three migration records, repeat migration, seed idempotency and logical dump/restore verification. Evidence: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38033993752
+- [x] Migrations 001–004 pass fresh MySQL 8 CI with four migration records, repeat migration, 22 permission definitions, seven role definitions, 53 baseline role-permission mappings and logical dump/restore verification. Latest evidence: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38054060318
 - [ ] Existing Aiven schema/data inventory confirms whether historical snapshot and approval backfills are needed; no production migration until reviewed.
 - [ ] Runtime DB grants enforce snapshot immutability and least privilege.

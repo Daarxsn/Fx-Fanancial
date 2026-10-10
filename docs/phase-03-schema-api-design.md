@@ -41,7 +41,7 @@
 
 ## 3. Data model — table catalogue
 
-The current migration set creates 28 application tables plus the schema_migrations ledger table.
+The current migration set creates 32 application tables plus the schema_migrations ledger table. Migrations 001–003 establish the finance/domain model; Phase 05 migration 004 adds four authentication/security tables.
 
 | Domain | Table(s) | Primary purpose |
 |---|---|---|
@@ -51,9 +51,9 @@ The current migration set creates 28 application tables plus the schema_migratio
 | Invoice | invoices, invoice_lines, invoice_issue_snapshots | Editable draft projection, line inputs and one immutable issue-time snapshot per issued invoice |
 | Quotation | quotations, quotation_lines | Separate proposal lifecycle and series, with conversion link to an invoice draft |
 | Receivables | payments, payment_allocations, payment_reversal_events | Separate receipt ledger, invoice allocation ledger and full-reversal audit event |
-| Identity/RBAC | app_users, app_roles, app_permissions, user_roles, role_permissions, user_legal_entity_access | Identity-provider subject mapping and explicit grants/scopes |
+| Identity/RBAC | app_users, app_roles, app_permissions, user_roles, role_permissions, user_legal_entity_access, auth_sessions, account_invitation_tokens | Credential identity, explicit grants/scopes, revocable sessions and one-time invitation activation |
 | Workflow and delivery | approval_requests, reminder_jobs, email_outbox, document_files | Typed approval targets, durable reminder/email jobs and private document metadata |
-| Audit | audit_events | Actor, action, resource, time, outcome, correlation and safe before/after details |
+| Audit and security | audit_events, security_events, auth_rate_limits | Business audit, sanitized authentication events and HMAC-keyed rate-limit buckets |
 | Migration metadata | schema_migrations | Applied migration filename/version, checksum and application timestamp |
 
 Detailed relationships and delete rules are documented in [Phase 03 Relationship Diagram](phase-03-relationship-diagram.md). The rollout/backfill plan is in [Phase 03 Migration and Retention Plan](phase-03-migration-and-retention-plan.md).
@@ -194,6 +194,7 @@ The immutable migration ledger is documented in [Phase 03 Migration and Retentio
 1. 001_initial_schema.sql — core billing entities, customers, invoice, lines, receipts, allocations and base audit.
 2. 002_identity_catalog_workflows.sql — identity/RBAC, catalog, quotations, approvals, reminders, file/email queue, configuration history and tax rules.
 3. 003_phase3_integrity_snapshots.sql — document-type series scope, source-invoice linkage, line references, issue snapshots, quotation sequence, payment reversal event, typed approval targets and actor FKs.
+4. 004_auth_sessions_and_security.sql — password hash field, revocable hashed sessions, invitation tokens, rate-limit buckets and sanitized security-event log.
 
 Never edit an applied migration. MySQL DDL is not assumed atomic. CI uses a fresh MySQL 8 service, runs all migrations and reruns migration/seed commands, verifies the ledger and test restore. A real existing database needs preflight and backup. Migration 003 does not backfill snapshots for historical issued invoices or map historic polymorphic approval targets to typed targets; inspect and backfill with an approved, restartable, audited process before activating dependent features. Do not apply unreviewed migrations to production merely because CI passes.
 

@@ -79,3 +79,15 @@ CI's disposable, non-TLS database proves schema compatibility and operational me
 - Verify the managed backup schedule/retention in the provider console and complete a separate-service restoration drill.
 - Apply least-privilege runtime/migration/backup access policies.
 - Review the current provider pricing and confirm budget before subscribing to a paid tier.
+
+
+## Authentication runtime configuration
+
+Migration 004 enables the local-password/session model. Before enabling sign-in in a deployment:
+
+- Set `SESSION_SECRET` as a server-only environment variable to at least 32 high-entropy characters (recommended generation: `openssl rand -hex 32`). Do not commit it, print it in logs, or expose it to client code. Login rate-limit bucket hashes and hashed security-event identifiers depend on this secret.
+- Set `APP_ORIGIN` to the exact public origin (scheme plus host, with no path), such as the deployment's actual HTTPS origin. It must use HTTPS in production. The CSRF checker can derive the origin from `Host` and trusted `X-Forwarded-Proto` if omitted, but an explicit value is recommended behind a reverse proxy.
+- Run `npm run db:migrate`, then `npm run db:seed:reference` against the intentionally selected database. The reference seed creates role/permission definitions and baseline least-privilege role templates only on the first run when the role-permission mapping table is empty; it does not create real users or legal-entity assignments.
+- Create the initial administrator once via `npm run auth:bootstrap-admin` using `BOOTSTRAP_ADMIN_CONFIRM=CREATE_FIRST_ADMIN`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NAME` and `BOOTSTRAP_ADMIN_PASSWORD` in a private operator environment. The script refuses if any system-administrator assignment already exists.
+
+Migration/seed/bootstrap must be performed under the approved production change process after a backup and restore preflight. Do not paste passwords, invitation tokens, database credentials or `SESSION_SECRET` into tickets/chat or commit them to this repository.

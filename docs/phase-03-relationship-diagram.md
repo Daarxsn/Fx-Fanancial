@@ -36,6 +36,9 @@ erDiagram
   QUOTATIONS o|--o| INVOICES : converted_to
   CATALOG_ITEMS o|--o{ QUOTATION_LINES : source_reference
   INVOICES ||--o{ REMINDER_JOBS : reminder_jobs
+  APP_USERS ||--o{ AUTH_SESSIONS : owns
+  APP_USERS ||--o{ ACCOUNT_INVITATION_TOKENS : receives
+  APP_USERS o|--o{ SECURITY_EVENTS : actor
   APP_USERS ||--o{ USER_ROLES : has
   APP_ROLES ||--o{ USER_ROLES : assigned
   APP_ROLES ||--o{ ROLE_PERMISSIONS : contains
@@ -81,6 +84,8 @@ erDiagram
 7. `approval_requests` has typed `invoice_id` / `quotation_id` FKs in migration 003. The service must require exactly one typed target and ensure target and legal entity agree. Existing `resource_type/resource_id` remains only as a compatibility field while migration/backfill policy is reviewed.
 8. `document_files` and `email_outbox` currently use `resource_type/resource_id` polymorphic references for extensibility. These columns do not have a regular FK to every possible target. The service must validate target/resource scope, and future schema work should consider typed FKs or separate link tables.
 9. Audit actors now have an FK to `app_users`; null actor can be appropriate only for approved system-originated events and should be explained in the event metadata/policy. Secrets never belong in audit JSON.
+10. `auth_sessions` stores SHA-256 hashes of opaque session tokens and CSRF tokens, not raw tokens. Session lookup verifies revocation/expiry/idle window/account state and loads current RBAC assignments per request.
+11. `account_invitation_tokens` stores one-time token hashes and expiry/consumption/revocation state. `auth_rate_limits` stores HMAC bucket keys rather than raw email/IP/invitation values; `security_events` stores HMAC hashes for subject and source context.
 
 ## Delete/update policy
 
