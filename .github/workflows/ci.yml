@@ -158,7 +158,10 @@ jobs:
             sleep 2
           done
           test "$ready" = "true"
-          npm run api:contract-test
+          if ! npm run api:contract-test; then
+            cat "$RUNNER_TEMP/next-api-contract.log"
+            exit 1
+          fi
           kill "$server_pid" 2>/dev/null || true
           wait "$server_pid" 2>/dev/null || true
           trap - EXIT
