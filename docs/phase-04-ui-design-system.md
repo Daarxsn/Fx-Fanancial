@@ -65,6 +65,10 @@ Current route implementation is intentionally scoped:
 Implemented in `src/components/ui.tsx`:
 
 | Component | Behavior |
+| `TextField`, `SelectField`, `TextAreaField` | Labelled controls, hint/error descriptions, required state and `aria-invalid` support |
+| `FieldError` | Field-level validation message wired by described-by ID |
+| `DataTable` | Semantic table/caption, responsive horizontal scroller and loading/empty/error states |
+| `PaginationControls` | Bounded previous/next controls with accessible navigation label and range metadata |
 |---|---|
 | `Button`, `IconButton` | Shared variants/sizes, disabled state, icon labels and pressed/expanded state support |
 | `Card` | Standardized bordered surface and page section primitive |
@@ -96,13 +100,14 @@ Implemented styles and markup cover:
 
 `npm run ui:validate` checks required design tokens, dark/light mode support, root shell mounting, primary navigation semantics, mobile keyboard behavior, focus styling, responsive breakpoints, reduced-motion styling, shared feedback components and the root loading/error/not-found experiences. The normal CI workflow also runs OpenAPI validation, API/database integration checks, lint, TypeScript and production build.
 
-The static UI validation is a guardrail for code-level invariants; it does not replace manual visual review across actual browsers/devices or end-to-end testing of implemented business flows.
+The static UI validation is a guardrail for code-level invariants; it does not replace manual visual review across actual browsers/devices or end-to-end testing of implemented business flows. A manual browser/device review has not been performed in this pass; the code-level breakpoint and accessibility checks are automated.
 
 ## 6. Completion gate
 
 - [x] Visual language, typography, palette, spacing, icon set and shared component conventions implemented.
 - [x] Responsive application shell, navigation, top bar, breadcrumbs and page layouts implemented.
 - [x] Loading, empty, error, success/notice, toast and confirmation patterns implemented.
+- [x] Accessible form fields, field-level validation messages, responsive data-table primitive and pagination controls implemented.
 - [x] Light/dark theme works from the shared top bar and saves preference locally.
 - [x] Desktop/tablet/mobile breakpoints are implemented; narrow-screen navigation uses an accessible drawer.
 - [x] Keyboard skip link, visible focus, nav current state, modal focus trap/return and reduced-motion support implemented.
