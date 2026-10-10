@@ -1,7 +1,7 @@
 # Database backup, restoration, and access policy
 
 **Scope:** Falchion Invoice MySQL 8 / Aiven candidate deployment  
-**Status:** Operating policy proposed for implementation; restoration must be demonstrated on a disposable database before production sign-off.
+**Status:** Access/backup policy defined. CI demonstrated a logical dump/restore with synthetic MySQL 8 data on 2026-10-10; this does not prove provider-managed Aiven backup retention or a production recovery drill.
 
 ## 1. Data classification and access
 
