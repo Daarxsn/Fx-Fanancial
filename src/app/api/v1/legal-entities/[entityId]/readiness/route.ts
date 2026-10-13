@@ -16,6 +16,6 @@ export async function GET(_request:NextRequest,context:{params:Promise<{entityId
     try{entity=await loadEntity(conn,entityId);}finally{conn.release();}
     if(!entity)return jsonNoStore({error:{code:"NOT_FOUND",message:"Legal entity not found"}},404);
     const readiness=await readinessForEntity(entityId);
-    return jsonNoStore({data:readiness},readiness.ready?200:200);
+    return jsonNoStore({data:readiness});
   }catch(error){return apiError(error);}
 }
