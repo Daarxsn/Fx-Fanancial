@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
 import { requirePermissionForEntity } from "@/lib/auth/authorize";
+import { requireFinanceConfigurationApprover } from "@/lib/configuration/authorization";
 import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { recordAudit } from "@/lib/configuration/service";
@@ -18,7 +19,8 @@ export async function PATCH(request:NextRequest,context:{params:Promise<{configI
   const [rows]=await conn.execute<(RowDataPacket & {id:string;legal_entity_id:string;document_type:string;series_code:string;is_active:number;effective_from:Date;effective_until:Date|null;approval_reference:string|null})[]>(
    "SELECT id,legal_entity_id,document_type,series_code,is_active,effective_from,effective_until,approval_reference FROM invoice_numbering_configs WHERE id=? FOR UPDATE",[configId]);
   if(!rows.length){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Numbering configuration not found"}},404)}
-  const row=rows[0];const actor=await requirePermissionForEntity("settings:manage",row.legal_entity_id);
+  const row=rows[0];const scopedActor=await requirePermissionForEntity("settings:manage",row.legal_entity_id);
+  const actor=input.isActive?requireFinanceConfigurationApprover(scopedActor):scopedActor;
   if(input.isActive){
    if(!row.approval_reference){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_NOT_APPROVED",message:"An approved numbering configuration must include an approval reference."}},409)}
    const [entity]=await conn.execute<(RowDataPacket & {is_active:number})[]>("SELECT is_active FROM legal_entities WHERE id=?",[row.legal_entity_id]);
