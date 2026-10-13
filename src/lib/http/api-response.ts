@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { AuthorizationError } from "@/lib/auth/authorize";
 import { CsrfError } from "@/lib/auth/csrf";
-import { ConfigurationConflictError, ConfigurationNotReadyError } from "@/lib/configuration/service";
+import { ConfigurationConflictError, ConfigurationNotReadyError } from "@/lib/configuration/errors";
 
 type JsonRecord = Record<string, unknown>;
 
