@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
 import { requirePermission, requirePermissionForEntity } from "@/lib/auth/authorize";
+import { requireFinanceConfigurationApprover } from "@/lib/configuration/authorization";
 import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { numberingCreateSchema } from "@/lib/validation/configuration";
@@ -36,7 +37,8 @@ export async function POST(request:NextRequest){
  let conn:Awaited<ReturnType<typeof pool.getConnection>>|undefined;
  try{
   await assertCsrf(request);const input=numberingCreateSchema.parse(await request.json());
-  const actor=await requirePermissionForEntity("settings:manage",input.legalEntityId);
+  const scopedActor=await requirePermissionForEntity("settings:manage",input.legalEntityId);
+  const actor=input.activate?requireFinanceConfigurationApprover(scopedActor):scopedActor;
   conn=await pool.getConnection();await conn.beginTransaction();
   const [entities]=await conn.execute<(RowDataPacket & {is_active:number})[]>("SELECT is_active FROM legal_entities WHERE id=? FOR UPDATE",[input.legalEntityId]);
   if(!entities.length){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Legal entity not found"}},404)}
