@@ -20,6 +20,7 @@ export type LegalEntityRecord = RowDataPacket & {
 };
 
 export function canonicalJson(value: unknown): string {
+  if (value instanceof Date) return JSON.stringify(value.toISOString());
   if (Array.isArray(value)) return "[" + value.map(canonicalJson).join(",") + "]";
   if (value && typeof value === "object") {
     const record = value as Record<string, unknown>;
@@ -256,8 +257,14 @@ export async function captureDocumentConfigurationSnapshot(
       tax_setup_approval_reference,is_active FROM legal_entities WHERE id=? FOR UPDATE`, [input.legalEntityId]);
   const entity = entities[0];
   if (!entity || !entity.is_active) throw new ConfigurationNotReadyError("The legal entity does not exist or is inactive.");
-  if (entity.tax_setup_status === "UNCONFIGURED" || !entity.tax_setup_approval_reference) {
+  if (entity.tax_setup_status === "UNCONFIGURED" || !entity.tax_setup_approval_reference ||
+      !entity.tax_setup_approved_by || !entity.tax_setup_approved_at) {
     throw new ConfigurationNotReadyError("Tax setup has no recorded finance/tax decision.");
+  }
+  const address = jsonValue(entity.address_json);
+  if (!entity.legal_name.trim() || !/^[A-Z]{3}$/.test(entity.currency) ||
+      !address.line1 || !address.city || !address.postalCode || !address.countryCode || !entity.country_code) {
+    throw new ConfigurationNotReadyError("Legal supplier identity, registered address, country and currency must be complete.");
   }
   const [entityVersions] = await conn.execute<(RowDataPacket & { id: string; version_number: number; config_snapshot: unknown })[]>(
     `SELECT id,version_number,config_snapshot FROM legal_entity_config_versions
@@ -287,6 +294,9 @@ export async function captureDocumentConfigurationSnapshot(
     throw new ConfigurationNotReadyError("No approved tax rule is effective for the document date.");
   }
   const taxIds = [...new Set(input.taxRuleIds)];
+  if (entity.tax_setup_status === "APPROVED_NOT_APPLICABLE" && taxIds.length) {
+    throw new ConfigurationConflictError("Tax setup is approved as not applicable; the issued document cannot reference configured tax rules.");
+  }
   if (taxIds.length !== input.taxRuleIds.length) throw new ConfigurationConflictError("Duplicate tax-rule identifiers were supplied.");
   const effectiveById = new Map(effectiveTaxRows.map((row) => [row.id, row]));
   if (taxIds.some((id) => !effectiveById.has(id))) throw new ConfigurationNotReadyError("A selected tax rule is inactive, unapproved, out of date, or belongs to another legal entity.");
