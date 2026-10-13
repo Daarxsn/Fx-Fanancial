@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
-import { requirePermissionForEntity } from "@/lib/auth/authorize";
+import { requirePermission, requirePermissionForEntity } from "@/lib/auth/authorize";
 import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { numberingCreateSchema } from "@/lib/validation/configuration";
@@ -13,7 +13,7 @@ export const dynamic="force-dynamic";
 
 export async function GET(request:NextRequest){
  try{
-  const actor=await import("@/lib/auth/authorize").then(m=>m.requirePermission("settings:manage"));
+  const actor=await requirePermission("settings:manage");
   const scopes=[...new Set(actor.legalEntityIds)];
   if(!scopes.length)return jsonNoStore({data:[]});
   const entityId=request.nextUrl.searchParams.get("legalEntityId");
