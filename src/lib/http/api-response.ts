@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { AuthorizationError } from "@/lib/auth/authorize";
 import { CsrfError } from "@/lib/auth/csrf";
+import { ConfigurationConflictError, ConfigurationNotReadyError } from "@/lib/configuration/service";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -31,6 +32,14 @@ export function apiError(error: unknown) {
     message = error.code === "UNAUTHENTICATED"
       ? "Authentication required"
       : "You do not have permission to perform this action";
+  } else if (error instanceof ConfigurationNotReadyError) {
+    status = 409;
+    code = "CONFIGURATION_NOT_READY";
+    message = error.reason;
+  } else if (error instanceof ConfigurationConflictError) {
+    status = 409;
+    code = "CONFIGURATION_CONFLICT";
+    message = error.reason;
   } else if (error instanceof CsrfError) {
     // Fixed diagnostic category only; never log or return cookie/header values.
     console.warn("CSRF request rejected", { reason: error.reason });
