@@ -146,12 +146,15 @@ export async function readinessForEntity(legalEntityId: string) {
       WHERE legal_entity_id = ? AND is_active = TRUE AND approved_at IS NOT NULL AND approval_reference IS NOT NULL
         AND effective_from <= CURRENT_DATE() AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())`, [legalEntityId]);
   const hasRegistration = Number(registrationRows[0]?.n ?? 0) > 0;
-  const [registrationRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
-    `SELECT COUNT(*) AS n FROM legal_entity_tax_registrations
-      WHERE legal_entity_id = ? AND is_active = TRUE AND approved_at IS NOT NULL AND approval_reference IS NOT NULL
-        AND effective_from <= CURRENT_DATE() AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())`, [legalEntityId]);
-  const hasRegistration = Number(registrationRows[0]?.n ?? 0) > 0;
   checks.push({ key: "taxRules", passed: entity.tax_setup_status === "APPROVED_NOT_APPLICABLE" || (entity.tax_setup_status === "APPROVED_CONFIGURED" && hasTax && hasRegistration), message: "Approved tax setup requires an effective approved tax registration and tax rule, or an explicitly approved not-applicable decision." });
+  if (entity.default_tax_code) {
+    const [defaultTaxRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
+      `SELECT COUNT(*) AS n FROM tax_rules WHERE legal_entity_id = ? AND tax_code = ? AND is_active = TRUE
+        AND approved_at IS NOT NULL AND approval_reference IS NOT NULL AND effective_from <= CURRENT_DATE()
+        AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())`, [legalEntityId, entity.default_tax_code]);
+    checks.push({ key: "defaultTaxCode", passed: Number(defaultTaxRows[0]?.n ?? 0) === 1,
+      message: "The configured default tax code must resolve to exactly one active, approved, effective tax rule." });
+  }
   const [numberingRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     `SELECT COUNT(*) AS n FROM invoice_numbering_configs
       WHERE legal_entity_id = ? AND brand_id IS NULL AND document_type = 'INVOICE' AND is_active = TRUE AND effective_from <= CURRENT_DATE()
