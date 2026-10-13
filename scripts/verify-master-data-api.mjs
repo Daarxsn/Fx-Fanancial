@@ -26,6 +26,103 @@ function hashPassword(password) {
   });
 }
 
+const EXPECTED_PERMISSION_KEYS = [
+  "customers:read",
+  "customers:write",
+  "customers:archive",
+  "catalog:read",
+  "catalog:write",
+  "catalog:archive",
+  "invoices:read",
+  "invoices:draft:create",
+  "invoices:draft:update",
+  "invoices:issue",
+  "invoices:cancel",
+  "payments:read",
+  "payments:record",
+  "payments:reverse",
+  "quotations:read",
+  "quotations:write",
+  "approvals:read",
+  "approvals:decide",
+  "reports:read",
+  "audit:read",
+  "users:manage",
+  "settings:manage"
+];
+
+// Exact CI baseline. Catch accidental permission additions/removals without changing the production
+// rule that an already-customized role mapping is not overwritten by a repeat seed.
+const EXPECTED_ROLE_GRANTS = {
+  "system_admin": [
+    "users:manage",
+    "settings:manage",
+    "audit:read"
+  ],
+  "finance_admin": [
+    "customers:read",
+    "customers:write",
+    "customers:archive",
+    "catalog:read",
+    "catalog:write",
+    "catalog:archive",
+    "invoices:read",
+    "invoices:draft:create",
+    "invoices:draft:update",
+    "invoices:issue",
+    "invoices:cancel",
+    "payments:read",
+    "payments:record",
+    "payments:reverse",
+    "quotations:read",
+    "quotations:write",
+    "approvals:read",
+    "approvals:decide",
+    "reports:read",
+    "audit:read",
+    "settings:manage"
+  ],
+  "invoice_creator": [
+    "customers:read",
+    "customers:write",
+    "catalog:read",
+    "invoices:read",
+    "invoices:draft:create",
+    "invoices:draft:update",
+    "quotations:read",
+    "quotations:write"
+  ],
+  "invoice_issuer": [
+    "customers:read",
+    "catalog:read",
+    "invoices:read",
+    "invoices:issue",
+    "quotations:read"
+  ],
+  "payment_recorder": [
+    "customers:read",
+    "invoices:read",
+    "payments:read",
+    "payments:record"
+  ],
+  "approver": [
+    "invoices:read",
+    "quotations:read",
+    "approvals:read",
+    "approvals:decide"
+  ],
+  "auditor": [
+    "customers:read",
+    "catalog:read",
+    "invoices:read",
+    "payments:read",
+    "quotations:read",
+    "approvals:read",
+    "reports:read",
+    "audit:read"
+  ]
+};
+
 async function seedUser(roleKey, email, status = "ACTIVE", password = "Phase Five Strong Password!", legalEntityIds = []) {
   const userId = randomUUID();
   const hash = status === "ACTIVE" ? await hashPassword(password) : null;
@@ -138,7 +235,72 @@ function assertPage(body, limit) {
   assert.equal("page" in body, false, "legacy top-level page field must not be returned");
 }
 
+async function assertRoleGrantMatrix() {
+  const [permissionRows] = await db.execute("SELECT permission_key FROM app_permissions ORDER BY permission_key");
+  assert.deepEqual(permissionRows.map((row) => row.permission_key).sort(), [...EXPECTED_PERMISSION_KEYS].sort(),
+    "permission catalog must match the reviewed baseline exactly");
+
+  const [mappingRows] = await db.execute(
+    `SELECT r.role_key, p.permission_key
+       FROM app_roles r
+       LEFT JOIN role_permissions rp ON rp.role_id = r.id
+       LEFT JOIN app_permissions p ON p.id = rp.permission_id
+      ORDER BY r.role_key, p.permission_key`,
+  );
+  const actualGrants = Object.fromEntries(Object.keys(EXPECTED_ROLE_GRANTS).map((roleKey) => [roleKey, []]));
+  for (const row of mappingRows) {
+    assert.ok(Object.hasOwn(actualGrants, row.role_key),
+      "unexpected role template must not silently enter the reference baseline: " + row.role_key);
+    if (row.permission_key) actualGrants[row.role_key].push(row.permission_key);
+  }
+  assert.deepEqual(Object.keys(actualGrants).sort(), Object.keys(EXPECTED_ROLE_GRANTS).sort(),
+    "all seven reviewed role templates must exist, with no unknown role template");
+  for (const [roleKey, permissions] of Object.entries(EXPECTED_ROLE_GRANTS)) {
+    assert.deepEqual(actualGrants[roleKey].sort(), [...permissions].sort(),
+      "least-privilege grants for " + roleKey + " must match the reviewed matrix exactly");
+  }
+  console.log("PASS: all 22 permission definitions and all seven exact role-grant templates match the least-privilege baseline.");
+}
+
+async function assertRoleSurface(roleKey, session) {
+  const expected = EXPECTED_ROLE_GRANTS[roleKey];
+  assert.ok(expected, "role must have a reviewed grant template: " + roleKey);
+  const profile = await call("/api/v1/auth/me", {}, session.jar);
+  assert.equal(profile.response.status, 200, roleKey + " can read its own session profile");
+  assert.deepEqual(profile.body.data.user.roles, [roleKey], roleKey + " session role must be database-derived");
+  assert.deepEqual([...profile.body.data.user.permissions].sort(), [...expected].sort(),
+    roleKey + " effective session permissions must equal the database grant matrix");
+
+  for (const surface of [
+    { path: "/api/v1/customers?limit=1&offset=0", permission: "customers:read" },
+    { path: "/api/v1/catalog/items?limit=1&offset=0", permission: "catalog:read" },
+  ]) {
+    const result = await call(surface.path, {}, session.jar);
+    const allowed = expected.includes(surface.permission);
+    assert.equal(result.response.status, allowed ? 200 : 403,
+      roleKey + (allowed ? " must be allowed to read " : " must be denied reading ") + surface.permission);
+    if (!allowed) assert.equal(result.body.error.code, "FORBIDDEN");
+  }
+
+  for (const surface of [
+    { path: "/api/v1/customers", permission: "customers:write", body: { name: "RBAC regression fixture" } },
+    { path: "/api/v1/catalog/items", permission: "catalog:write", body: {} },
+  ]) {
+    if (expected.includes(surface.permission)) continue;
+    const result = await call(surface.path, { method: "POST", body: JSON.stringify(surface.body) }, session.jar);
+    assert.equal(result.response.status, 403, roleKey + " must be denied " + surface.permission);
+    assert.equal(result.body.error.code, "FORBIDDEN");
+  }
+
+  const users = await call("/api/v1/users?limit=1&offset=0", {}, session.jar);
+  const canManageUsers = expected.includes("users:manage");
+  assert.equal(users.response.status, canManageUsers ? 200 : 403,
+    roleKey + (canManageUsers ? " must be allowed to manage users" : " must not access the user directory"));
+  if (!canManageUsers) assert.equal(users.body.error.code, "FORBIDDEN");
+}
+
 try {
+  await assertRoleGrantMatrix();
   const suffix = randomUUID().replaceAll("-", "").slice(0, 10);
   const testLegalEntityId = randomUUID();
   await db.execute(
@@ -150,9 +312,14 @@ try {
   const viewer = await seedUser("auditor", "viewer-" + suffix + "@example.invalid", "ACTIVE", "Viewer Strong Password #5!", [testLegalEntityId]);
   const admin = await seedUser("system_admin", "admin-" + suffix + "@example.invalid", "ACTIVE", "Admin Strong Password #5!");
   const suspended = await seedUser("auditor", "suspended-" + suffix + "@example.invalid", "SUSPENDED", "Suspended Password #5!");
+  const issuer = await seedUser("invoice_issuer", "issuer-" + suffix + "@example.invalid", "ACTIVE", "Issuer Strong Password #5!");
+  const paymentRecorder = await seedUser("payment_recorder", "payments-" + suffix + "@example.invalid", "ACTIVE", "Payment Strong Password #5!");
+  const approver = await seedUser("approver", "approver-" + suffix + "@example.invalid", "ACTIVE", "Approver Strong Password #5!");
 
-  const anonymousList = await expectStatus(call("/api/v1/customers"), 401, "unauthenticated customer reads must be denied");
-  assert.equal(anonymousList.body.error.code, "UNAUTHENTICATED");
+  for (const path of ["/api/v1/customers", "/api/v1/catalog/items", "/api/v1/users"]) {
+    const anonymous = await expectStatus(call(path), 401, "unauthenticated reads must be denied: " + path);
+    assert.equal(anonymous.body.error.code, "UNAUTHENTICATED");
+  }
 
   for (const path of ["/", "/customers"]) {
     const pageResponse = await fetch(new URL(path, baseUrl), { redirect: "manual", cache: "no-store" });
@@ -248,6 +415,24 @@ try {
   assert.equal(suspendedAttempt.response.status, 401, "suspended account cannot log in");
 
   const adminSession = await login(admin);
+
+  // Exercise every role against every currently implemented protected master-data/user route.
+  // System administrators are deliberately not implicit superusers of finance records.
+  const issuerSession = await login(issuer);
+  const paymentRecorderSession = await login(paymentRecorder);
+  const approverSession = await login(approver);
+  for (const [roleKey, session] of [
+    ["system_admin", adminSession],
+    ["finance_admin", financeSession],
+    ["invoice_creator", staffSession],
+    ["invoice_issuer", issuerSession],
+    ["payment_recorder", paymentRecorderSession],
+    ["approver", approverSession],
+    ["auditor", viewerSession],
+  ]) {
+    await assertRoleSurface(roleKey, session);
+  }
+
   const selfAdminChange = await expectStatus(
     call("/api/v1/users/" + admin.userId, {
       method: "PATCH", body: JSON.stringify({ accountStatus: "SUSPENDED" }),
@@ -381,7 +566,7 @@ try {
 
   const dbSessions = await db.execute("SELECT COUNT(*) AS count FROM auth_sessions WHERE user_id=?", [staff.userId]);
   assert.ok(Number(dbSessions[0][0].count) >= 1);
-  console.log("PASS: auth negative tests cover unauthenticated reads, forged client permission claims, missing CSRF, role denial, login/account status, single-use activation, role-change/session revocation, logout, revoke-all and rate limits. Customer/catalog API contracts and decimal serialization also pass.");
+  console.log("PASS: Phase 05B authorization tests cover the exact seven-role grant matrix, effective session permissions, role-by-role reads/writes of every implemented protected data surface, anonymous denial, CSRF, account lifecycle, privilege escalation prevention, scope-change session revocation and rate limiting; customer/catalog API contracts and decimal serialization also pass.");
 } finally {
   await db.end();
 }

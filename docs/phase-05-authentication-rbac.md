@@ -127,6 +127,10 @@ The CI API contract test was upgraded from client-signed permission claims to da
 
 **Completion gate: PASSED** for the implemented authentication and currently exposed protected surfaces. Evidence: [CI run 38072384541](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38072384541) and [lockfile/bootstrap run 38072384583](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38072384583), both on code revision `36af6321f4584726acc7226775c4d6343bd7aac1`.
 
+## Phase 05B authorization-matrix regression gate
+
+The follow-on authorization hardening and route-by-role matrix are tracked in `docs/phase-05b-authorization.md`. CI asserts the exact 22-key permission catalog, all seven least-privilege role mappings, and effective permission/read-write outcomes across currently implemented customer, catalog and user-directory endpoints. Future invoice/document/download/export APIs remain out of scope until implemented with explicit entity-scope guards and negative tests.
+
 ## 9. Remaining production decisions and limitations
 
 - Confirm whether company-managed OIDC/SSO, MFA and step-up are required before general production rollout. Local-password authentication is implemented for invited users; that is not a substitute for those requirements if policy mandates them.

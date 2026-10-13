@@ -179,6 +179,20 @@ Evidence:
 - [ ] Add SSO/MFA/password recovery/automated invitation delivery only if company policy requires them; they are not represented as implemented.
 
 The gate is complete for the implemented local-password/session/RBAC foundation and currently exposed protected surfaces. Production activation and planned finance APIs remain explicitly separate.
+## Phase 05B — Authorization matrix hardening
+
+- [x] Exact CI assertion for the 22 permission keys and all seven baseline role-to-permission mappings; catches missing, excess, or reassigned grants.
+- [x] API contract tests check each authenticated role's effective permission profile.
+- [x] Role-by-role allow/deny checks across every implemented customer, catalog and user-directory route, including proof that `system_admin` is not an implicit finance-data superuser.
+- [x] Anonymous denial checked for customer, catalog and user-directory reads; existing CSRF and account/privilege lifecycle negative tests retained.
+- [x] Scope and future-endpoint boundaries documented; no claim that planned invoice, payment, document/download or export routes are already protected.
+- [ ] **Acceptance gate:** CI, authorization/API contract tests, OpenAPI validation, lint, TypeScript and production build must pass for the Phase 05B commit.
+
+Evidence:
+- Regression suite: `scripts/verify-master-data-api.mjs`, invoked by `npm run auth:security-test`.
+- Detailed scope and route matrix: `docs/phase-05b-authorization.md`.
+- Record exact CI URLs after the workflows for this revision finish.
+
 ## Phase 06 — Company/brand/legal entity
 
 - [ ] Legal entities and brand mappings confirmed by the business owner.
