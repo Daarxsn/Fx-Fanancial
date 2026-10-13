@@ -3,6 +3,11 @@ import { z } from "zod";
 import { currencySchema, uuidSchema } from "@/lib/validation/master-data";
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
+export const calendarDateSchema = z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).refine((value) => {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}, "Enter a real calendar date in YYYY-MM-DD format.");
+
 export const addressSchema = z.object({
   line1: z.string().trim().min(1).max(255),
   line2: optionalText(255),
@@ -44,6 +49,13 @@ export const legalEntityCreateSchema = z.object({
   taxSetupApprovalReference: optionalText(255),
   changeReason: z.string().trim().min(3).max(1000),
 }).strict().superRefine((value, ctx) => {
+  if (value.address.countryCode !== value.countryCode) {
+    ctx.addIssue({ code: "custom", path: ["address", "countryCode"], message: "Registered address country must match the legal entity country." });
+  }
+  if (value.timeZone) {
+    try { new Intl.DateTimeFormat("en-US", { timeZone: value.timeZone }); }
+    catch { ctx.addIssue({ code: "custom", path: ["timeZone"], message: "Use a supported IANA time zone." }); }
+  }
   if (value.taxSetupStatus !== "UNCONFIGURED" && !value.taxSetupApprovalReference) {
     ctx.addIssue({ code: "custom", path: ["taxSetupApprovalReference"], message: "An authorized approval reference is required to confirm tax setup." });
   }
@@ -123,13 +135,27 @@ export const numberingCreateSchema = z.object({
   catch { ctx.addIssue({ code: "custom", path: ["timeZone"], message: "Use a supported IANA time zone." }); }
 });
 
+export const documentTemplateConfigSchema = z.object({
+  pageSize: z.enum(["A4", "A5", "LETTER"]),
+  orientation: z.enum(["PORTRAIT", "LANDSCAPE"]),
+  layout: z.enum(["COMPACT", "STANDARD", "DETAILED"]),
+  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  showLogo: z.boolean(),
+  showTaxBreakdown: z.boolean(),
+  showBankDetails: z.boolean(),
+  showPaymentTerms: z.boolean(),
+  showCustomerTaxIdentifier: z.boolean(),
+  showFooter: z.boolean(),
+  footerText: z.string().max(2000).optional(),
+}).strict();
+
 export const templateCreateSchema = z.object({
   legalEntityId: uuidSchema,
   brandId: uuidSchema.optional().or(z.literal("")),
   documentType: z.enum(["INVOICE", "CREDIT_NOTE", "DEBIT_NOTE", "QUOTATION"]),
   templateKey: z.string().trim().min(2).max(80).regex(/^[A-Za-z0-9_-]+$/),
   displayName: z.string().trim().min(1).max(160),
-  templateConfig: z.record(z.string(), z.unknown()),
+  templateConfig: documentTemplateConfigSchema,
   effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   effectiveUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
   activate: z.boolean().optional().default(false),
@@ -137,4 +163,49 @@ export const templateCreateSchema = z.object({
 }).strict().superRefine((value, ctx) => {
   if (JSON.stringify(value.templateConfig).length > 60000) ctx.addIssue({ code: "custom", path: ["templateConfig"], message: "Template configuration must be under 60 KB." });
   if (value.effectiveUntil && value.effectiveUntil < value.effectiveFrom) ctx.addIssue({ code: "custom", path: ["effectiveUntil"], message: "End date must not precede start date." });
+});
+
+
+export const taxRegistrationCreateSchema = z.object({
+  registrationKey: z.string().trim().min(2).max(100).regex(/^[A-Z0-9_-]+$/, "Use uppercase letters, digits, underscore or hyphen."),
+  registrationType: z.enum(["GSTIN", "VAT", "TAX_ID", "COMPANY_REGISTRATION", "OTHER"]),
+  jurisdiction: z.string().trim().min(1).max(120),
+  registrationNumber: z.string().trim().min(1).max(160),
+  displayLabel: z.string().trim().min(1).max(160),
+  isPrimary: z.boolean().optional().default(false),
+  effectiveFrom: calendarDateSchema,
+  effectiveUntil: calendarDateSchema.optional().or(z.literal("")),
+  approvalReference: z.string().trim().min(3).max(255),
+  changeReason: z.string().trim().min(3).max(1000),
+}).strict().superRefine((value, ctx) => {
+  if (value.effectiveUntil && value.effectiveUntil < value.effectiveFrom) ctx.addIssue({ code: "custom", path: ["effectiveUntil"], message: "End date must not precede start date." });
+});
+
+export const taxRegistrationDeactivationSchema = z.object({
+  isActive: z.boolean(),
+  changeReason: z.string().trim().min(3).max(1000),
+}).strict();
+
+export const businessUnitCreateSchema = z.object({
+  code: z.string().trim().min(2).max(40).regex(/^[A-Z0-9][A-Z0-9_-]*$/, "Use uppercase letters, digits, underscore or hyphen."),
+  name: z.string().trim().min(1).max(160),
+  description: optionalText(1000),
+  legalEntityIds: z.array(uuidSchema).min(1).max(50),
+  brandIds: z.array(uuidSchema).max(50).optional().default([]),
+  changeReason: z.string().trim().min(3).max(1000),
+}).strict().superRefine((value, ctx) => {
+  if (new Set(value.legalEntityIds).size !== value.legalEntityIds.length) ctx.addIssue({ code:"custom",path:["legalEntityIds"],message:"Duplicate legal entity mappings are not allowed." });
+  if (new Set(value.brandIds).size !== value.brandIds.length) ctx.addIssue({ code:"custom",path:["brandIds"],message:"Duplicate brand mappings are not allowed." });
+});
+
+export const businessUnitUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(160).optional(),
+  description: optionalText(1000),
+  legalEntityIds: z.array(uuidSchema).min(1).max(50).optional(),
+  brandIds: z.array(uuidSchema).max(50).optional(),
+  isActive: z.boolean().optional(),
+  changeReason: z.string().trim().min(3).max(1000),
+}).strict().superRefine((value, ctx) => {
+  if (value.legalEntityIds && new Set(value.legalEntityIds).size !== value.legalEntityIds.length) ctx.addIssue({ code:"custom",path:["legalEntityIds"],message:"Duplicate legal entity mappings are not allowed." });
+  if (value.brandIds && new Set(value.brandIds).size !== value.brandIds.length) ctx.addIssue({ code:"custom",path:["brandIds"],message:"Duplicate brand mappings are not allowed." });
 });
