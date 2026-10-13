@@ -113,8 +113,9 @@ export default function SettingsPage(){
    invoiceTerms:company.invoiceTerms,invoiceFooter:company.invoiceFooter,defaultTaxCode:company.defaultTaxCode,taxSetupStatus:company.taxSetupStatus,
    taxSetupApprovalReference:company.taxSetupApprovalReference,changeReason:company.changeReason};
   const bank={accountName:company.bankAccountName,bankName:company.bankName,accountNumber:company.bankAccountNumber,ifsc:company.bankIfsc,swift:company.bankSwift};
-  if(company.replaceBank===true){
-   if(!bank.accountName||!bank.bankName||!bank.accountNumber)throw new Error("To replace bank details, enter the account holder, bank name and account number.");
+  const hasAnyBankValue=Object.values(bank).some(v=>String(v).trim().length>0);
+  if(company.replaceBank===true || (entityEdit==="new" && hasAnyBankValue)){
+   if(!bank.accountName||!bank.bankName||!bank.accountNumber)throw new Error("To save bank details, enter the account holder, bank name and account number.");
    body.bankDetails=bank;
   }
   if(entityEdit==="new")await api("/api/v1/legal-entities","POST",body);
