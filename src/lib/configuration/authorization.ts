@@ -1,5 +1,6 @@
 import "server-only";
-import { AuthorizationError, type SessionPrincipal } from "@/lib/auth/authorize";
+import { AuthorizationError } from "@/lib/auth/authorize";
+import type { SessionPrincipal } from "@/lib/auth/session";
 
 /** Financial configuration requires an explicitly assigned finance-administrator role.
  * settings:manage alone is not approval authority: a system administrator must not implicitly
