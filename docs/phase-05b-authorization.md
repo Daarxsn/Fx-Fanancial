@@ -32,4 +32,8 @@ Invoice, quotation, payment, approval, PDF/document download, email, reminder, a
 
 ## Acceptance gate
 
-The regression implementation is included in this revision. Acceptance is pending successful CI execution of the authorization/API contract suite, OpenAPI validation, lint, TypeScript and production build for this exact commit. Prior CI results are not evidence for this revision.
+**PASSED on commit `be0d8fdee22bc8a2076a33a3761db0222baa64ec`.** The full CI workflow passed, including the MySQL-backed authentication/authorization and master-data contract suite, migration/seed verification, OpenAPI validation, UI validation, lint, TypeScript and production build. The lockfile/bootstrap workflow also passed on the same commit.
+
+- Full CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38354956754
+- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38354956749
+

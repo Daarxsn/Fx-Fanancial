@@ -186,12 +186,14 @@ The gate is complete for the implemented local-password/session/RBAC foundation 
 - [x] Role-by-role allow/deny checks across every implemented customer, catalog and user-directory route, including proof that `system_admin` is not an implicit finance-data superuser.
 - [x] Anonymous denial checked for customer, catalog and user-directory reads; existing CSRF and account/privilege lifecycle negative tests retained.
 - [x] Scope and future-endpoint boundaries documented; no claim that planned invoice, payment, document/download or export routes are already protected.
-- [ ] **Acceptance gate:** CI, authorization/API contract tests, OpenAPI validation, lint, TypeScript and production build must pass for the Phase 05B commit.
+- [x] **Acceptance gate:** full CI, authorization/API contract tests, OpenAPI validation, lint, TypeScript and production build passed for commit `be0d8fdee22bc8a2076a33a3761db0222baa64ec`.
+- [x] Lockfile/bootstrap workflow passed on the same commit.
 
 Evidence:
+- Full CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38354956754
+- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38354956749
 - Regression suite: `scripts/verify-master-data-api.mjs`, invoked by `npm run auth:security-test`.
 - Detailed scope and route matrix: `docs/phase-05b-authorization.md`.
-- Record exact CI URLs after the workflows for this revision finish.
 
 ## Phase 06 — Company/brand/legal entity
 

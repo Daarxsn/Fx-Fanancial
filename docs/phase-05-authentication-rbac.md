@@ -129,7 +129,12 @@ The CI API contract test was upgraded from client-signed permission claims to da
 
 ## Phase 05B authorization-matrix regression gate
 
-The follow-on authorization hardening and route-by-role matrix are tracked in `docs/phase-05b-authorization.md`. CI asserts the exact 22-key permission catalog, all seven least-privilege role mappings, and effective permission/read-write outcomes across currently implemented customer, catalog and user-directory endpoints. Future invoice/document/download/export APIs remain out of scope until implemented with explicit entity-scope guards and negative tests.
+**Status: PASSED** on commit `be0d8fdee22bc8a2076a33a3761db0222baa64ec`. CI asserts the exact 22-key permission catalog, all seven least-privilege role mappings, and effective permission/read-write outcomes on all currently implemented customer, catalog and user-directory endpoints.
+
+- Full CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38354956754
+- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38354956749
+
+Future invoice/document/download/export APIs remain out of scope until implemented with explicit entity-scope guards and negative tests.
 
 ## 9. Remaining production decisions and limitations
 
