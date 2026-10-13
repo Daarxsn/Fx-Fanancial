@@ -1,6 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
-import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
 import { requirePermissionForEntity } from "@/lib/auth/authorize";
 import { assertCsrf } from "@/lib/auth/csrf";
@@ -16,8 +15,9 @@ export async function GET(_request:NextRequest,context:Context){
   try{
     const {entityId}=await context.params;
     await requirePermissionForEntity("settings:manage",entityId);
-    const row=await loadEntity(await pool.getConnection().then(async c=>{c.release();return pool.getConnection();}),entityId);
-    // Query again with an owned connection so no borrowed connection survives this request.
+    const conn=await pool.getConnection();
+    let row;
+    try { row=await loadEntity(conn,entityId); } finally { conn.release(); }
     if(!row)return jsonNoStore({error:{code:"NOT_FOUND",message:"Legal entity not found"}},404);
     const [versions]=await pool.execute<(RowDataPacket & {version_number:number;effective_from:Date;change_reason:string;created_at:Date})[]>(
       "SELECT version_number,effective_from,change_reason,created_at FROM legal_entity_config_versions WHERE legal_entity_id=? ORDER BY version_number DESC LIMIT 50",[entityId]);
@@ -68,12 +68,6 @@ export async function PATCH(request:NextRequest,context:Context){
       set("taxSetupApprovedAt","tax_setup_approved_at",patch.taxSetupApprovalReference?new Date():null);
     }
     if(patch.isActive!==undefined){
-      if(!patch.isActive){
-        const [issued]=await conn.execute<(RowDataPacket & {n:number})[]>(
-          "SELECT COUNT(*) AS n FROM invoices WHERE legal_entity_id=? AND status NOT IN ('DRAFT')",[entityId]);
-        // Deactivation is permitted for historical records; issue services must always reject inactive entities.
-        void issued;
-      }
       set("isActive","is_active",patch.isActive?1:0);
     }
     if(!assignments.length){await conn.rollback();return jsonNoStore({error:{code:"VALIDATION_ERROR",message:"No supported fields were supplied"}},400);}
