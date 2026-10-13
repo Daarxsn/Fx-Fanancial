@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
 import { requirePermissionForEntity } from "@/lib/auth/authorize";
+import { requireFinanceConfigurationApprover } from "@/lib/configuration/authorization";
 import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { legalEntityUpdateSchema } from "@/lib/validation/configuration";
@@ -38,6 +39,9 @@ export async function PATCH(request:NextRequest,context:Context){
     await conn.beginTransaction();
     const current=await loadEntity(conn,entityId);
     if(!current){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Legal entity not found"}},404);}
+    const taxStatusChanged = patch.taxSetupStatus !== undefined && patch.taxSetupStatus !== current.tax_setup_status;
+    const approvalRefChanged = patch.taxSetupApprovalReference !== undefined && patch.taxSetupApprovalReference !== current.tax_setup_approval_reference;
+    if (taxStatusChanged || approvalRefChanged) requireFinanceConfigurationApprover(actor);
     const assignments:string[]=[];const values:unknown[]=[];const changed:string[]=[];
     const set=(key:string,column:string,value:unknown)=>{assignments.push(`${column}=?`);values.push(value);changed.push(key);};
     if(patch.legalName!==undefined)set("legalName","legal_name",patch.legalName);
@@ -57,15 +61,18 @@ export async function PATCH(request:NextRequest,context:Context){
     if(patch.invoiceTerms!==undefined)set("invoiceTerms","invoice_terms",patch.invoiceTerms);
     if(patch.invoiceFooter!==undefined)set("invoiceFooter","invoice_footer",patch.invoiceFooter);
     if(patch.defaultTaxCode!==undefined)set("defaultTaxCode","default_tax_code",patch.defaultTaxCode||null);
-    if(patch.taxSetupStatus!==undefined){
-      set("taxSetupStatus","tax_setup_status",patch.taxSetupStatus);
-      set("taxSetupApprovalReference","tax_setup_approval_reference",patch.taxSetupStatus==="UNCONFIGURED"?null:patch.taxSetupApprovalReference||current.tax_setup_approval_reference);
-      set("taxSetupApprovedBy","tax_setup_approved_by",patch.taxSetupStatus==="UNCONFIGURED"?null:actor.userId);
-      set("taxSetupApprovedAt","tax_setup_approved_at",patch.taxSetupStatus==="UNCONFIGURED"?null:new Date());
-    }else if(patch.taxSetupApprovalReference!==undefined){
-      set("taxSetupApprovalReference","tax_setup_approval_reference",patch.taxSetupApprovalReference||null);
-      set("taxSetupApprovedBy","tax_setup_approved_by",patch.taxSetupApprovalReference?actor.userId:null);
-      set("taxSetupApprovedAt","tax_setup_approved_at",patch.taxSetupApprovalReference?new Date():null);
+    if (taxStatusChanged || approvalRefChanged) {
+      const newStatus = patch.taxSetupStatus ?? current.tax_setup_status;
+      const newReference = newStatus === "UNCONFIGURED" ? null :
+        (patch.taxSetupApprovalReference !== undefined ? (patch.taxSetupApprovalReference || null) : current.tax_setup_approval_reference);
+      if (newStatus !== "UNCONFIGURED" && !newReference) {
+        await conn.rollback();
+        return jsonNoStore({error:{code:"VALIDATION_ERROR",message:"An approval reference is required for approved tax setup."}},400);
+      }
+      set("taxSetupStatus","tax_setup_status",newStatus);
+      set("taxSetupApprovalReference","tax_setup_approval_reference",newReference);
+      set("taxSetupApprovedBy","tax_setup_approved_by",newStatus === "UNCONFIGURED" ? null : actor.userId);
+      set("taxSetupApprovedAt","tax_setup_approved_at",newStatus === "UNCONFIGURED" ? null : new Date());
     }
     if(patch.isActive!==undefined){
       set("isActive","is_active",patch.isActive?1:0);
