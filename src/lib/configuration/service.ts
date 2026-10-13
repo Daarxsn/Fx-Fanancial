@@ -3,6 +3,13 @@ import { createHash, randomUUID } from "node:crypto";
 import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { pool } from "@/lib/db/pool";
 
+export class ConfigurationNotReadyError extends Error {
+  constructor(public readonly reason: string) { super(reason); this.name = "ConfigurationNotReadyError"; }
+}
+export class ConfigurationConflictError extends Error {
+  constructor(public readonly reason: string) { super(reason); this.name = "ConfigurationConflictError"; }
+}
+
 export type LegalEntityRecord = RowDataPacket & {
   id: string; legal_name: string; display_name: string; registration_number: string | null; tax_identifier: string | null;
   address_json: unknown; country_code: string | null; invoice_email: string | null; invoice_phone: string | null;
@@ -130,6 +137,9 @@ export async function readinessForEntity(legalEntityId: string) {
     { key: "currency", passed: /^[A-Z]{3}$/.test(entity.currency), message: "An explicit document currency must be configured." },
     { key: "taxApproval", passed: entity.tax_setup_status !== "UNCONFIGURED" && Boolean(entity.tax_setup_approval_reference), message: "Tax setup must have a recorded finance/tax approval, including an explicit not-applicable decision where appropriate." },
   ];
+  const [versionRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
+    "SELECT COUNT(*) AS n FROM legal_entity_config_versions WHERE legal_entity_id = ?", [legalEntityId]);
+  checks.push({ key: "configurationVersion", passed: Number(versionRows[0]?.n ?? 0) > 0, message: "An initial versioned configuration snapshot must be recorded before issuance." });
   const [taxRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     `SELECT COUNT(*) AS n FROM tax_rules
       WHERE legal_entity_id = ? AND is_active = TRUE AND approved_at IS NOT NULL
@@ -138,17 +148,199 @@ export async function readinessForEntity(legalEntityId: string) {
   const hasTax = Number(taxRows[0]?.n ?? 0) > 0;
   checks.push({ key: "taxRules", passed: entity.tax_setup_status === "APPROVED_NOT_APPLICABLE" || (entity.tax_setup_status === "APPROVED_CONFIGURED" && hasTax), message: "An active approved tax rule or an explicitly approved not-applicable decision is required." });
   const [numberingRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
-    `SELECT COUNT(DISTINCT document_type) AS n FROM invoice_numbering_configs
-      WHERE legal_entity_id = ? AND is_active = TRUE AND effective_from <= CURRENT_DATE()
+    `SELECT COUNT(*) AS n FROM invoice_numbering_configs
+      WHERE legal_entity_id = ? AND document_type = 'INVOICE' AND is_active = TRUE AND effective_from <= CURRENT_DATE()
         AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())
         AND approval_reference IS NOT NULL`, [legalEntityId]);
-  checks.push({ key: "numbering", passed: Number(numberingRows[0]?.n ?? 0) >= 1, message: "At least one active, approved document numbering series must be configured." });
+  checks.push({ key: "numbering", passed: Number(numberingRows[0]?.n ?? 0) >= 1, message: "An active, approved invoice numbering series must be configured." });
   const [templateRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     `SELECT COUNT(*) AS n FROM invoice_document_templates
       WHERE legal_entity_id = ? AND document_type = 'INVOICE' AND is_active = TRUE
         AND effective_from <= CURRENT_DATE() AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())`, [legalEntityId]);
   checks.push({ key: "invoiceTemplate", passed: Number(templateRows[0]?.n ?? 0) >= 1, message: "An active invoice template must be selected and effective today." });
   return { legalEntityId, ready: checks.every((check) => check.passed), checks };
+}
+
+
+export type DocumentConfigurationRequest = {
+  resourceType: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE" | "QUOTATION";
+  resourceId: string;
+  legalEntityId: string;
+  brandId?: string | null;
+  documentDate: string;
+  actorId: string;
+  taxRuleIds: string[];
+};
+
+function yearLabel(documentDate: string, startMonth: number, startDay: number): string {
+  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(documentDate);
+  if (!match) throw new ConfigurationNotReadyError("Document date must use YYYY-MM-DD.");
+  const year = Number(match[1]); const month = Number(match[2]); const day = Number(match[3]);
+  if (!year || month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) {
+    throw new ConfigurationNotReadyError("Document date is not a valid calendar date.");
+  }
+  const startYear = month > startMonth || (month === startMonth && day >= startDay) ? year : year - 1;
+  return `${startYear}-${startYear + 1}`;
+}
+
+/**
+ * Allocates a number inside the caller's transaction. Locking the parent legal entity serializes
+ * reservations for that entity, including the first insert into an otherwise-empty sequence table.
+ */
+export async function reserveDocumentNumber(
+  conn: PoolConnection,
+  legalEntityId: string,
+  documentType: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE" | "QUOTATION",
+  documentDate: string,
+): Promise<{ number: string; numberingConfigId: string; configuration: Record<string, unknown>; financialYearLabel: string; sequenceValue: number }> {
+  const [entities] = await conn.execute<(RowDataPacket & { is_active: number })[]>(
+    "SELECT is_active FROM legal_entities WHERE id = ? FOR UPDATE", [legalEntityId]);
+  if (!entities.length || !entities[0].is_active) throw new ConfigurationNotReadyError("The legal entity is missing or inactive.");
+  const [rows] = await conn.execute<(RowDataPacket & {
+    id: string; series_code: string; prefix: string; suffix: string; sequence_width: number;
+    include_financial_year: number; financial_year_start_month: number; financial_year_start_day: number;
+    time_zone: string; version_number: number; effective_from: Date; effective_until: Date | null; approval_reference: string | null;
+  })[]>(
+    `SELECT id,series_code,prefix,suffix,sequence_width,include_financial_year,financial_year_start_month,
+      financial_year_start_day,time_zone,version_number,effective_from,effective_until,approval_reference
+     FROM invoice_numbering_configs
+     WHERE legal_entity_id = ? AND document_type = ? AND is_active = TRUE AND approval_reference IS NOT NULL
+       AND effective_from <= ? AND (effective_until IS NULL OR effective_until >= ?)
+     ORDER BY version_number DESC FOR UPDATE`,
+    [legalEntityId, documentType, documentDate, documentDate]);
+  if (rows.length !== 1) throw new ConfigurationNotReadyError("Exactly one approved, active numbering series must be effective for this document date.");
+  const row = rows[0];
+  const label = yearLabel(documentDate, Number(row.financial_year_start_month), Number(row.financial_year_start_day));
+  await conn.execute(
+    `INSERT INTO invoice_number_sequences (legal_entity_id,document_type,financial_year_label,next_value)
+     VALUES (?,?,?,2)
+     ON DUPLICATE KEY UPDATE next_value = next_value + 1`,
+    [legalEntityId, documentType, label]);
+  const [sequenceRows] = await conn.execute<(RowDataPacket & { next_value: string | number })[]>(
+    "SELECT next_value FROM invoice_number_sequences WHERE legal_entity_id=? AND document_type=? AND financial_year_label=? FOR UPDATE",
+    [legalEntityId, documentType, label]);
+  const nextValue = Number(sequenceRows[0]?.next_value);
+  const allocated = nextValue - 1;
+  if (!Number.isSafeInteger(allocated) || allocated < 1) throw new ConfigurationConflictError("Number series returned an invalid sequence value.");
+  const display = `${row.prefix}${row.include_financial_year ? label : ""}${String(allocated).padStart(Number(row.sequence_width), "0")}${row.suffix}`;
+  const configuration = {
+    id: row.id, seriesCode: row.series_code, prefix: row.prefix, suffix: row.suffix,
+    sequenceWidth: Number(row.sequence_width), includeFinancialYear: Boolean(row.include_financial_year),
+    financialYearStartMonth: Number(row.financial_year_start_month),
+    financialYearStartDay: Number(row.financial_year_start_day), timeZone: row.time_zone,
+    versionNumber: Number(row.version_number), effectiveFrom: row.effective_from,
+    effectiveUntil: row.effective_until, approvalReference: row.approval_reference,
+    sequenceScope: "ENTITY_FINANCIAL_YEAR_DOCUMENT_TYPE",
+  };
+  return { number: display, numberingConfigId: row.id, configuration, financialYearLabel: label, sequenceValue: allocated };
+}
+
+/**
+ * Validates and freezes the exact configuration used by an issuance transaction.
+ * Call only inside the same DB transaction that creates/issues the business document.
+ * No business entity, tax rate, bank value or template is invented by this function.
+ */
+export async function captureDocumentConfigurationSnapshot(
+  conn: PoolConnection,
+  input: DocumentConfigurationRequest,
+): Promise<{ snapshotId: string; sha256: string; invoiceNumber: string; numberingConfigId: string; templateId: string; taxRuleIds: string[] }> {
+  const [entities] = await conn.execute<(RowDataPacket & {
+    id: string; legal_name: string; display_name: string; registration_number: string | null; tax_identifier: string | null;
+    address_json: unknown; country_code: string | null; currency: string; locale: string | null; time_zone: string | null;
+    logo_reference: string | null; bank_details_json: unknown; invoice_terms: string | null; invoice_footer: string | null;
+    default_tax_code: string | null; tax_setup_status: string; tax_setup_approval_reference: string | null;
+    is_active: number;
+  })[]>(
+    `SELECT id,legal_name,display_name,registration_number,tax_identifier,address_json,country_code,currency,locale,time_zone,
+      logo_reference,bank_details_json,invoice_terms,invoice_footer,default_tax_code,tax_setup_status,
+      tax_setup_approval_reference,is_active FROM legal_entities WHERE id=? FOR UPDATE`, [input.legalEntityId]);
+  const entity = entities[0];
+  if (!entity || !entity.is_active) throw new ConfigurationNotReadyError("The legal entity does not exist or is inactive.");
+  if (entity.tax_setup_status === "UNCONFIGURED" || !entity.tax_setup_approval_reference) {
+    throw new ConfigurationNotReadyError("Tax setup has no recorded finance/tax decision.");
+  }
+  const [entityVersions] = await conn.execute<(RowDataPacket & { id: string; version_number: number; config_snapshot: unknown })[]>(
+    `SELECT id,version_number,config_snapshot FROM legal_entity_config_versions
+      WHERE legal_entity_id=? AND effective_from<=NOW(3) ORDER BY version_number DESC LIMIT 1 FOR UPDATE`, [input.legalEntityId]);
+  if (!entityVersions.length) throw new ConfigurationNotReadyError("No versioned legal-entity configuration exists. Save and approve the initial configuration before issuing documents.");
+
+  let brandSnapshot: unknown = null; let brandVersionId: string | null = null;
+  if (input.brandId) {
+    const [mappings] = await conn.execute<(RowDataPacket & { is_active: number })[]>(
+      `SELECT b.is_active FROM brand_legal_entities m JOIN brands b ON b.id=m.brand_id
+        WHERE m.brand_id=? AND m.legal_entity_id=? LIMIT 1 FOR UPDATE`, [input.brandId, input.legalEntityId]);
+    if (!mappings.length || !mappings[0].is_active) throw new ConfigurationNotReadyError("The selected brand is inactive or is not explicitly mapped to this legal entity.");
+    const [brandVersions] = await conn.execute<(RowDataPacket & { id: string; config_snapshot: unknown })[]>(
+      `SELECT v.id,v.config_snapshot FROM brand_config_versions v
+        WHERE v.brand_id=? AND v.effective_from<=NOW(3) ORDER BY v.version_number DESC LIMIT 1 FOR UPDATE`, [input.brandId]);
+    if (!brandVersions.length) throw new ConfigurationNotReadyError("The selected brand has no versioned configuration.");
+    brandSnapshot = jsonValue(brandVersions[0].config_snapshot);
+    brandVersionId = brandVersions[0].id;
+  }
+
+  const [effectiveTaxRows] = await conn.execute<(RowDataPacket & { id: string; tax_code: string; display_name: string; jurisdiction: string; rate: string; calculation_mode: string; effective_from: Date; effective_until: Date | null; approval_reference: string | null })[]>(
+    `SELECT id,tax_code,display_name,jurisdiction,rate,calculation_mode,effective_from,effective_until,approval_reference
+      FROM tax_rules WHERE legal_entity_id=? AND is_active=TRUE AND approved_at IS NOT NULL AND approval_reference IS NOT NULL
+        AND effective_from<=? AND (effective_until IS NULL OR effective_until>=?)
+      ORDER BY tax_code,id FOR UPDATE`, [input.legalEntityId, input.documentDate, input.documentDate]);
+  if (entity.tax_setup_status === "APPROVED_CONFIGURED" && effectiveTaxRows.length === 0) {
+    throw new ConfigurationNotReadyError("No approved tax rule is effective for the document date.");
+  }
+  const taxIds = [...new Set(input.taxRuleIds)];
+  if (taxIds.length !== input.taxRuleIds.length) throw new ConfigurationConflictError("Duplicate tax-rule identifiers were supplied.");
+  const effectiveById = new Map(effectiveTaxRows.map((row) => [row.id, row]));
+  if (taxIds.some((id) => !effectiveById.has(id))) throw new ConfigurationNotReadyError("A selected tax rule is inactive, unapproved, out of date, or belongs to another legal entity.");
+
+  const number = await reserveDocumentNumber(conn, input.legalEntityId, input.resourceType, input.documentDate);
+  const [templates] = await conn.execute<(RowDataPacket & {
+    id: string; template_key: string; display_name: string; version_number: number; template_config: unknown; effective_from: Date; effective_until: Date | null;
+  })[]>(
+    `SELECT id,template_key,display_name,version_number,template_config,effective_from,effective_until
+     FROM invoice_document_templates
+     WHERE legal_entity_id=? AND brand_id <=> ? AND document_type=? AND is_active=TRUE
+       AND effective_from<=? AND (effective_until IS NULL OR effective_until>=?)
+     ORDER BY version_number DESC FOR UPDATE`,
+    [input.legalEntityId, input.brandId ?? null, input.resourceType, input.documentDate, input.documentDate]);
+  let template = templates[0];
+  if (!template && input.brandId) {
+    const [fallbacks] = await conn.execute<typeof templates>(
+      `SELECT id,template_key,display_name,version_number,template_config,effective_from,effective_until
+       FROM invoice_document_templates WHERE legal_entity_id=? AND brand_id IS NULL AND document_type=? AND is_active=TRUE
+        AND effective_from<=? AND (effective_until IS NULL OR effective_until>=?)
+       ORDER BY version_number DESC FOR UPDATE`,
+      [input.legalEntityId, input.resourceType, input.documentDate, input.documentDate]);
+    template = fallbacks[0];
+  }
+  if (!template) throw new ConfigurationNotReadyError("No effective, active document template exists for this entity, brand and document type.");
+  const snapshot = {
+    schemaVersion: 1,
+    resource: { type: input.resourceType, id: input.resourceId, documentDate: input.documentDate },
+    capturedBy: input.actorId,
+    capturedAt: new Date().toISOString(),
+    legalEntity: jsonValue(entityVersions[0].config_snapshot),
+    legalEntityConfigVersion: { id: entityVersions[0].id, versionNumber: Number(entityVersions[0].version_number) },
+    brand: brandSnapshot,
+    brandConfigVersionId: brandVersionId,
+    numbering: number.configuration,
+    numberAllocation: { financialYearLabel: number.financialYearLabel, sequenceValue: number.sequenceValue, displayNumber: number.number },
+    template: { id: template.id, key: template.template_key, name: template.display_name, versionNumber: Number(template.version_number), config: jsonValue(template.template_config) },
+    selectedTaxRules: taxIds.map((id) => {
+      const row = effectiveById.get(id)!;
+      return { id: row.id, taxCode: row.tax_code, displayName: row.display_name, jurisdiction: row.jurisdiction, rate: row.rate,
+        calculationMode: row.calculation_mode, effectiveFrom: row.effective_from, effectiveUntil: row.effective_until, approvalReference: row.approval_reference };
+    }),
+  };
+  const serialized = canonicalJson(snapshot);
+  const hash = sha256(serialized);
+  const snapshotId = randomUUID();
+  await conn.execute(
+    `INSERT INTO document_configuration_snapshots
+     (id,resource_type,resource_id,legal_entity_id,brand_id,legal_entity_config_version_id,brand_config_version_id,
+      numbering_config_id,template_id,tax_rule_ids,configuration_snapshot,configuration_sha256,captured_by,captured_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(3))`,
+    [snapshotId,input.resourceType,input.resourceId,input.legalEntityId,input.brandId??null,entityVersions[0].id,brandVersionId,
+      number.numberingConfigId,template.id,JSON.stringify(taxIds),serialized,hash,input.actorId]);
+  return { snapshotId, sha256: hash, invoiceNumber: number.number, numberingConfigId: number.numberingConfigId, templateId: template.id, taxRuleIds: taxIds };
 }
 
 async function loadEntityFromPool(id: string): Promise<LegalEntityRecord | null> {
