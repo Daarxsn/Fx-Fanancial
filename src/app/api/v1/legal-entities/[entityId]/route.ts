@@ -39,8 +39,12 @@ export async function PATCH(request:NextRequest,context:Context){
     await conn.beginTransaction();
     const current=await loadEntity(conn,entityId);
     if(!current){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Legal entity not found"}},404);}
-    const taxStatusChanged = patch.taxSetupStatus !== undefined && patch.taxSetupStatus !== current.tax_setup_status;
-    const approvalRefChanged = patch.taxSetupApprovalReference !== undefined && patch.taxSetupApprovalReference !== current.tax_setup_approval_reference;
+    const nextTaxStatus = patch.taxSetupStatus ?? current.tax_setup_status;
+    const requestedApprovalReference = patch.taxSetupApprovalReference !== undefined
+      ? (patch.taxSetupApprovalReference || null)
+      : current.tax_setup_approval_reference;
+    const taxStatusChanged = nextTaxStatus !== current.tax_setup_status;
+    const approvalRefChanged = requestedApprovalReference !== current.tax_setup_approval_reference;
     if (taxStatusChanged || approvalRefChanged) requireFinanceConfigurationApprover(actor);
     const assignments:string[]=[];const values:unknown[]=[];const changed:string[]=[];
     const set=(key:string,column:string,value:unknown)=>{assignments.push(`${column}=?`);values.push(value);changed.push(key);};
