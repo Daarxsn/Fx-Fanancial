@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
 import { requirePermission } from "@/lib/auth/authorize";
+import { requireFinanceConfigurationApprover } from "@/lib/configuration/authorization";
 import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { legalEntityCreateSchema } from "@/lib/validation/configuration";
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
     await assertCsrf(request);
     const actor=await requirePermission("settings:manage");
     const input=legalEntityCreateSchema.parse(await request.json());
+    if (input.taxSetupStatus !== "UNCONFIGURED") requireFinanceConfigurationApprover(actor);
     const id=randomUUID();
     const conn=await pool.getConnection();
     let output;
