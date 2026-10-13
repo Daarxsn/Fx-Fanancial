@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
 import { requirePermissionForEntity } from "@/lib/auth/authorize";
+import { requireFinanceConfigurationApprover } from "@/lib/configuration/authorization";
 import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { recordAudit } from "@/lib/configuration/service";
@@ -20,7 +21,7 @@ export async function PATCH(request:NextRequest,context:{params:Promise<{taxRule
   const [rows]=await conn.execute<(RowDataPacket & {id:string;legal_entity_id:string;tax_code:string;is_active:number;effective_from:Date;effective_until:Date|null})[]>(
    "SELECT id,legal_entity_id,tax_code,is_active,effective_from,effective_until FROM tax_rules WHERE id=? FOR UPDATE",[taxRuleId]);
   if(!rows.length){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Tax rule not found"}},404)}
-  const old=rows[0];const actor=await requirePermissionForEntity("settings:manage",old.legal_entity_id);
+  const old=rows[0];const actor=requireFinanceConfigurationApprover(await requirePermissionForEntity("settings:manage",old.legal_entity_id));
   if(input.isActive){
    const [entity]=await conn.execute<(RowDataPacket & {tax_setup_status:string;is_active:number})[]>(
     "SELECT tax_setup_status,is_active FROM legal_entities WHERE id=?",[old.legal_entity_id]);
