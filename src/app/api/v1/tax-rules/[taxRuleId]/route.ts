@@ -6,7 +6,6 @@ import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { recordAudit } from "@/lib/configuration/service";
 import { z } from "zod";
-import { randomUUID } from "node:crypto";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
