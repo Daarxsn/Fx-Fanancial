@@ -136,7 +136,7 @@ export async function readinessForEntity(legalEntityId: string) {
     { key: "legalName", passed: Boolean(entity.legal_name.trim()), message: "Legal supplier name is required." },
     { key: "address", passed: Boolean(address.line1 && address.city && address.postalCode && address.countryCode && entity.country_code), message: "Registered address must include line 1, city, postal code, and country." },
     { key: "currency", passed: /^[A-Z]{3}$/.test(entity.currency), message: "An explicit document currency must be configured." },
-    { key: "taxApproval", passed: entity.tax_setup_status !== "UNCONFIGURED" && Boolean(entity.tax_setup_approval_reference), message: "Tax setup must have a recorded finance/tax approval, including an explicit not-applicable decision where appropriate." },
+    { key: "taxApproval", passed: entity.tax_setup_status !== "UNCONFIGURED" && Boolean(entity.tax_setup_approval_reference) && Boolean(entity.tax_setup_approved_by) && Boolean(entity.tax_setup_approved_at), message: "Tax setup must have a recorded finance approver, timestamp and approval reference, including an explicit not-applicable decision where appropriate." },
   ];
   const [versionRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     "SELECT COUNT(*) AS n FROM legal_entity_config_versions WHERE legal_entity_id = ?", [legalEntityId]);
@@ -305,6 +305,8 @@ export async function captureDocumentConfigurationSnapshot(
     throw new ConfigurationNotReadyError("No approved tax rule is effective for the document date.");
   }
   const taxIds = [...new Set(input.taxRuleIds)];
+  const registrationIds = [...new Set(input.taxRegistrationIds)];
+  if (taxIds.length !== input.taxRuleIds.length) throw new ConfigurationConflictError("Duplicate tax-rule identifiers were supplied.");
   if (registrationIds.length !== input.taxRegistrationIds.length) throw new ConfigurationConflictError("Duplicate tax-registration identifiers were supplied.");
   if (entity.tax_setup_status === "APPROVED_NOT_APPLICABLE" && (taxIds.length || registrationIds.length)) {
     throw new ConfigurationConflictError("The approved tax decision is not applicable; this document cannot reference tax rules or registrations.");
@@ -312,16 +314,21 @@ export async function captureDocumentConfigurationSnapshot(
   if (entity.tax_setup_status === "APPROVED_CONFIGURED" && registrationIds.length === 0) {
     throw new ConfigurationNotReadyError("Select the approved legal-entity tax registration applicable to this document.");
   }
-  const [registrationRows] = await conn.execute<(RowDataPacket & {
+  type RegistrationSnapshotRow = RowDataPacket & {
     id:string; registration_key:string; version_number:number; registration_type:string; jurisdiction:string;
     registration_number:string; display_label:string; is_primary:number; effective_from:Date; effective_until:Date|null; approval_reference:string;
-  })[]>(
-    `SELECT id,registration_key,version_number,registration_type,jurisdiction,registration_number,display_label,is_primary,
-      effective_from,effective_until,approval_reference
-     FROM legal_entity_tax_registrations WHERE legal_entity_id=? AND id IN (${registrationIds.map(()=>"?").join(",")})
-      AND is_active=TRUE AND approved_at IS NOT NULL AND approval_reference IS NOT NULL
-      AND effective_from<=? AND (effective_until IS NULL OR effective_until>=?) FOR UPDATE`,
-    [input.legalEntityId,...registrationIds,input.documentDate,input.documentDate]);
+  };
+  let registrationRows: RegistrationSnapshotRow[] = [];
+  if (registrationIds.length) {
+    const [fetchedRegistrationRows] = await conn.execute<RegistrationSnapshotRow[]>(
+      `SELECT id,registration_key,version_number,registration_type,jurisdiction,registration_number,display_label,is_primary,
+        effective_from,effective_until,approval_reference
+       FROM legal_entity_tax_registrations WHERE legal_entity_id=? AND id IN (${registrationIds.map(()=>"?").join(",")})
+        AND is_active=TRUE AND approved_at IS NOT NULL AND approval_reference IS NOT NULL
+        AND effective_from<=? AND (effective_until IS NULL OR effective_until>=?) FOR UPDATE`,
+      [input.legalEntityId,...registrationIds,input.documentDate,input.documentDate]);
+    registrationRows = fetchedRegistrationRows;
+  }
   if (registrationRows.length !== registrationIds.length) {
     throw new ConfigurationNotReadyError("A selected tax registration is inactive, unapproved, out of date, or belongs to another legal entity.");
   }
@@ -335,10 +342,6 @@ export async function captureDocumentConfigurationSnapshot(
     }
   }
 
-  if (entity.tax_setup_status === "APPROVED_NOT_APPLICABLE" && taxIds.length) {
-    throw new ConfigurationConflictError("Tax setup is approved as not applicable; the issued document cannot reference configured tax rules.");
-  }
-  if (taxIds.length !== input.taxRuleIds.length) throw new ConfigurationConflictError("Duplicate tax-rule identifiers were supplied.");
   const effectiveById = new Map(effectiveTaxRows.map((row) => [row.id, row]));
   if (taxIds.some((id) => !effectiveById.has(id))) throw new ConfigurationNotReadyError("A selected tax rule is inactive, unapproved, out of date, or belongs to another legal entity.");
 
@@ -407,6 +410,6 @@ async function loadEntityFromPool(id: string): Promise<LegalEntityRecord | null>
     `SELECT id, legal_name, display_name, registration_number, tax_identifier, address_json, country_code,
       invoice_email, invoice_phone, website, currency, locale, time_zone, logo_reference, bank_details_json,
       invoice_terms, invoice_footer, default_tax_code, tax_setup_status, tax_setup_approval_reference,
-      is_active, created_at, updated_at FROM legal_entities WHERE id = ? LIMIT 1`, [id]);
+      tax_setup_approved_by, tax_setup_approved_at, is_active, created_at, updated_at FROM legal_entities WHERE id = ? LIMIT 1`, [id]);
   return rows[0] ?? null;
 }
