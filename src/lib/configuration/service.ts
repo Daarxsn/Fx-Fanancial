@@ -146,6 +146,11 @@ export async function readinessForEntity(legalEntityId: string) {
       WHERE legal_entity_id = ? AND is_active = TRUE AND approved_at IS NOT NULL AND approval_reference IS NOT NULL
         AND effective_from <= CURRENT_DATE() AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())`, [legalEntityId]);
   const hasRegistration = Number(registrationRows[0]?.n ?? 0) > 0;
+  const [registrationRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
+    `SELECT COUNT(*) AS n FROM legal_entity_tax_registrations
+      WHERE legal_entity_id = ? AND is_active = TRUE AND approved_at IS NOT NULL AND approval_reference IS NOT NULL
+        AND effective_from <= CURRENT_DATE() AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())`, [legalEntityId]);
+  const hasRegistration = Number(registrationRows[0]?.n ?? 0) > 0;
   checks.push({ key: "taxRules", passed: entity.tax_setup_status === "APPROVED_NOT_APPLICABLE" || (entity.tax_setup_status === "APPROVED_CONFIGURED" && hasTax && hasRegistration), message: "Approved tax setup requires an effective approved tax registration and tax rule, or an explicitly approved not-applicable decision." });
   const [numberingRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     `SELECT COUNT(*) AS n FROM invoice_numbering_configs
@@ -155,7 +160,7 @@ export async function readinessForEntity(legalEntityId: string) {
   checks.push({ key: "numbering", passed: Number(numberingRows[0]?.n ?? 0) === 1, message: "Exactly one active, approved invoice numbering series must be effective." });
   const [templateRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     `SELECT COUNT(*) AS n FROM invoice_document_templates
-      WHERE legal_entity_id = ? AND document_type = 'INVOICE' AND is_active = TRUE
+      WHERE legal_entity_id = ? AND brand_id IS NULL AND document_type = 'INVOICE' AND is_active = TRUE
         AND effective_from <= CURRENT_DATE() AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())`, [legalEntityId]);
   checks.push({ key: "invoiceTemplate", passed: Number(templateRows[0]?.n ?? 0) === 1, message: "Exactly one active invoice template must be effective today." });
   return { legalEntityId, ready: checks.every((check) => check.passed), checks };
