@@ -2,13 +2,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { pool } from "@/lib/db/pool";
-
-export class ConfigurationNotReadyError extends Error {
-  constructor(public readonly reason: string) { super(reason); this.name = "ConfigurationNotReadyError"; }
-}
-export class ConfigurationConflictError extends Error {
-  constructor(public readonly reason: string) { super(reason); this.name = "ConfigurationConflictError"; }
-}
+import { ConfigurationConflictError, ConfigurationNotReadyError } from "@/lib/configuration/errors";
 
 export type LegalEntityRecord = RowDataPacket & {
   id: string; legal_name: string; display_name: string; registration_number: string | null; tax_identifier: string | null;
