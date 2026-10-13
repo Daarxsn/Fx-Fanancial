@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import { Breadcrumbs, Button, Card, EmptyState, InlineAlert, LoadingState, PageHeader, StatusBadge, TextField, TextAreaField, SelectField } from "@/components/ui";
 
 type Entity = {
@@ -45,12 +45,12 @@ function Input({id,label,value,onChange,type="text",required=false,disabled=fals
 function Select({id,label,value,onChange,options,required=false}:{id:string;label:string;value:string;onChange:(s:string)=>void;options:{value:string;label:string}[];required?:boolean}){
  return <SelectField id={id} label={label} value={value} onChange={e=>onChange(e.target.value)} options={options} required={required}/>;
 }
-function Grid({children}:{children:React.ReactNode}){return <div className="config-form-grid">{children}</div>}
-function Heading({label,title,description,action}:{label:string;title:string;description:string;action?:React.ReactNode}){return <div className="config-section-heading"><div><p className="eyebrow">{label}</p><h2>{title}</h2><p>{description}</p></div>{action}</div>}
+function Grid({children}:{children:ReactNode}){return <div className="config-form-grid">{children}</div>}
+function Heading({label,title,description,action}:{label:string;title:string;description:string;action?:ReactNode}){return <div className="config-section-heading"><div><p className="eyebrow">{label}</p><h2>{title}</h2><p>{description}</p></div>{action}</div>}
 function RecordCard({title,subtitle,meta,active,details,actions}:{title:string;subtitle:string;meta?:string;active:boolean;details:React.ReactNode;actions?:React.ReactNode}){
  return <Card className="config-record-card"><div className="config-record-top"><div className="config-identity-mark"><span>{title.slice(0,1).toUpperCase()}</span></div><div className="config-record-name"><h3>{title}</h3><p>{subtitle}</p>{meta?<small>{meta}</small>:null}</div><StatusBadge tone={active?"success":"neutral"}>{active?"Active":"Inactive"}</StatusBadge></div><div className="config-record-details">{details}</div>{actions?<div className="config-record-bottom"><span/><div className="config-action-row">{actions}</div></div>:null}</Card>;
 }
-function Detail({label,children}:{label:string;children:React.ReactNode}){return <span><small>{label}</small>{children}</span>}
+function Detail({label,children}:{label:string;children:ReactNode}){return <span><small>{label}</small>{children}</span>}
 function commaIds(value:string){return value.split(/[\s,]+/).map(v=>v.trim()).filter(Boolean)}
 function compactDate(value:string|null|undefined){return value?String(value).slice(0,10):"Open"}
 
@@ -65,8 +65,7 @@ export default function SettingsPage(){
  const [entityEdit,setEntityEdit]=useState("");const [brandEdit,setBrandEdit]=useState("");const [unitEdit,setUnitEdit]=useState("");
  const [company,setCompany]=useState<Draft>(companyBlank());const [brand,setBrand]=useState<Draft>(brandBlank());const [unit,setUnit]=useState<Draft>(unitBlank());
  const [registration,setRegistration]=useState<Draft>(registrationBlank());const [tax,setTax]=useState<Draft>(taxBlank());const [numbering,setNumbering]=useState<Draft>(numberingBlank());const [template,setTemplate]=useState<Draft>(templateBlank());
- const [sensitiveOpen,setSensitiveOpen]=useState(false);
- const setValue=(setter:React.Dispatch<React.SetStateAction<Draft>>,key:string,value:string|boolean)=>setter(old=>({...old,[key]:value}));
+ const setValue=(setter:Dispatch<SetStateAction<Draft>>,key:string,value:string|boolean)=>setter(old=>({...old,[key]:value}));
  const loadAll=useCallback(async()=>{
   setBusy(true);setError("");
   try{
@@ -105,7 +104,6 @@ export default function SettingsPage(){
    invoiceEmail:e.invoiceEmail??"",invoicePhone:e.invoicePhone??"",website:e.website??"",locale:e.locale??"",timeZone:e.timeZone??"",logoReference:e.logoReference??"",
    invoiceTerms:e.invoiceTerms??"",invoiceFooter:e.invoiceFooter??"",defaultTaxCode:e.defaultTaxCode??"",taxSetupStatus:e.taxSetupStatus,
    taxSetupApprovalReference:e.taxSetupApprovalReference??"",changeReason:"Update legal entity configuration"});
-  setSensitiveOpen(false);
  }
  async function saveEntity(){
   const address={line1:String(company.line1),line2:String(company.line2),city:String(company.city),state:String(company.state),postalCode:String(company.postalCode),countryCode:String(company.countryCode)};
@@ -124,7 +122,7 @@ export default function SettingsPage(){
    if(company.taxSetupStatus!=="UNCONFIGURED"&&!company.taxSetupApprovalReference)throw new Error("An approval reference is required for an approved tax setup.");
    await api("/api/v1/legal-entities/"+entityEdit,"PATCH",body);
   }
-  setEntityEdit("");setCompany(companyBlank());setSensitiveOpen(false);
+  setEntityEdit("");setCompany(companyBlank());
  }
  async function toggle(path:string,active:boolean,label:string){
   const reason=window.prompt("Reason to "+(active?"deactivate ":"activate ")+label+":");
@@ -231,7 +229,7 @@ export default function SettingsPage(){
     <div className="config-form-actions"><Button type="submit" disabled={saving}>{saving?"Saving…":entityEdit==="new"?"Create entity":"Save new version"}</Button><Button variant="ghost" onClick={()=>{setEntityEdit("");setCompany(companyBlank())}}>Cancel</Button></div>
    </form></Card>:null}
    {entities.length===0?<EmptyState title="No legal entities in your scope" description="Add an explicit legal identity. No entity mappings or tax details are guessed." icon="building"/>:
-    <div className="config-record-list">{entities.map(e=>{const check=readiness[e.id];return <RecordCard key={e.id} title={e.displayName} subtitle={e.legalName} meta={(e.countryCode??"Country unset")+" · "+e.currency} active={e.isActive}
+    <div className="config-record-list">{entities.map(e=>{return <RecordCard key={e.id} title={e.displayName} subtitle={e.legalName} meta={(e.countryCode??"Country unset")+" · "+e.currency} active={e.isActive}
      details={<><Detail label="Address">{[e.address?.line1,e.address?.city,e.countryCode].filter(Boolean).join(", ")||"Incomplete"}</Detail><Detail label="Tax setup">{e.taxSetupStatus.replaceAll("_"," ").toLowerCase()}</Detail><Detail label="Bank details">{e.bankDetailsConfigured?"Configured"+(e.bankAccountLast4?" · •••• "+e.bankAccountLast4:""):"Not configured"}</Detail></>}
      actions={<><Button size="sm" variant="secondary" onClick={()=>editEntity(e)}>Edit</Button><Button size="sm" variant={e.isActive?"danger":"secondary"} onClick={()=>void mutate(undefined,()=>api("/api/v1/legal-entities/"+e.id,"PATCH",{isActive:!e.isActive,changeReason:e.isActive?"Legal entity deactivation":"Legal entity reactivation"}),e.isActive?"Legal entity deactivated.":"Legal entity reactivated.")}>{e.isActive?"Deactivate":"Reactivate"}</Button></>}/>})}</div>}
   </div><aside className="config-aside"><Card className="config-readiness-card"><p className="eyebrow">ISSUANCE GUARD</p><h3>{entity?(readiness[entity.id]?.ready?"Readiness checks passed":"Configuration readiness"):"Select an entity"}</h3><p>Passing readiness checks does not issue an invoice; the issue workflow remains a separate controlled operation.</p>
@@ -250,7 +248,7 @@ export default function SettingsPage(){
    <TextField id="brandEntities" label="Legal entity UUIDs" required value={String(brand.legalEntityIds)} onChange={e=>setValue(setBrand,"legalEntityIds",e.target.value)} hint="Comma-separated IDs from your entity list; the server verifies each mapping."/>
    <TextField id="brandReason" label="Reason for change" required value={String(brand.changeReason)} onChange={e=>setValue(setBrand,"changeReason",e.target.value)}/>
    <div className="config-form-actions"><Button type="submit" disabled={saving}>{saving?"Saving…":brandEdit?"Save brand version":"Create brand"}</Button>{brandEdit?<Button variant="ghost" onClick={()=>{setBrandEdit("");setBrand(brandBlank())}}>Cancel</Button>:null}</div></form></Card>
-   {brands.length===0?<EmptyState title="No mapped brands" description="Create a brand and select the legal entities it is explicitly permitted to represent." icon="layers"/>:<div className="config-record-list">{brands.map(b=><RecordCard key={b.id} title={b.name} subtitle={b.code} meta={b.description??"Brand identity"} active={b.isActive}
+   {brands.length===0?<EmptyState title="No mapped brands" description="Create a brand and select the legal entities it is explicitly permitted to represent." icon="box"/>:<div className="config-record-list">{brands.map(b=><RecordCard key={b.id} title={b.name} subtitle={b.code} meta={b.description??"Brand identity"} active={b.isActive}
     details={<><Detail label="Entity mappings">{b.legalEntityMappings.length}</Detail><Detail label="Logo">{b.logoReference||"Not set"}</Detail><Detail label="Preferred template">{b.defaultTemplateKey||"None"}</Detail></>}
     actions={<><Button size="sm" variant="secondary" onClick={()=>{setBrandEdit(b.id);setBrand({name:b.name,code:b.code,description:b.description??"",logoReference:b.logoReference??"",defaultTemplateKey:b.defaultTemplateKey??"",legalEntityIds:b.legalEntityMappings.map(m=>m.legalEntityId).join(", "),changeReason:"Update brand configuration"})}}>Edit</Button><Button size="sm" variant={b.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/brands/"+b.id,b.isActive,b.name)}>{b.isActive?"Deactivate":"Reactivate"}</Button></>}/>)}</div>}
   </div>:null}
@@ -265,7 +263,7 @@ export default function SettingsPage(){
    <TextField id="unitBrands" label="Brand UUIDs" value={String(unit.brandIds)} onChange={e=>setValue(setUnit,"brandIds",e.target.value)} hint="Optional; each must map to at least one selected entity."/>
    <TextField id="unitReason" label="Reason for change" required value={String(unit.changeReason)} onChange={e=>setValue(setUnit,"changeReason",e.target.value)}/>
    <div className="config-form-actions"><Button type="submit" disabled={saving}>{saving?"Saving…":unitEdit?"Save unit version":"Create business unit"}</Button>{unitEdit?<Button variant="ghost" onClick={()=>{setUnitEdit("");setUnit(unitBlank())}}>Cancel</Button>:null}</div></form></Card>
-   {units.length===0?<EmptyState title="No accessible business units" description="Create a business unit and explicitly map it to active legal entities." icon="workflow"/>:<div className="config-record-list">{units.map(u=><RecordCard key={u.id} title={u.name} subtitle={u.code} meta={u.description??"Operating unit"} active={u.isActive}
+   {units.length===0?<EmptyState title="No accessible business units" description="Create a business unit and explicitly map it to active legal entities." icon="users"/>:<div className="config-record-list">{units.map(u=><RecordCard key={u.id} title={u.name} subtitle={u.code} meta={u.description??"Operating unit"} active={u.isActive}
     details={<><Detail label="Legal entities">{u.legalEntities.length}</Detail><Detail label="Brands">{u.brandIds.length}</Detail><Detail label="Scope">Explicitly mapped</Detail></>}
     actions={<><Button size="sm" variant="secondary" onClick={()=>{setUnitEdit(u.id);setUnit({code:u.code,name:u.name,description:u.description??"",legalEntityIds:u.legalEntities.map(x=>x.id).join(", "),brandIds:u.brandIds.join(", "),changeReason:"Update business unit"})}}>Edit</Button><Button size="sm" variant={u.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/business-units/"+u.id,u.isActive,u.name)}>{u.isActive?"Deactivate":"Reactivate"}</Button></>}/>)}</div>}
   </div>:null}
@@ -304,7 +302,7 @@ export default function SettingsPage(){
       details={<><Detail label="Jurisdiction">{r.jurisdiction}</Detail><Detail label="Effective">{compactDate(r.effectiveFrom)+" → "+compactDate(r.effectiveUntil)}</Detail><Detail label="Approval">{r.approvalReference}</Detail></>}
       actions={r.isActive?<Button size="sm" variant="danger" onClick={()=>void toggle("/api/v1/legal-entities/"+entityId+"/tax-registrations/"+r.id,r.isActive,r.displayLabel)}>Deactivate version</Button>:null}/>)}</div>}
     <Heading label="EFFECTIVE TAX RULES" title="Tax rule registry" description="Overlapping active effective windows for the same code are rejected."/>
-    {taxRules.filter(r=>r.legalEntityId===entityId).length===0?<EmptyState title="No rules configured" description="Create approved rules only when supported by your current accounting/tax policy." icon="file-text"/>:<div className="config-record-list">{taxRules.filter(r=>r.legalEntityId===entityId).map(r=><RecordCard key={r.id} title={r.displayName} subtitle={r.taxCode+" · "+r.jurisdiction} meta={r.ratePercent+"% · "+r.calculationMode} active={r.isActive}
+    {taxRules.filter(r=>r.legalEntityId===entityId).length===0?<EmptyState title="No rules configured" description="Create approved rules only when supported by your current accounting/tax policy." icon="file"/>:<div className="config-record-list">{taxRules.filter(r=>r.legalEntityId===entityId).map(r=><RecordCard key={r.id} title={r.displayName} subtitle={r.taxCode+" · "+r.jurisdiction} meta={r.ratePercent+"% · "+r.calculationMode} active={r.isActive}
      details={<><Detail label="Effective">{compactDate(r.effectiveFrom)+" → "+compactDate(r.effectiveUntil)}</Detail><Detail label="Approval">{r.approvalReference??"Not recorded"}</Detail></>}
      actions={<Button size="sm" variant={r.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/tax-rules/"+r.id,r.isActive,r.taxCode)}>{r.isActive?"Deactivate":"Reactivate"}</Button>}/>)}</div>}
    </>}
@@ -330,7 +328,7 @@ export default function SettingsPage(){
     <TextField id="numReason" label="Reason for change" required value={String(numbering.changeReason)} onChange={e=>setValue(setNumbering,"changeReason",e.target.value)}/>
     <div className="config-preview-number"><small>Illustrative format only — no number has been allocated</small><strong>{String(numbering.prefix)+(numbering.includeFinancialYear?"YYYY-YYYY":"")+"0".repeat(Math.max(1,Math.min(12,Number(numbering.sequenceWidth)||5)))+String(numbering.suffix)}</strong></div>
     <Button type="submit" disabled={saving}>Save numbering version</Button></form></Card>
-    {numberings.filter(n=>n.legalEntityId===entityId).length===0?<EmptyState title="No numbering series" description="A finance-approved invoice series is required for readiness." icon="hash"/>:<div className="config-record-list">{numberings.filter(n=>n.legalEntityId===entityId).map(n=><RecordCard key={n.id} title={n.documentType+" · "+n.seriesCode} subtitle={n.prefix+(n.includeFinancialYear?"FY":"")+"0".repeat(Math.max(1,Math.min(12,n.sequenceWidth)))+n.suffix} meta={"Version "+n.versionNumber+" · FY starts "+n.financialYearStartDay+"/"+n.financialYearStartMonth+" · "+n.timeZone} active={n.isActive}
+    {numberings.filter(n=>n.legalEntityId===entityId).length===0?<EmptyState title="No numbering series" description="A finance-approved invoice series is required for readiness." icon="invoice"/>:<div className="config-record-list">{numberings.filter(n=>n.legalEntityId===entityId).map(n=><RecordCard key={n.id} title={n.documentType+" · "+n.seriesCode} subtitle={n.prefix+(n.includeFinancialYear?"FY":"")+"0".repeat(Math.max(1,Math.min(12,n.sequenceWidth)))+n.suffix} meta={"Version "+n.versionNumber+" · FY starts "+n.financialYearStartDay+"/"+n.financialYearStartMonth+" · "+n.timeZone} active={n.isActive}
      details={<><Detail label="Effective">{compactDate(n.effectiveFrom)+" → "+compactDate(n.effectiveUntil)}</Detail><Detail label="Approval">{n.approvalReference??"Missing"}</Detail></>}
      actions={<Button size="sm" variant={n.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/numbering-configs/"+n.id,n.isActive,n.seriesCode)}>{n.isActive?"Deactivate":"Activate"}</Button>}/>)}</div>}
    </>}
