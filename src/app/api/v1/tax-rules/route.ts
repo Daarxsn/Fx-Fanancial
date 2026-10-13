@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
 import { requirePermissionForEntity } from "@/lib/auth/authorize";
+import { requireFinanceConfigurationApprover } from "@/lib/configuration/authorization";
 import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { taxRuleCreateSchema } from "@/lib/validation/configuration";
@@ -36,7 +37,7 @@ export async function POST(request:NextRequest){
  try{
   await assertCsrf(request);
   const input=taxRuleCreateSchema.parse(await request.json());
-  const actor=await requirePermissionForEntity("settings:manage",input.legalEntityId);
+  const actor=requireFinanceConfigurationApprover(await requirePermissionForEntity("settings:manage",input.legalEntityId));
   conn=await pool.getConnection();await conn.beginTransaction();
   const [entities]=await conn.execute<(RowDataPacket & {is_active:number;tax_setup_status:string})[]>(
    "SELECT is_active,tax_setup_status FROM legal_entities WHERE id=? FOR UPDATE",[input.legalEntityId]);
