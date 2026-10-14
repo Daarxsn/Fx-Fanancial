@@ -54,10 +54,10 @@ export async function PATCH(request:NextRequest,context:Context){
   const [rows]=await conn.execute<(RowDataPacket & {id:string;code:string;name:string;description:string|null;is_active:number})[]>(
    "SELECT id,code,name,description,is_active FROM business_units WHERE id=? FOR UPDATE",[businessUnitId]);
   if(!rows.length){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Business unit not found"}},404)}
-  const [oldEntities]=await conn.execute<(RowDataPacket & {legal_entity_id:string;is_primary:number})[]>(
+  const [oldEntities]=await conn.execute<(RowDataPacket & {legal_entity_id:string;is_primary:number;effective_from:Date})[]>(
    "SELECT legal_entity_id,is_primary,effective_from FROM business_unit_legal_entities WHERE business_unit_id=? AND effective_from<=NOW(3) AND (effective_until IS NULL OR effective_until>NOW(3)) FOR UPDATE",[businessUnitId]);
   if(!oldEntities.length||oldEntities.some(e=>!actor.legalEntityIds.includes(e.legal_entity_id))){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Business unit not found in your assigned scope."}},404)}
-  const [oldBrands]=await conn.execute<(RowDataPacket & {brand_id:string})[]>(
+  const [oldBrands]=await conn.execute<(RowDataPacket & {brand_id:string;effective_from:Date})[]>(
    "SELECT brand_id,effective_from FROM brand_business_units WHERE business_unit_id=? AND effective_from<=NOW(3) AND (effective_until IS NULL OR effective_until>NOW(3)) FOR UPDATE",[businessUnitId]);
   const entityIds=incomingEntityIds?[...incomingEntityIds]:oldEntities.map(e=>e.legal_entity_id);
   const brandIds=incomingBrandIds?[...incomingBrandIds]:oldBrands.map(e=>e.brand_id);
