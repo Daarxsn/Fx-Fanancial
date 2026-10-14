@@ -608,6 +608,50 @@ try {
   assert.equal(conflictingReplay.body.error.code,"CONFIGURATION_CONFLICT");
   console.log("PASS: Phase 6B end-to-end issue path validates finance-approved rules, reserves and persists the invoice number, stores the immutable configuration snapshot/hash, masks bank details in the supplier snapshot, and enforces same-key replay/conflicting-key rejection.");
 
+  // Debit notes share the transactional numbering/snapshot path but use their own document-type series.
+  const debitNumbering=await call("/api/v1/numbering-configs",{
+    method:"POST",
+    body:JSON.stringify({legalEntityId:entityA.id,documentType:"DEBIT_NOTE",seriesCode:"P6B_DN_"+phase6bSuffix,
+      prefix:"P6B-DN-"+phase6bSuffix+"-",suffix:"",sequenceWidth:5,includeFinancialYear:true,
+      financialYearStartMonth:4,financialYearStartDay:1,timeZone:"Asia/Kolkata",effectiveFrom:"2020-01-01",
+      effectiveUntil:"",approvalReference:"CI-DN-NUM-APPROVAL-"+phase6bSuffix,activate:true,
+      changeReason:"Phase 6B debit-note series fixture"}),
+  },phase6aSession.jar);
+  assert.equal(debitNumbering.response.status,201,"debit-note series must be configurable");
+  const debitTemplate=await call("/api/v1/document-templates",{
+    method:"POST",
+    body:JSON.stringify({legalEntityId:entityA.id,documentType:"DEBIT_NOTE",templateKey:"P6B_DN_DEFAULT",
+      displayName:"Synthetic debit note template",templateConfig:{...templateConfig,showBankDetails:false},
+      effectiveFrom:"2020-01-01",effectiveUntil:"",activate:true,
+      changeReason:"Phase 6B debit-note template fixture"}),
+  },phase6aSession.jar);
+  assert.equal(debitTemplate.response.status,201,"debit-note template must be configurable");
+  const debitNoteId=randomUUID();
+  await db.execute(
+    "INSERT INTO invoices (id,legal_entity_id,brand_id,customer_id,document_type,lifecycle_status,payment_terms_days,currency,subtotal,discount_total,tax_total,grand_total) VALUES (?, ?, NULL, ?, 'DEBIT_NOTE','DRAFT',30,'INR',100.0000,0,18.0000,118.0000)",
+    [debitNoteId,entityA.id,created.body.data.id],
+  );
+  await db.execute(
+    "INSERT INTO invoice_lines (id,invoice_id,line_number,description,quantity,unit_price,discount_amount,tax_rate,tax_code,tax_rule_id,tax_registration_id,tax_amount,line_total) VALUES (?,?,1,'CI debit-note line',1.0000,100.0000,0,18.000000,?,?,?,18.0000,118.0000)",
+    [randomUUID(),debitNoteId,phase6bTaxCode,phase6bTaxRuleId,phase6bRegistrationId],
+  );
+  const debitIssue=await call("/api/v1/invoices/"+debitNoteId+"/issue",{
+    method:"POST",headers:{"Idempotency-Key":"p6b-debit-"+phase6bSuffix.toLowerCase()+"-001"},
+    body:JSON.stringify({documentDate:issueDate}),
+  },phase6aSession.jar);
+  assert.equal(debitIssue.response.status,200,"debit note issues through the secured transactional path: "+JSON.stringify(debitIssue.body?.error??null));
+  assert.match(debitIssue.body.data.invoiceNumber,/^P6B-DN-/);
+  const [debitSnapshotRows]=await db.execute(
+    "SELECT resource_type,configuration_sha256,numbering_config_id,template_id FROM document_configuration_snapshots WHERE resource_id=?",
+    [debitNoteId],
+  );
+  assert.equal(debitSnapshotRows.length,1);
+  assert.equal(debitSnapshotRows[0].resource_type,"DEBIT_NOTE");
+  assert.equal(debitSnapshotRows[0].numbering_config_id,debitNumbering.body.data.id);
+  assert.equal(debitSnapshotRows[0].template_id,debitTemplate.body.data.templateId);
+  assert.equal(debitSnapshotRows[0].configuration_sha256,debitIssue.body.data.configurationSha256);
+  console.log("PASS: debit notes use their own approved numbering series and preserve the selected immutable configuration snapshot.");
+
   const unitCode = "P6A_" + suffix.toUpperCase();
   const unitCreated = await call("/api/v1/business-units", {
     method: "POST",

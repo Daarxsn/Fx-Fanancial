@@ -20,7 +20,7 @@ type InvoiceRow = RowDataPacket & {
   legal_entity_id: string;
   brand_id: string | null;
   customer_id: string;
-  document_type: "INVOICE" | "CREDIT_NOTE";
+  document_type: "INVOICE" | "CREDIT_NOTE" | "DEBIT_NOTE";
   lifecycle_status: string;
   payment_terms_days: number;
   invoice_number: string | null;
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ in
       await conn.rollback();
       return jsonNoStore({ error: { code: "CONFIGURATION_CONFLICT", message: "Only draft invoices can be issued." } }, 409);
     }
-    if (invoice.document_type !== "INVOICE" && invoice.document_type !== "CREDIT_NOTE") {
+    if (invoice.document_type !== "INVOICE" && invoice.document_type !== "CREDIT_NOTE" && invoice.document_type !== "DEBIT_NOTE") {
       throw new ConfigurationConflictError("Only invoice and credit-note records can be issued through this endpoint.");
     }
     const [keyRows] = await conn.execute<(RowDataPacket & { id: string })[]>(
