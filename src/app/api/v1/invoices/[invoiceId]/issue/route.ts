@@ -104,7 +104,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ in
       return jsonNoStore({ error: { code: "CONFIGURATION_CONFLICT", message: "Only draft invoices can be issued." } }, 409);
     }
     if (invoice.document_type !== "INVOICE" && invoice.document_type !== "CREDIT_NOTE" && invoice.document_type !== "DEBIT_NOTE") {
-      throw new ConfigurationConflictError("Only invoice and credit-note records can be issued through this endpoint.");
+      throw new ConfigurationConflictError("Only invoice, credit-note and debit-note records can be issued through this endpoint.");
     }
     const [keyRows] = await conn.execute<(RowDataPacket & { id: string })[]>(
       "SELECT id FROM invoices WHERE legal_entity_id=? AND issue_idempotency_key=? AND id<>? LIMIT 1 FOR UPDATE",

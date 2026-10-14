@@ -645,7 +645,7 @@ paths:
       - { $ref: "#/components/parameters/InvoiceId" }
     post:
       tags: [Invoices]
-      summary: Issue a draft invoice with validated tax, numbering and an immutable configuration snapshot
+      summary: Issue a draft invoice, credit note or debit note with validated tax, numbering and an immutable configuration snapshot
       operationId: issueInvoice
       x-implementation-status: implemented
       parameters:

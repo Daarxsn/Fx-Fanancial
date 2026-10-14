@@ -212,12 +212,12 @@ Evidence:
 
 - [x] Effective-dated approved tax registrations and tax rules are validated against the document date; duplicate overlapping active tax codes, numbering series and templates are rejected.
 - [x] Number reservation uses a parent-entity lock and an independent entity/document-type/financial-year counter inside the caller transaction.
-- [x] Invoice/credit-note issue endpoint checks permission and legal-entity scope, validates draft/customer/line tax references, selects approved effective numbering and templates, and records issuance, audit and snapshot in one transaction.
+- [x] Invoice/credit-note/debit-note issue endpoint checks permission and legal-entity scope, validates draft/customer/line tax references, selects approved effective numbering and templates, and records issuance, audit and snapshot in one transaction.
 - [x] Canonical configuration snapshot includes legal-entity/brand version references, approved tax registration/rules, numbering series/allocation and the selected brand-specific or entity-wide template.
 - [x] Database triggers reject snapshot updates and deletes; same-key issue retries return the original result, while conflicting keys are rejected.
 - [x] MySQL integration tests cover twelve concurrent allocations, financial-year boundaries, tax/registration effective periods, brand-specific template preference, snapshot hash and preservation after configuration edits.
 - [x] API contract tests confirm unconfigured tax setup blocks issue and out-of-scope invoices are concealed.
-- [x] End-to-end API test issues a valid synthetic invoice, verifies its snapshot ID/hash and selected tax/template/numbering references, checks same-key replay and rejects a conflicting key.
+- [x] End-to-end API tests issue synthetic invoice and debit-note documents, verify their snapshot IDs/hashes and selected tax/template/numbering references, checks same-key replay and rejects a conflicting key.
 - [x] Full CI acceptance passed on `f0b56ce5416ff89eb053b34615339d65a0ff47b0`, including the ten-migration MySQL run, logical dump/restore, security/API contracts, Phase 6B integration suite, OpenAPI, UI validation, lint, TypeScript and production build.
 - [x] Lockfile/bootstrap workflow passed for the same commit.
 - [ ] Finance/tax owners approve actual registration details, rates, numbering policy, templates and legal-entity/brand relationships before production issuance.

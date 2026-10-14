@@ -620,7 +620,7 @@ try {
   assert.equal(debitNumbering.response.status,201,"debit-note series must be configurable");
   const debitTemplate=await call("/api/v1/document-templates",{
     method:"POST",
-    body:JSON.stringify({legalEntityId:entityA.id,documentType:"DEBIT_NOTE",templateKey:"P6B_DN_DEFAULT",
+    body:JSON.stringify({legalEntityId:entityA.id,documentType:"DEBIT_NOTE",templateKey:"DEBIT",
       displayName:"Synthetic debit note template",templateConfig:{...templateConfig,showBankDetails:false},
       effectiveFrom:"2020-01-01",effectiveUntil:"",activate:true,
       changeReason:"Phase 6B debit-note template fixture"}),
