@@ -39,7 +39,7 @@ export async function PATCH(request:NextRequest,context:Context){
   const [currentRows]=await conn.execute<(RowDataPacket & {id:string;name:string;code:string;description:string|null;logo_reference:string|null;theme_json:unknown;default_template_key:string|null;is_active:number})[]>(
    "SELECT id,name,code,description,logo_reference,theme_json,default_template_key,is_active FROM brands WHERE id=? FOR UPDATE",[brandId]);
   if(!currentRows.length){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Brand not found"}},404)}
-  const [currentMappings]=await conn.execute<(RowDataPacket & {legal_entity_id:string;is_default:number})[]>(
+  const [currentMappings]=await conn.execute<(RowDataPacket & {legal_entity_id:string;is_default:number;effective_from:Date})[]>(
    "SELECT legal_entity_id,is_default,effective_from FROM brand_legal_entities WHERE brand_id=? AND effective_from<=NOW(3) AND (effective_until IS NULL OR effective_until>NOW(3)) ORDER BY is_default DESC,legal_entity_id FOR UPDATE",[brandId]);
   if(!currentMappings.length||currentMappings.some(m=>!actor.legalEntityIds.includes(m.legal_entity_id))){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Brand not found in your assigned scope."}},404)}
   const desiredIds=incomingIds?[...new Set(incomingIds)]:currentMappings.map(m=>m.legal_entity_id);
