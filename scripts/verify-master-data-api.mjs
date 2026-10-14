@@ -492,6 +492,122 @@ try {
   assert.equal(blockedIncompleteIssue.response.status,409,"unconfigured tax setup blocks issuance");
   assert.equal(blockedIncompleteIssue.body.error.code,"CONFIGURATION_NOT_READY");
 
+  // Complete positive Phase 6B path: approved setup -> issue -> immutable snapshot -> safe idempotent replay.
+  const phase6bSuffix=suffix.toUpperCase();
+  const phase6bTaxCode="P6B_STD_"+phase6bSuffix;
+  const approvalUpdate=await call("/api/v1/legal-entities/"+entityA.id,{
+    method:"PATCH",
+    body:JSON.stringify({taxSetupStatus:"APPROVED_CONFIGURED",
+      taxSetupApprovalReference:"CI-ENTITY-APPROVAL-"+phase6bSuffix,defaultTaxCode:phase6bTaxCode,
+      changeReason:"Phase 6B API issuance fixture: approve synthetic tax configuration"}),
+  },phase6aSession.jar);
+  assert.equal(approvalUpdate.response.status,200,"finance administrator can set a test-only approved tax decision: "+JSON.stringify(approvalUpdate.body?.error??null));
+  assert.equal(approvalUpdate.body.data.taxSetupStatus,"APPROVED_CONFIGURED");
+
+  const regResult=await call("/api/v1/legal-entities/"+entityA.id+"/tax-registrations",{
+    method:"POST",
+    body:JSON.stringify({registrationKey:"P6B_REG_"+phase6bSuffix,registrationType:"OTHER",
+      jurisdiction:"CI-JURISDICTION",registrationNumber:"CI-REG-NUM-"+phase6bSuffix,
+      displayLabel:"Synthetic CI registration",isPrimary:true,effectiveFrom:"2020-01-01",effectiveUntil:"",
+      approvalReference:"CI-REG-APPROVAL-"+phase6bSuffix,changeReason:"Phase 6B synthetic registration fixture"}),
+  },phase6aSession.jar);
+  assert.equal(regResult.response.status,201,"approved test registration can be created: "+JSON.stringify(regResult.body?.error??null));
+  const phase6bRegistrationId=regResult.body.data.id;
+
+  const taxRuleResult=await call("/api/v1/tax-rules",{
+    method:"POST",
+    body:JSON.stringify({legalEntityId:entityA.id,taxCode:phase6bTaxCode,displayName:"Synthetic CI tax rule",
+      jurisdiction:"CI-JURISDICTION",ratePercent:"18",calculationMode:"EXCLUSIVE",effectiveFrom:"2020-01-01",
+      effectiveUntil:"",approvalReference:"CI-TAX-APPROVAL-"+phase6bSuffix,
+      changeReason:"Phase 6B synthetic approved tax-rule fixture"}),
+  },phase6aSession.jar);
+  assert.equal(taxRuleResult.response.status,201,"approved test tax rule can be created: "+JSON.stringify(taxRuleResult.body?.error??null));
+  const phase6bTaxRuleId=taxRuleResult.body.data.id;
+
+  const numberingResult=await call("/api/v1/numbering-configs",{
+    method:"POST",
+    body:JSON.stringify({legalEntityId:entityA.id,documentType:"INVOICE",seriesCode:"P6B_"+phase6bSuffix,
+      prefix:"P6B-"+phase6bSuffix+"-",suffix:"",sequenceWidth:5,includeFinancialYear:true,
+      financialYearStartMonth:4,financialYearStartDay:1,timeZone:"Asia/Kolkata",
+      effectiveFrom:"2020-01-01",effectiveUntil:"",approvalReference:"CI-NUMBER-APPROVAL-"+phase6bSuffix,
+      activate:true,changeReason:"Phase 6B synthetic approved invoice series"}),
+  },phase6aSession.jar);
+  assert.equal(numberingResult.response.status,201,"finance-approved test numbering series can be activated: "+JSON.stringify(numberingResult.body?.error??null));
+  const phase6bNumberingId=numberingResult.body.data.id;
+
+  const templateConfig={pageSize:"A4",orientation:"PORTRAIT",layout:"STANDARD",accentColor:"#931314",
+    showLogo:true,showTaxBreakdown:true,showBankDetails:false,showPaymentTerms:true,
+    showCustomerTaxIdentifier:false,showFooter:true,footerText:"Synthetic Phase 6B CI template"};
+  const templateResult=await call("/api/v1/document-templates",{
+    method:"POST",
+    body:JSON.stringify({legalEntityId:entityA.id,documentType:"INVOICE",templateKey:"P6B_DEFAULT",
+      displayName:"Synthetic CI invoice template",templateConfig,effectiveFrom:"2020-01-01",
+      effectiveUntil:"",activate:true,changeReason:"Phase 6B synthetic invoice template"}),
+  },phase6aSession.jar);
+  assert.equal(templateResult.response.status,201,"test invoice template can be activated: "+JSON.stringify(templateResult.body?.error??null));
+  const phase6bTemplateId=templateResult.body.data.id;
+
+  const issuedInvoiceId=randomUUID();
+  await db.execute(
+    "INSERT INTO invoices (id,legal_entity_id,brand_id,customer_id,document_type,lifecycle_status,payment_terms_days,currency,subtotal,discount_total,tax_total,grand_total) VALUES (?, ?, NULL, ?, 'INVOICE','DRAFT',30,'INR',100.0000,0,18.0000,118.0000)",
+    [issuedInvoiceId,entityA.id,created.body.data.id],
+  );
+  await db.execute(
+    "INSERT INTO invoice_lines (id,invoice_id,line_number,description,quantity,unit_price,discount_amount,tax_rate,tax_code,tax_rule_id,tax_registration_id,tax_amount,line_total) VALUES (?,?,1,'CI taxable line',1.0000,100.0000,0,18.000000,?,?,?,18.0000,118.0000)",
+    [randomUUID(),issuedInvoiceId,phase6bTaxCode,phase6bTaxRuleId,phase6bRegistrationId],
+  );
+  const issueDate=new Date().toISOString().slice(0,10);
+  const issueKey="p6b-happy-"+phase6bSuffix.toLowerCase()+"-001";
+  const issueResult=await call("/api/v1/invoices/"+issuedInvoiceId+"/issue",{
+    method:"POST",headers:{"Idempotency-Key":issueKey},body:JSON.stringify({documentDate:issueDate}),
+  },phase6aSession.jar);
+  assert.equal(issueResult.response.status,200,"approved in-scope draft invoice issues successfully: "+JSON.stringify(issueResult.body?.error??null));
+  assert.equal(issueResult.body.data.status,"ISSUED");
+  assert.equal(issueResult.body.data.idempotentReplay,false);
+  assert.match(issueResult.body.data.invoiceNumber,/^P6B-/);
+  assert.match(issueResult.body.data.configurationSha256,/^[0-9a-f]{64}$/);
+
+  const [issuedRows]=await db.execute(
+    "SELECT lifecycle_status,invoice_number,financial_year,issue_idempotency_key,supplier_snapshot FROM invoices WHERE id=?",
+    [issuedInvoiceId],
+  );
+  assert.equal(issuedRows.length,1);
+  assert.equal(issuedRows[0].lifecycle_status,"ISSUED");
+  assert.equal(issuedRows[0].invoice_number,issueResult.body.data.invoiceNumber);
+  assert.equal(issuedRows[0].issue_idempotency_key,issueKey);
+  assert.equal(JSON.stringify(issuedRows[0].supplier_snapshot).includes(accountNumber),false,
+    "legacy supplier snapshots must not persist the full bank account");
+
+  const [issuedSnapshots]=await db.execute(
+    "SELECT id,configuration_snapshot,configuration_sha256,numbering_config_id,template_id FROM document_configuration_snapshots WHERE resource_type='INVOICE' AND resource_id=?",
+    [issuedInvoiceId],
+  );
+  assert.equal(issuedSnapshots.length,1);
+  assert.equal(issuedSnapshots[0].id,issueResult.body.data.configurationSnapshotId);
+  assert.equal(issuedSnapshots[0].configuration_sha256,issueResult.body.data.configurationSha256);
+  assert.equal(issuedSnapshots[0].numbering_config_id,phase6bNumberingId);
+  assert.equal(issuedSnapshots[0].template_id,phase6bTemplateId);
+  const issueSnapshot=typeof issuedSnapshots[0].configuration_snapshot==="string"
+    ?JSON.parse(issuedSnapshots[0].configuration_snapshot):issuedSnapshots[0].configuration_snapshot;
+  assert.ok(issueSnapshot.selectedTaxRules.some(row=>row.id===phase6bTaxRuleId));
+  assert.ok(issueSnapshot.selectedTaxRegistrations.some(row=>row.id===phase6bRegistrationId));
+  assert.equal(issueSnapshot.legalEntityConfigVersion.versionNumber,Number(approvalUpdate.body.data.configVersion??issueSnapshot.legalEntityConfigVersion.versionNumber));
+
+  const issueReplay=await call("/api/v1/invoices/"+issuedInvoiceId+"/issue",{
+    method:"POST",headers:{"Idempotency-Key":issueKey},body:JSON.stringify({documentDate:issueDate}),
+  },phase6aSession.jar);
+  assert.equal(issueReplay.response.status,200,"same idempotency key returns original issuance result");
+  assert.equal(issueReplay.body.data.idempotentReplay,true);
+  assert.equal(issueReplay.body.data.invoiceNumber,issueResult.body.data.invoiceNumber);
+  assert.equal(issueReplay.body.data.configurationSha256,issueResult.body.data.configurationSha256);
+
+  const conflictingReplay=await call("/api/v1/invoices/"+issuedInvoiceId+"/issue",{
+    method:"POST",headers:{"Idempotency-Key":issueKey+"-DIFFERENT"},body:JSON.stringify({documentDate:issueDate}),
+  },phase6aSession.jar);
+  assert.equal(conflictingReplay.response.status,409,"a different idempotency key cannot reissue the issued invoice");
+  assert.equal(conflictingReplay.body.error.code,"CONFIGURATION_CONFLICT");
+  console.log("PASS: Phase 6B end-to-end issue path validates finance-approved rules, reserves and persists the invoice number, stores the immutable configuration snapshot/hash, masks bank details in the supplier snapshot, and enforces same-key replay/conflicting-key rejection.");
+
   const unitCode = "P6A_" + suffix.toUpperCase();
   const unitCreated = await call("/api/v1/business-units", {
     method: "POST",
