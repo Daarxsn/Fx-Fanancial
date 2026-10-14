@@ -1,6 +1,6 @@
-# Phase 06 — Company, Brand and Legal Entity Configuration
+# Phase 06A — Company, Legal Entity and Brand Configuration
 
-**Status:** Configuration design baseline. Do not treat sample values or proposed records as real company/tax information.
+**Status:** Implementation present on `phase-06-company-brand-config`; CI verification and business-owner sign-off are still required. Do not treat sample values or proposed records as real company/tax information.
 
 ## Core distinction
 
@@ -18,6 +18,7 @@ Store and validate, as applicable:
 
 - Legal name and display/trading name.
 - Registered/business address and address country.
+- Optional separately configured billing address; when omitted, the registered address is the intended billing address.
 - Company/registration identifiers.
 - Tax registrations and applicable jurisdiction.
 - Invoice contact details.
@@ -67,6 +68,9 @@ The number format must be generated server-side. The database must enforce uniqu
 - Restrict legal entity, tax, bank, numbering and template configuration to designated permissions.
 - Changes that affect future documents should be auditable and have actor, timestamp, reason and safe before/after values.
 - Changes must not rewrite issued invoice snapshots.
+- Entity configuration versions keep a full internal snapshot, while the API's version history returns only version metadata and a reason.
+- Bank-detail changes require the finance configuration approver role. General entity APIs and audit before/after values return only masked banking status and the last four account digits.
+- Brand and business-unit mappings are effective-dated. Removing a link closes its effective period; it does not delete historical mapping rows.
 - Deactivate obsolete records rather than deleting records referenced by issued documents.
 - Validate required fields before allowing an entity to be used for issuance.
 - Prevent issuance if the selected legal entity is inactive or has incomplete mandatory configuration.
@@ -82,14 +86,15 @@ The number format must be generated server-side. The database must enforce uniqu
 
 ## Acceptance criteria
 
-- [x] Platform operator, brand and legal billing entity distinguished.
-- [x] Configuration fields and change-control principles documented.
-- [x] Numbering and tax decisions identified as business-controlled.
-- [ ] Legal entity and brand records reviewed and approved by the business owner.
-- [ ] Configuration schema and migration reviewed against confirmed requirements.
-- [ ] Admin UI and server-side validation implemented.
-- [ ] Permission checks and audit events tested.
-- [ ] Issuance blocked for inactive/incomplete legal entities.
-- [ ] Historical issued snapshots remain unchanged after configuration edits.
+- [x] Platform operator, commercial brand, legal billing entity and business unit are distinct concepts.
+- [x] Registered and optional billing address, legal identity, invoice contact, currency, locale, timezone, logo reference, terms and footer are configurable.
+- [x] Brand-to-entity and business-unit-to-entity/brand mappings are explicit and server-validated.
+- [x] Legal-entity list/detail/create/update is restricted to assigned legal-entity scope.
+- [x] Bank account values are not returned in ordinary API responses; bank writes are finance-approver-only.
+- [x] Entity/brand/business-unit configuration versions and audit reasons are recorded; mapping history is retained.
+- [x] Integration tests are authored for sensitive-field masking, change history and cross-scope isolation.
+- [ ] The Phase 6A GitHub Actions workflow passes on the PR revision.
+- [ ] The business owner validates actual legal identifiers, approved finance/tax references, banking instructions, and intended brand/entity/business-unit mappings.
+- [ ] Phase 6B separately verifies numbering, tax, templates and immutable snapshots inside invoice issuance before production issuance is enabled.
 
-No real tax, bank or legal identity values should be invented to make the setup appear complete.
+No real tax, bank or legal identity values should be invented to make the setup appear complete. CI fixture data is synthetic and must never be promoted to production.

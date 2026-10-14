@@ -375,7 +375,149 @@ try {
   assert.ok(list.body.data.some((row) => row.id === created.body.data.id));
   assert.equal("billing_address_json" in list.body.data[0], false);
 
-  const financeAdmin = await seedUser("finance_admin", "finance-" + suffix + "@example.invalid", "ACTIVE", "Finance Admin Strong Password #5!");
+  // Phase 6A: identity, sensitive billing details, mappings and historical integrity.
+  const phase6aFinance = await seedUser("finance_admin", "phase6a-finance-" + suffix + "@example.invalid", "ACTIVE",
+    "Phase 6A Finance Password #5!", [testLegalEntityId]);
+  const phase6aSession = await login(phase6aFinance);
+  const accountNumber = "1234567890123456";
+  async function createPhase6aEntity(label, bankDetails = undefined) {
+    const body = {
+      legalName: "Phase 6A Legal Entity " + label + " " + suffix,
+      displayName: "Phase 6A Entity " + label + " " + suffix,
+      registrationNumber: "CI-REG-" + label + "-" + suffix,
+      taxIdentifier: "",
+      address: { line1: "10 Example Road", city: "Pune", state: "Maharashtra", postalCode: "411001", countryCode: "IN" },
+      billingAddress: { line1: "Finance Office", city: "Pune", state: "Maharashtra", postalCode: "411002", countryCode: "IN" },
+      countryCode: "IN", currency: "INR", invoiceEmail: "billing-" + label.toLowerCase() + "-" + suffix + "@example.invalid",
+      invoicePhone: "+91-2000000000", website: "https://example.invalid", locale: "en-IN", timeZone: "Asia/Kolkata",
+      logoReference: "asset://phase6a/" + label.toLowerCase(), invoiceTerms: "CI only — payment terms are a test fixture.",
+      invoiceFooter: "CI fixture footer", defaultTaxCode: "", taxSetupStatus: "UNCONFIGURED",
+      changeReason: "Phase 6A automated acceptance fixture", ...(bankDetails ? { bankDetails } : {}),
+    };
+    const result = await call("/api/v1/legal-entities", { method: "POST", body: JSON.stringify(body) }, phase6aSession.jar);
+    assert.equal(result.response.status, 201, "finance administrator creates Phase 6A legal entity: " + JSON.stringify(result.body?.error ?? null));
+    assert.ok(result.body.data.id);
+    assert.deepEqual(result.body.data.billingAddress, body.billingAddress, "billing address is persisted separately from registered address");
+    return result;
+  }
+  const entityAResult = await createPhase6aEntity("A", {
+    accountName: "CI Only Account", bankName: "Example Test Bank", accountNumber,
+    ifsc: "TEST0000123", swift: "TESTINBB",
+  });
+  const entityBResult = await createPhase6aEntity("B");
+  const entityA = entityAResult.body.data;
+  const entityB = entityBResult.body.data;
+  assert.equal(entityA.bankAccountLast4, "3456");
+  assert.equal(entityA.bankDetailsConfigured, true);
+  assert.equal("bankDetails" in entityA, false, "ordinary API responses must never return full bank details");
+  assert.equal(JSON.stringify(entityAResult.body).includes(accountNumber), false, "legal-entity create response must mask the complete bank account number");
+
+  const entityAudit = await db.execute(
+    "SELECT change_reason,before_json,after_json FROM audit_events WHERE entity_type='legal_entity' AND entity_id=? ORDER BY created_at DESC LIMIT 1",
+    [entityA.id],
+  );
+  assert.equal(entityAudit[0].length, 1);
+  assert.equal(entityAudit[0][0].change_reason, "Phase 6A automated acceptance fixture");
+  const auditAfter = typeof entityAudit[0][0].after_json === "string" ? JSON.parse(entityAudit[0][0].after_json) : entityAudit[0][0].after_json;
+  assert.equal(auditAfter.bankAccountLast4, "3456");
+  assert.equal(JSON.stringify(auditAfter).includes(accountNumber), false, "audit before/after JSON must not expose full bank account numbers");
+
+  const entityUpdate = await call("/api/v1/legal-entities/" + entityA.id, {
+    method: "PATCH",
+    body: JSON.stringify({ invoiceFooter: "Updated CI-only footer", changeReason: "Phase 6A version history acceptance update" }),
+  }, phase6aSession.jar);
+  assert.equal(entityUpdate.response.status, 200, "legal entity update must create a new version");
+  assert.equal(entityUpdate.body.data.invoiceFooter, "Updated CI-only footer");
+  const entityDetail = await call("/api/v1/legal-entities/" + entityA.id, {}, phase6aSession.jar);
+  assert.equal(entityDetail.response.status, 200);
+  assert.ok(entityDetail.body.data.versions.length >= 2, "each legal entity edit must preserve version metadata");
+  assert.equal(JSON.stringify(entityDetail.body).includes(accountNumber), false, "legal entity detail and version metadata must not expose bank account numbers");
+
+  const nonFinanceEntityOperator = await seedUser("system_admin", "phase6a-operator-" + suffix + "@example.invalid", "ACTIVE",
+    "Phase 6A Operator Password #5!", [entityA.id]);
+  const operatorSession = await login(nonFinanceEntityOperator);
+  const forbiddenBankUpdate = await call("/api/v1/legal-entities/" + entityA.id, {
+    method: "PATCH",
+    body: JSON.stringify({ bankDetails: { accountName: "CI Only Account", bankName: "Example Test Bank", accountNumber: "1111222233334444" },
+      changeReason: "Attempted bank change by non-finance administrator" }),
+  }, operatorSession.jar);
+  assert.equal(forbiddenBankUpdate.response.status, 403, "bank detail changes require finance_admin even with settings:manage");
+  assert.equal(JSON.stringify(forbiddenBankUpdate.body).includes(accountNumber), false);
+
+  const brandCode = "P6A-" + suffix.toUpperCase();
+  const brandCreated = await call("/api/v1/brands", {
+    method: "POST",
+    body: JSON.stringify({ name: "Phase 6A Test Brand " + suffix, code: brandCode,
+      description: "CI-only commercial brand", logoReference: "asset://phase6a/brand",
+      theme: { accent: "#b51f32", style: "ci" }, defaultTemplateKey: "STANDARD",
+      legalEntityIds: [entityA.id], changeReason: "Phase 6A brand creation fixture" }),
+  }, phase6aSession.jar);
+  assert.equal(brandCreated.response.status, 201, "brand creation with explicit entity mapping should succeed: " + JSON.stringify(brandCreated.body?.error ?? null));
+  const brandId = brandCreated.body.data.id;
+  const brandMoved = await call("/api/v1/brands/" + brandId, {
+    method: "PATCH",
+    body: JSON.stringify({ legalEntityIds: [entityB.id], changeReason: "Phase 6A brand mapping history acceptance update" }),
+  }, phase6aSession.jar);
+  assert.equal(brandMoved.response.status, 200, "brand mapping can be explicitly changed");
+  assert.deepEqual(brandMoved.body.data.legalEntityIds, [entityB.id]);
+  const [brandLinks] = await db.execute(
+    "SELECT legal_entity_id,effective_from,effective_until,is_default FROM brand_legal_entities WHERE brand_id=? ORDER BY effective_from",
+    [brandId],
+  );
+  assert.equal(brandLinks.length, 2, "old brand mapping row is retained rather than deleted");
+  assert.ok(brandLinks.find((row) => row.legal_entity_id === entityA.id)?.effective_until, "removed brand mapping has an effective end");
+  assert.equal(brandLinks.find((row) => row.legal_entity_id === entityB.id)?.effective_until ?? null, null, "new mapping is active");
+  const [brandVersions] = await db.execute("SELECT COUNT(*) AS n FROM brand_config_versions WHERE brand_id=?", [brandId]);
+  assert.equal(Number(brandVersions[0].n), 2, "brand updates append a configuration version");
+
+  const unitCode = "P6A_" + suffix.toUpperCase();
+  const unitCreated = await call("/api/v1/business-units", {
+    method: "POST",
+    body: JSON.stringify({ code: unitCode, name: "Phase 6A Unit " + suffix, description: "CI-only organization unit",
+      legalEntityIds: [entityB.id], brandIds: [brandId], changeReason: "Phase 6A business unit creation fixture" }),
+  }, phase6aSession.jar);
+  assert.equal(unitCreated.response.status, 201, "business unit requires and accepts explicit valid mappings: " + JSON.stringify(unitCreated.body?.error ?? null));
+  const unitId = unitCreated.body.data.id;
+  const unitDetail = await call("/api/v1/business-units/" + unitId, {}, phase6aSession.jar);
+  assert.equal(unitDetail.response.status, 200);
+  assert.deepEqual(unitDetail.body.data.legalEntities.map((row) => row.id), [entityB.id]);
+  assert.deepEqual(unitDetail.body.data.brandIds, [brandId]);
+  const unitMoved = await call("/api/v1/business-units/" + unitId, {
+    method: "PATCH",
+    body: JSON.stringify({ legalEntityIds: [entityA.id], brandIds: [], changeReason: "Phase 6A unit mapping history acceptance update" }),
+  }, phase6aSession.jar);
+  assert.equal(unitMoved.response.status, 200, "business unit mappings can be explicitly changed");
+  const [unitEntityLinks] = await db.execute(
+    "SELECT legal_entity_id,effective_from,effective_until,is_primary FROM business_unit_legal_entities WHERE business_unit_id=? ORDER BY effective_from",
+    [unitId],
+  );
+  assert.equal(unitEntityLinks.length, 2, "old business-unit entity mapping row is retained rather than deleted");
+  assert.ok(unitEntityLinks.find((row) => row.legal_entity_id === entityB.id)?.effective_until);
+  assert.equal(unitEntityLinks.find((row) => row.legal_entity_id === entityA.id)?.effective_until ?? null, null);
+  const [unitBrandLinks] = await db.execute("SELECT effective_until FROM brand_business_units WHERE business_unit_id=?", [unitId]);
+  assert.equal(unitBrandLinks.length, 1, "removed unit-brand mapping remains in the historical mapping table");
+  assert.ok(unitBrandLinks[0].effective_until);
+
+  const outsider = await seedUser("finance_admin", "phase6a-outsider-" + suffix + "@example.invalid", "ACTIVE",
+    "Phase 6A Outsider Password #5!", [testLegalEntityId]);
+  const outsiderSession = await login(outsider);
+  const scopedBrands = await call("/api/v1/brands?status=all", {}, outsiderSession.jar);
+  assert.equal(scopedBrands.response.status, 200);
+  assert.equal(scopedBrands.body.data.some((row) => row.id === brandId), false, "brand list must not leak across legal-entity scope");
+  const hiddenBrand = await call("/api/v1/brands/" + brandId, {}, outsiderSession.jar);
+  assert.equal(hiddenBrand.response.status, 404, "out-of-scope brand details must be hidden");
+  const hiddenUnit = await call("/api/v1/business-units/" + unitId, {}, outsiderSession.jar);
+  assert.equal(hiddenUnit.response.status, 404, "out-of-scope business-unit details must be hidden");
+  const invalidCrossScopeBrand = await call("/api/v1/brands", {
+    method: "POST",
+    body: JSON.stringify({ name: "Out-of-scope Brand", code: "XSC-" + suffix.toUpperCase(),
+      legalEntityIds: [entityB.id], changeReason: "Attempted cross-scope mapping" }),
+  }, outsiderSession.jar);
+  assert.equal(invalidCrossScopeBrand.response.status, 403, "brand mapping cannot be created outside caller's legal-entity scope");
+  console.log("PASS: Phase 6A integration tests cover registered/billing identity, bank masking and finance-only writes, audit reason and safe before/after data, legal-entity/brand/business-unit versioning, historical mapping retention and cross-entity scope isolation.");
+
+  const financeAdmin = await seedUser("finance_admin", "finance-" + suffix + "@example.invalid", "ACTIVE",
+    "Finance Admin Strong Password #5!");
   const financeSession = await login(financeAdmin);
   const itemCode = "PH5-" + suffix.toUpperCase();
   const item = await call("/api/v1/catalog/items", {

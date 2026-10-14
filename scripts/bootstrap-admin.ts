@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, randomUUID, scrypt as scryptCallback } from "node:crypto";
+import { createHmac, randomBytes, randomUUID, scrypt as scryptCallback } from "node:crypto";
 import mysql from "mysql2/promise";
 import { loadProjectEnv } from "./load-env";
 import { verifiedMysqlTlsOptions } from "../src/lib/db/tls-options";

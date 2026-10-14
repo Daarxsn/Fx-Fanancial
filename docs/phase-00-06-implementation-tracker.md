@@ -195,15 +195,25 @@ Evidence:
 - Regression suite: `scripts/verify-master-data-api.mjs`, invoked by `npm run auth:security-test`.
 - Detailed scope and route matrix: `docs/phase-05b-authorization.md`.
 
-## Phase 06 — Company/brand/legal entity
+## Phase 06A — Company, Legal Entity & Brand Configuration
 
-- [ ] Legal entities and brand mappings confirmed by the business owner.
-- [ ] Legal-entity, brand, tax, bank, numbering and template configuration schema implemented.
-- [ ] Configuration history/version/effective dates recorded.
-- [ ] Admin UI and server validation implemented with restricted permissions.
-- [ ] Issuance is blocked for inactive/incomplete legal entities.
-- [ ] Audit and cross-entity access tests pass.
-- [ ] Snapshot immutability verified after configuration changes.
+- [x] Separate legal entities, commercial brands, and business units in the data model; brand/entity mappings are explicit.
+- [x] Add registered and separate billing addresses plus company identity, invoice contacts, locale, currency, timezone, logo reference, terms, and footer fields.
+- [x] Add scoped entity/brand/business-unit list and detail APIs, create/update, and activation state handling.
+- [x] Validate request payloads, required fields, timezones, addresses, duplicate mappings, and relationship compatibility server-side.
+- [x] Restrict bank detail writes to finance configuration approvers; normal responses expose only configured status and the last four account digits.
+- [x] Record change reason and safe before/after state in audit events; append version snapshots on configuration edits.
+- [x] Preserve old brand/business-unit mappings as effective-dated history instead of deleting them.
+- [x] Add CI acceptance coverage for bank masking, finance-only bank changes, version/audit history, mapping-history retention and legal-entity scope isolation.
+- [ ] Phase 6A CI passes on the pull request (do not treat source changes alone as evidence).
+- [ ] Business owner confirms actual legal identities, bank values, and brand/entity relationships; production setup must not use CI/sample fixtures.
+
+## Phase 06B — Tax, Invoice Numbering & Document Configuration
+
+- [ ] Review effective-dated tax registrations and jurisdictional rules with the authorized finance/tax owner.
+- [ ] Verify server-side concurrent numbering allocation against approved fiscal-year and timezone policy.
+- [ ] Verify template configuration and immutable configuration snapshots against the eventual invoice-issuance transaction.
+- [ ] Keep document issuance disabled for entities whose readiness checks fail; a passing checklist alone does not issue a document.
 
 ## Evidence notes
 
