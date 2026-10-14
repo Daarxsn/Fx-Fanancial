@@ -1639,10 +1639,11 @@ components:
         bankDetails:
           type: object
           additionalProperties: false
+          required: [accountName, bankName, accountNumber]
           properties:
-            accountName: { type: string, maxLength: 160 }
-            bankName: { type: string, maxLength: 160 }
-            accountNumber: { type: string, maxLength: 80, writeOnly: true }
+            accountName: { type: string, minLength: 1, maxLength: 160 }
+            bankName: { type: string, minLength: 1, maxLength: 160 }
+            accountNumber: { type: string, minLength: 1, maxLength: 80, writeOnly: true }
             ifsc: { type: string, maxLength: 40 }
             swift: { type: string, maxLength: 40 }
             instructions: { type: string, maxLength: 1000 }
@@ -1785,6 +1786,14 @@ components:
         legalEntityIds:
           type: array
           items: { $ref: "#/components/schemas/Uuid" }
+        legalEntityMappings:
+          type: array
+          items:
+            type: object
+            required: [legalEntityId, isDefault]
+            properties:
+              legalEntityId: { $ref: "#/components/schemas/Uuid" }
+              isDefault: { type: boolean }
     BrandResponse:
       type: object
       required: [data, meta]
