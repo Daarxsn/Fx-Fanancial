@@ -109,7 +109,11 @@ export default function SettingsPage(){
  async function saveEntity(){
   const address={line1:String(company.line1),line2:String(company.line2),city:String(company.city),state:String(company.state),postalCode:String(company.postalCode),countryCode:String(company.countryCode)};
   const billingFields=[company.billingLine1,company.billingLine2,company.billingCity,company.billingState,company.billingPostalCode,company.billingCountryCode].map(v=>String(v??"").trim());
-  const billingAddress=billingFields.some(Boolean)?{line1:String(company.billingLine1),line2:String(company.billingLine2),city:String(company.billingCity),state:String(company.billingState),postalCode:String(company.billingPostalCode),countryCode:String(company.billingCountryCode||company.countryCode)}:null;
+  const hasBillingAddress=billingFields.some(Boolean);
+  if(hasBillingAddress&&(!String(company.billingLine1).trim()||!String(company.billingCity).trim()||!String(company.billingPostalCode).trim()||!String(company.billingCountryCode||company.countryCode).trim())) {
+   throw new Error("Complete billing address line 1, city, postal code and country code, or leave all billing address fields blank.");
+  }
+  const billingAddress=hasBillingAddress?{line1:String(company.billingLine1),line2:String(company.billingLine2),city:String(company.billingCity),state:String(company.billingState),postalCode:String(company.billingPostalCode),countryCode:String(company.billingCountryCode||company.countryCode)}:null;
   const body:Record<string,unknown>={legalName:company.legalName,displayName:company.displayName,registrationNumber:company.registrationNumber,
    taxIdentifier:company.taxIdentifier,address,billingAddress,countryCode:company.countryCode,currency:company.currency,invoiceEmail:company.invoiceEmail,
    invoicePhone:company.invoicePhone,website:company.website,locale:company.locale,timeZone:company.timeZone,logoReference:company.logoReference,
