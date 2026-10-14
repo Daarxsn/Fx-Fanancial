@@ -516,6 +516,9 @@ try {
   assert.equal(invalidCrossScopeBrand.response.status, 403, "brand mapping cannot be created outside caller's legal-entity scope");
   console.log("PASS: Phase 6A integration tests cover registered/billing identity, bank masking and finance-only writes, audit reason and safe before/after data, legal-entity/brand/business-unit versioning, historical mapping retention and cross-entity scope isolation.");
 
+  const financeAdmin = await seedUser("finance_admin", "finance-" + suffix + "@example.invalid", "ACTIVE",
+    "Finance Admin Strong Password #5!");
+  const financeSession = await login(financeAdmin);
   const itemCode = "PH5-" + suffix.toUpperCase();
   const item = await call("/api/v1/catalog/items", {
     method: "POST",
