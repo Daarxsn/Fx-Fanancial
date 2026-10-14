@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       return jsonNoStore({ error: { code:"VALIDATION_ERROR", message:"limit must be 1–100 and offset must be between 0 and 1000000" } },400);
     }
     const [rows]=await pool.query<(RowDataPacket & {id:string})[]>(
-      `SELECT id, legal_name, display_name, registration_number, tax_identifier, address_json, country_code,
+      `SELECT id, legal_name, display_name, registration_number, tax_identifier, address_json, billing_address_json, country_code,
         invoice_email, invoice_phone, website, currency, locale, time_zone, logo_reference, bank_details_json,
         invoice_terms, invoice_footer, default_tax_code, tax_setup_status, tax_setup_approval_reference,
         is_active, created_at, updated_at
