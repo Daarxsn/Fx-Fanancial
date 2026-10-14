@@ -45,7 +45,13 @@ export async function PATCH(request:NextRequest,context:Context){
       : current.tax_setup_approval_reference;
     const taxStatusChanged = nextTaxStatus !== current.tax_setup_status;
     const approvalRefChanged = requestedApprovalReference !== current.tax_setup_approval_reference;
-    if (taxStatusChanged || approvalRefChanged) requireFinanceConfigurationApprover(actor);
+    if (taxStatusChanged || approvalRefChanged || patch.bankDetails !== undefined) requireFinanceConfigurationApprover(actor);
+    const nextCountryCode = patch.countryCode ?? current.country_code;
+    const nextRegisteredAddress = patch.address ?? jsonValue(current.address_json);
+    if (nextRegisteredAddress.countryCode !== nextCountryCode) {
+      await conn.rollback();
+      return jsonNoStore({error:{code:"VALIDATION_ERROR",message:"Registered address country must match the legal entity country."}},400);
+    }
     const assignments:string[]=[];const values:unknown[]=[];const changed:string[]=[];
     const set=(key:string,column:string,value:unknown)=>{assignments.push(`${column}=?`);values.push(value);changed.push(key);};
     if(patch.legalName!==undefined)set("legalName","legal_name",patch.legalName);
@@ -53,6 +59,7 @@ export async function PATCH(request:NextRequest,context:Context){
     if(patch.registrationNumber!==undefined)set("registrationNumber","registration_number",patch.registrationNumber||null);
     if(patch.taxIdentifier!==undefined)set("taxIdentifier","tax_identifier",patch.taxIdentifier||null);
     if(patch.address!==undefined)set("address","address_json",JSON.stringify(patch.address));
+    if(patch.billingAddress!==undefined)set("billingAddress","billing_address_json",patch.billingAddress===null?null:JSON.stringify(patch.billingAddress));
     if(patch.countryCode!==undefined)set("countryCode","country_code",patch.countryCode);
     if(patch.invoiceEmail!==undefined)set("invoiceEmail","invoice_email",patch.invoiceEmail||null);
     if(patch.invoicePhone!==undefined)set("invoicePhone","invoice_phone",patch.invoicePhone||null);
