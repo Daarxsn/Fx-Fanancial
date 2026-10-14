@@ -86,9 +86,10 @@ export async function PATCH(request:NextRequest,context:Context){
     const updated=await loadEntity(conn,entityId);
     if(!updated)throw new Error("Legal entity update failed");
     const version=await captureLegalEntityConfigVersion(conn,updated,actor.userId,changeReason);
+    // Audit values are public-safe representations: bank account details are masked to last four digits.
     await recordAudit(conn,actor.userId,"legal_entity.configuration_changed","legal_entity",entityId,changeReason,
-      {configVersion:"previous",changedFields:changed.filter(k=>k!=="bankDetails"&&k!=="taxIdentifier")},
-      {configVersion:version.versionNumber,changedFields:changed.filter(k=>k!=="bankDetails"&&k!=="taxIdentifier")});
+      { ...publicLegalEntity(current), changedFields: changed },
+      { ...publicLegalEntity(updated), configVersion: version.versionNumber, changedFields: changed });
     await conn.commit();
     return jsonNoStore({data:{...publicLegalEntity(updated),configVersion:version.versionNumber}});
   }catch(error){if(conn)try{await conn.rollback();}catch{} return apiError(error);}
