@@ -31,7 +31,7 @@ export const bankDetailsSchema = z.object({
 });
 
 const taxSetupSchema = z.enum(["UNCONFIGURED", "APPROVED_NOT_APPLICABLE", "APPROVED_CONFIGURED"]);
-export const legalEntityCreateSchema = z.object({
+const legalEntityFieldsSchema = z.object({
   legalName: z.string().trim().min(1).max(255),
   displayName: z.string().trim().min(1).max(255),
   registrationNumber: optionalText(100),
@@ -53,7 +53,9 @@ export const legalEntityCreateSchema = z.object({
   taxSetupStatus: taxSetupSchema.optional().default("UNCONFIGURED"),
   taxSetupApprovalReference: optionalText(255),
   changeReason: z.string().trim().min(3).max(1000),
-}).strict().superRefine((value, ctx) => {
+}).strict();
+
+export const legalEntityCreateSchema = legalEntityFieldsSchema.superRefine((value, ctx) => {
   if (value.address.countryCode !== value.countryCode) {
     ctx.addIssue({ code: "custom", path: ["address", "countryCode"], message: "Registered address country must match the legal entity country." });
   }
@@ -66,7 +68,7 @@ export const legalEntityCreateSchema = z.object({
   }
 });
 
-export const legalEntityUpdateSchema = legalEntityCreateSchema.partial().extend({
+export const legalEntityUpdateSchema = legalEntityFieldsSchema.partial().extend({
   isActive: z.boolean().optional(),
   changeReason: z.string().trim().min(3).max(1000),
 }).strict().superRefine((value, ctx) => {
