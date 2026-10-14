@@ -15,7 +15,9 @@ export const addressSchema = z.object({
   state: optionalText(120),
   postalCode: z.string().trim().min(1).max(40),
   countryCode: z.string().trim().regex(/^[A-Z]{2}$/),
-}).strict();
+}).strict().superRefine((value, ctx) => {
+  if (value.theme && JSON.stringify(value.theme).length > 32000) ctx.addIssue({ code: "custom", path: ["theme"], message: "Brand theme must be under 32 KB." });
+});
 
 export const bankDetailsSchema = z.object({
   accountName: optionalText(160),
@@ -33,6 +35,7 @@ export const legalEntityCreateSchema = z.object({
   registrationNumber: optionalText(100),
   taxIdentifier: optionalText(100),
   address: addressSchema,
+  billingAddress: addressSchema.nullable().optional(),
   countryCode: z.string().trim().regex(/^[A-Z]{2}$/),
   invoiceEmail: z.string().trim().email().max(320).optional().or(z.literal("")),
   invoicePhone: optionalText(50),
@@ -82,7 +85,9 @@ export const brandCreateSchema = z.object({
   defaultTemplateKey: optionalText(80),
   legalEntityIds: z.array(uuidSchema).min(1).max(50),
   changeReason: z.string().trim().min(3).max(1000),
-}).strict();
+}).strict().superRefine((value, ctx) => {
+  if (value.theme && JSON.stringify(value.theme).length > 32000) ctx.addIssue({ code: "custom", path: ["theme"], message: "Brand theme must be under 32 KB." });
+});
 
 export const brandUpdateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
