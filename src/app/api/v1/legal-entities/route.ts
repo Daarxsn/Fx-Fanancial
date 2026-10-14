@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       if(!row) throw new Error("Configuration creation failed");
       const version=await captureLegalEntityConfigVersion(conn,row,actor.userId,input.changeReason);
       await recordAudit(conn,actor.userId,"legal_entity.created","legal_entity",id,input.changeReason,null,
-        {configVersion:version.versionNumber,changedFields:["identity","address","taxSetup","billingPreferences","bankDetails"]});
+        { ...output, configVersion: version.versionNumber });
       output=publicLegalEntity(row);
       await conn.commit();
     } catch(error) { await conn.rollback(); throw error; }
