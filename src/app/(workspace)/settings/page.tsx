@@ -5,7 +5,7 @@ import { Breadcrumbs, Button, Card, EmptyState, InlineAlert, LoadingState, PageH
 
 type Entity = {
   id:string; legalName:string; displayName:string; registrationNumber:string|null; taxIdentifier:string|null;
-  address:Record<string,string>; countryCode:string|null; invoiceEmail:string|null; invoicePhone:string|null; website:string|null;
+  address:Record<string,string>; billingAddress:Record<string,string>|null; countryCode:string|null; invoiceEmail:string|null; invoicePhone:string|null; website:string|null;
   currency:string; locale:string|null; timeZone:string|null; logoReference:string|null; bankDetailsConfigured:boolean;
   bankAccountLast4:string|null; invoiceTerms:string|null; invoiceFooter:string|null; defaultTaxCode:string|null;
   taxSetupStatus:string; taxSetupApprovalReference:string|null; isActive:boolean;
@@ -21,7 +21,7 @@ type Readiness={legalEntityId:string;ready:boolean;checks:Check[]};
 type Tab="company"|"brands"|"units"|"tax"|"numbering"|"templates";
 type Draft=Record<string,string|boolean>;
 const today=()=>new Date().toISOString().slice(0,10);
-const companyBlank=():Draft=>({legalName:"",displayName:"",registrationNumber:"",taxIdentifier:"",countryCode:"",currency:"INR",line1:"",line2:"",city:"",state:"",postalCode:"",invoiceEmail:"",invoicePhone:"",website:"",locale:"en-IN",timeZone:"Asia/Kolkata",logoReference:"",invoiceTerms:"",invoiceFooter:"",defaultTaxCode:"",taxSetupStatus:"UNCONFIGURED",taxSetupApprovalReference:"",bankAccountName:"",bankName:"",bankAccountNumber:"",bankIfsc:"",bankSwift:"",replaceBank:false,changeReason:"Initial legal entity configuration"});
+const companyBlank=():Draft=>({legalName:"",displayName:"",registrationNumber:"",taxIdentifier:"",countryCode:"",currency:"INR",line1:"",line2:"",city:"",state:"",postalCode:"",billingLine1:"",billingLine2:"",billingCity:"",billingState:"",billingPostalCode:"",billingCountryCode:"",invoiceEmail:"",invoicePhone:"",website:"",locale:"en-IN",timeZone:"Asia/Kolkata",logoReference:"",invoiceTerms:"",invoiceFooter:"",defaultTaxCode:"",taxSetupStatus:"UNCONFIGURED",taxSetupApprovalReference:"",bankAccountName:"",bankName:"",bankAccountNumber:"",bankIfsc:"",bankSwift:"",replaceBank:false,changeReason:"Initial legal entity configuration"});
 const brandBlank=():Draft=>({name:"",code:"",description:"",logoReference:"",defaultTemplateKey:"",legalEntityIds:"",changeReason:"Initial brand configuration"});
 const unitBlank=():Draft=>({code:"",name:"",description:"",legalEntityIds:"",brandIds:"",changeReason:"Initial business unit configuration"});
 const registrationBlank=():Draft=>({registrationKey:"",registrationType:"GSTIN",jurisdiction:"",registrationNumber:"",displayLabel:"",isPrimary:true,effectiveFrom:today(),effectiveUntil:"",approvalReference:"",changeReason:"Approved tax registration configuration"});
@@ -101,14 +101,17 @@ export default function SettingsPage(){
   setEntityEdit(e.id);const a=e.address??{};
   setCompany({...companyBlank(),legalName:e.legalName,displayName:e.displayName,registrationNumber:e.registrationNumber??"",taxIdentifier:e.taxIdentifier??"",
    countryCode:e.countryCode??a.countryCode??"",currency:e.currency,line1:a.line1??"",line2:a.line2??"",city:a.city??"",state:a.state??"",postalCode:a.postalCode??"",
+   billingLine1:e.billingAddress?.line1??"",billingLine2:e.billingAddress?.line2??"",billingCity:e.billingAddress?.city??"",billingState:e.billingAddress?.state??"",billingPostalCode:e.billingAddress?.postalCode??"",billingCountryCode:e.billingAddress?.countryCode??"",
    invoiceEmail:e.invoiceEmail??"",invoicePhone:e.invoicePhone??"",website:e.website??"",locale:e.locale??"",timeZone:e.timeZone??"",logoReference:e.logoReference??"",
    invoiceTerms:e.invoiceTerms??"",invoiceFooter:e.invoiceFooter??"",defaultTaxCode:e.defaultTaxCode??"",taxSetupStatus:e.taxSetupStatus,
    taxSetupApprovalReference:e.taxSetupApprovalReference??"",changeReason:"Update legal entity configuration"});
  }
  async function saveEntity(){
   const address={line1:String(company.line1),line2:String(company.line2),city:String(company.city),state:String(company.state),postalCode:String(company.postalCode),countryCode:String(company.countryCode)};
+  const billingFields=[company.billingLine1,company.billingLine2,company.billingCity,company.billingState,company.billingPostalCode,company.billingCountryCode].map(v=>String(v??"").trim());
+  const billingAddress=billingFields.some(Boolean)?{line1:String(company.billingLine1),line2:String(company.billingLine2),city:String(company.billingCity),state:String(company.billingState),postalCode:String(company.billingPostalCode),countryCode:String(company.billingCountryCode||company.countryCode)}:null;
   const body:Record<string,unknown>={legalName:company.legalName,displayName:company.displayName,registrationNumber:company.registrationNumber,
-   taxIdentifier:company.taxIdentifier,address,countryCode:company.countryCode,currency:company.currency,invoiceEmail:company.invoiceEmail,
+   taxIdentifier:company.taxIdentifier,address,billingAddress,countryCode:company.countryCode,currency:company.currency,invoiceEmail:company.invoiceEmail,
    invoicePhone:company.invoicePhone,website:company.website,locale:company.locale,timeZone:company.timeZone,logoReference:company.logoReference,
    invoiceTerms:company.invoiceTerms,invoiceFooter:company.invoiceFooter,defaultTaxCode:company.defaultTaxCode,taxSetupStatus:company.taxSetupStatus,
    taxSetupApprovalReference:company.taxSetupApprovalReference,changeReason:company.changeReason};
@@ -198,6 +201,14 @@ export default function SettingsPage(){
      <Input id="city" label="City" required value={String(company.city)} onChange={s=>setValue(setCompany,"city",s)}/>
      <Input id="state" label="State / region" value={String(company.state)} onChange={s=>setValue(setCompany,"state",s)}/>
      <Input id="postalCode" label="Postal code" required value={String(company.postalCode)} onChange={s=>setValue(setCompany,"postalCode",s)}/>
+    </Grid>
+    <h3>Billing address</h3><p className="config-muted">Leave all fields blank to indicate that the registered address is also used for billing.</p><Grid>
+     <Input id="billingLine1" label="Billing address line 1" value={String(company.billingLine1)} onChange={s=>setValue(setCompany,"billingLine1",s)}/>
+     <Input id="billingLine2" label="Billing address line 2" value={String(company.billingLine2)} onChange={s=>setValue(setCompany,"billingLine2",s)}/>
+     <Input id="billingCity" label="Billing city" value={String(company.billingCity)} onChange={s=>setValue(setCompany,"billingCity",s)}/>
+     <Input id="billingState" label="Billing state / region" value={String(company.billingState)} onChange={s=>setValue(setCompany,"billingState",s)}/>
+     <Input id="billingPostalCode" label="Billing postal code" value={String(company.billingPostalCode)} onChange={s=>setValue(setCompany,"billingPostalCode",s)}/>
+     <Input id="billingCountryCode" label="Billing country code" value={String(company.billingCountryCode)} onChange={s=>setValue(setCompany,"billingCountryCode",s.toUpperCase())} hint="Defaults to the registered country when not set."/>
     </Grid>
     <h3>Invoice identity and terms</h3><Grid>
      <Input id="invoiceEmail" label="Invoice email" type="email" value={String(company.invoiceEmail)} onChange={s=>setValue(setCompany,"invoiceEmail",s)}/>
