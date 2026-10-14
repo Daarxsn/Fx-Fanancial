@@ -41,6 +41,7 @@ export async function GET(request:NextRequest){
      WHERE bu.business_unit_id IN (${ids.map(()=>"?").join(",")}) AND ue.legal_entity_id IN (${scopes.map(()=>"?").join(",")})
       AND bu.effective_from<=NOW(3) AND (bu.effective_until IS NULL OR bu.effective_until>NOW(3))
       AND ue.effective_from<=NOW(3) AND (ue.effective_until IS NULL OR ue.effective_until>NOW(3))
+      AND b.is_active=TRUE
      GROUP BY bu.business_unit_id,bu.brand_id ORDER BY bu.brand_id`,[...ids,...scopes]);
    for(const row of brandRows){const current=brandsByUnit.get(row.business_unit_id)??[];current.push(row.brand_id);brandsByUnit.set(row.business_unit_id,current)}
   }
