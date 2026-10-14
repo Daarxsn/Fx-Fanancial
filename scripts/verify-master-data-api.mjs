@@ -470,6 +470,28 @@ try {
   const [brandVersions] = await db.execute("SELECT COUNT(*) AS n FROM brand_config_versions WHERE brand_id=?", [brandId]);
   assert.equal(Number(brandVersions[0].n), 2, "brand updates append a configuration version");
 
+  // Phase 6B: incomplete entity configuration must block issuance without allocating a number.
+  const [issueCustomerRows] = await db.execute(
+    "SELECT id FROM customers WHERE id=? AND is_active=TRUE LIMIT 1",
+    [created.body.data.id],
+  );
+  assert.equal(issueCustomerRows.length,1,"issuance test uses an active CI customer");
+  const incompleteInvoiceId=randomUUID();
+  await db.execute(
+    "INSERT INTO invoices (id,legal_entity_id,brand_id,customer_id,document_type,lifecycle_status,payment_terms_days,currency,subtotal,discount_total,tax_total,grand_total) VALUES (?, ?, NULL, ?, 'INVOICE','DRAFT',30,'INR',100.0000,0,0,100.0000)",
+    [incompleteInvoiceId,testLegalEntityId,created.body.data.id],
+  );
+  await db.execute(
+    "INSERT INTO invoice_lines (id,invoice_id,line_number,description,quantity,unit_price,discount_amount,tax_rate,tax_code,tax_rule_id,tax_registration_id,tax_amount,line_total) VALUES (?,?,1,'CI issue gate line',1.0000,100.0000,0,0,NULL,NULL,NULL,0,100.0000)",
+    [randomUUID(),incompleteInvoiceId],
+  );
+  const blockedIncompleteIssue=await call("/api/v1/invoices/"+incompleteInvoiceId+"/issue",{
+    method:"POST",headers:{"Idempotency-Key":"ci-incomplete-"+suffix.toLowerCase()+"-001"},
+    body:JSON.stringify({documentDate:new Date().toISOString().slice(0,10)}),
+  },phase6aSession.jar);
+  assert.equal(blockedIncompleteIssue.response.status,409,"unconfigured tax setup blocks issuance");
+  assert.equal(blockedIncompleteIssue.body.error.code,"CONFIGURATION_NOT_READY");
+
   const unitCode = "P6A_" + suffix.toUpperCase();
   const unitCreated = await call("/api/v1/business-units", {
     method: "POST",
@@ -501,6 +523,18 @@ try {
   const outsider = await seedUser("finance_admin", "phase6a-outsider-" + suffix + "@example.invalid", "ACTIVE",
     "Phase 6A Outsider Password #5!", [testLegalEntityId]);
   const outsiderSession = await login(outsider);
+  const outOfScopeInvoiceId=randomUUID();
+  await db.execute(
+    "INSERT INTO invoices (id,legal_entity_id,brand_id,customer_id,document_type,lifecycle_status,payment_terms_days,currency,subtotal,discount_total,tax_total,grand_total) VALUES (?, ?, NULL, ?, 'INVOICE','DRAFT',0,'INR',0,0,0,0)",
+    [outOfScopeInvoiceId,entityA.id,created.body.data.id],
+  );
+  const hiddenInvoiceIssue=await call("/api/v1/invoices/"+outOfScopeInvoiceId+"/issue",{
+    method:"POST",headers:{"Idempotency-Key":"ci-out-of-scope-"+suffix.toLowerCase()},
+    body:JSON.stringify({documentDate:new Date().toISOString().slice(0,10)}),
+  },outsiderSession.jar);
+  assert.equal(hiddenInvoiceIssue.response.status,404,"out-of-scope invoice is concealed from a finance administrator without that entity grant");
+  assert.equal(hiddenInvoiceIssue.body.error.code,"NOT_FOUND");
+
   const scopedBrands = await call("/api/v1/brands?status=all", {}, outsiderSession.jar);
   assert.equal(scopedBrands.response.status, 200);
   assert.equal(scopedBrands.body.data.some((row) => row.id === brandId), false, "brand list must not leak across legal-entity scope");

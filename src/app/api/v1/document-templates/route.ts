@@ -40,7 +40,7 @@ export async function POST(request:NextRequest){
   if(input.brandId){
    if(!actor.legalEntityIds.includes(input.legalEntityId)){await conn.rollback();return jsonNoStore({error:{code:"FORBIDDEN",message:"Legal entity is outside your scope."}},403)}
    const [mapping]=await conn.execute<(RowDataPacket & {brand_id:string})[]>(
-    "SELECT brand_id FROM brand_legal_entities WHERE brand_id=? AND legal_entity_id=? LIMIT 1",[input.brandId,input.legalEntityId]);
+    "SELECT m.brand_id FROM brand_legal_entities m JOIN brands b ON b.id=m.brand_id WHERE m.brand_id=? AND m.legal_entity_id=? AND b.is_active=TRUE AND m.effective_from<=NOW(3) AND (m.effective_until IS NULL OR m.effective_until>NOW(3)) LIMIT 1 FOR UPDATE",[input.brandId,input.legalEntityId]);
    if(!mapping.length){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"Brand must be explicitly mapped to this legal entity before creating a brand-specific template."}},409)}
   }
   if(input.activate&&!entities[0].is_active){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"An inactive legal entity cannot activate a document template."}},409)}
@@ -50,10 +50,10 @@ export async function POST(request:NextRequest){
   const version=Number(versions[0]?.version_number??0)+1;
   if(input.activate){
    const [overlaps]=await conn.execute<(RowDataPacket & {id:string})[]>(
-    `SELECT id FROM invoice_document_templates WHERE legal_entity_id=? AND brand_id <=> ? AND document_type=? AND template_key=? AND is_active=TRUE
+    `SELECT id FROM invoice_document_templates WHERE legal_entity_id=? AND brand_id <=> ? AND document_type=? AND is_active=TRUE
      AND effective_from<=COALESCE(?,'9999-12-31') AND COALESCE(effective_until,'9999-12-31')>=? FOR UPDATE`,
-    [input.legalEntityId,input.brandId||null,input.documentType,input.templateKey,input.effectiveUntil||"9999-12-31",input.effectiveFrom]);
-   if(overlaps.length){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"An active template with this key overlaps the requested effective period."}},409)}
+    [input.legalEntityId,input.brandId||null,input.documentType,input.effectiveUntil||"9999-12-31",input.effectiveFrom]);
+   if(overlaps.length){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"An active template for this entity, brand and document type overlaps the requested effective period."}},409)}
   }
   const id=randomUUID();
   await conn.execute(

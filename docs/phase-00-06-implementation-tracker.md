@@ -210,10 +210,24 @@ Evidence:
 
 ## Phase 06B — Tax, Invoice Numbering & Document Configuration
 
-- [ ] Review effective-dated tax registrations and jurisdictional rules with the authorized finance/tax owner.
-- [ ] Verify server-side concurrent numbering allocation against approved fiscal-year and timezone policy.
-- [ ] Verify template configuration and immutable configuration snapshots against the eventual invoice-issuance transaction.
-- [ ] Keep document issuance disabled for entities whose readiness checks fail; a passing checklist alone does not issue a document.
+- [x] Effective-dated approved tax registrations and tax rules are validated against the document date; duplicate overlapping active tax codes, numbering series and templates are rejected.
+- [x] Number reservation uses a parent-entity lock and an independent entity/document-type/financial-year counter inside the caller transaction.
+- [x] Invoice/credit-note issue endpoint checks permission and legal-entity scope, validates draft/customer/line tax references, selects approved effective numbering and templates, and records issuance, audit and snapshot in one transaction.
+- [x] Canonical configuration snapshot includes legal-entity/brand version references, approved tax registration/rules, numbering series/allocation and the selected brand-specific or entity-wide template.
+- [x] Database triggers reject snapshot updates and deletes; same-key issue retries return the original result, while conflicting keys are rejected.
+- [x] MySQL integration tests cover twelve concurrent allocations, financial-year boundaries, tax/registration effective periods, brand-specific template preference, snapshot hash and preservation after configuration edits.
+- [x] API contract tests confirm unconfigured tax setup blocks issue and out-of-scope invoices are concealed.
+- [ ] Finance/tax owners approve actual registration details, rates, numbering policy, templates and legal-entity/brand relationships before production issuance.
+
+Evidence:
+- Migration: `database/migrations/009_phase_6b_invoice_tax_bindings.sql`.
+- Issue endpoint: `src/app/api/v1/invoices/[invoiceId]/issue/route.ts`.
+- Configuration services: `src/lib/configuration/service.ts`.
+- MySQL integration: `scripts/verify-phase-6b-configuration.ts`.
+- Security/API regression suite: `scripts/verify-master-data-api.mjs`.
+- OpenAPI contract: `docs/openapi.yaml`.
+
+**Production boundary:** this checklist records implementation and authored tests, not live-data migration or tax/legal sign-off.
 
 ## Evidence notes
 

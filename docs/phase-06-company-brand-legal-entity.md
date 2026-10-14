@@ -98,3 +98,12 @@ The number format must be generated server-side. The database must enforce uniqu
 - [ ] Phase 6B separately verifies numbering, tax, templates and immutable snapshots inside invoice issuance before production issuance is enabled.
 
 No real tax, bank or legal identity values should be invented to make the setup appear complete. CI fixture data is synthetic and must never be promoted to production.
+
+
+## Phase 6B — Tax, numbering, templates and issue-time snapshots
+
+Approved tax registrations and tax rules are selected by document date. Numbering is allocated server-side inside the same transaction as issuance, using an entity/document-type/financial-year counter. Effective entity/brand identity versions, approved tax references, numbering configuration, allocation, and the entity-wide or mapped-brand template are stored in a canonical snapshot whose SHA-256 digest is returned with the issue result.
+
+The issue endpoint fails closed for inactive/incomplete/unapproved configurations and out-of-scope invoices. It uses an idempotency key, records an audit event, and exposes only snapshot metadata in its response. Legacy supplier snapshots exclude full bank account details; complete approved billing details remain only in the private configuration snapshot.
+
+The CI suite includes concurrent numbering, financial-year boundary, date-effective tax and registration, snapshot hashing, immutable snapshot, version-history and negative scope/configuration checks. Real tax values, registration numbers, numbering decisions, and production activation still require finance/tax approval and a controlled deployment migration.

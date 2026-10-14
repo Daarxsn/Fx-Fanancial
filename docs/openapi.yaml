@@ -645,14 +645,27 @@ paths:
       - { $ref: "#/components/parameters/InvoiceId" }
     post:
       tags: [Invoices]
-      summary: Issue a draft invoice in one transaction
+      summary: Issue a draft invoice with validated tax, numbering and an immutable configuration snapshot
       operationId: issueInvoice
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - in: header
           name: Idempotency-Key
           required: true
           schema: { type: string, minLength: 16, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [documentDate]
+              properties:
+                documentDate:
+                  type: string
+                  format: date
+                  pattern: '^\d{4}-\d{2}-\d{2}$'
       responses:
         "200":
           description: Existing issue result returned for a matching retry

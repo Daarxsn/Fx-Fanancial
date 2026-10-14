@@ -187,7 +187,7 @@ export type DocumentConfigurationRequest = {
 };
 
 function yearLabel(documentDate: string, startMonth: number, startDay: number): string {
-  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(documentDate);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(documentDate);
   if (!match) throw new ConfigurationNotReadyError("Document date must use YYYY-MM-DD.");
   const year = Number(match[1]); const month = Number(match[2]); const day = Number(match[3]);
   if (!year || month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) {
@@ -317,6 +317,9 @@ export async function captureDocumentConfigurationSnapshot(
   if (registrationIds.length !== input.taxRegistrationIds.length) throw new ConfigurationConflictError("Duplicate tax-registration identifiers were supplied.");
   if (entity.tax_setup_status === "APPROVED_NOT_APPLICABLE" && (taxIds.length || registrationIds.length)) {
     throw new ConfigurationConflictError("The approved tax decision is not applicable; this document cannot reference tax rules or registrations.");
+  }
+  if (entity.tax_setup_status === "APPROVED_CONFIGURED" && taxIds.length === 0) {
+    throw new ConfigurationNotReadyError("Select at least one approved tax rule for a configured-tax document.");
   }
   if (entity.tax_setup_status === "APPROVED_CONFIGURED" && registrationIds.length === 0) {
     throw new ConfigurationNotReadyError("Select the approved legal-entity tax registration applicable to this document.");

@@ -15,7 +15,8 @@
     "api:validate": "node scripts/validate-openapi.mjs",
     "api:contract-test": "node scripts/verify-master-data-api.mjs",
     "auth:security-test": "node scripts/verify-master-data-api.mjs",
-    "ui:validate": "node scripts/validate-ui-foundation.mjs"
+    "ui:validate": "node scripts/validate-ui-foundation.mjs",
+    "config:phase6b-test": "tsx scripts/verify-phase-6b-configuration.ts"
   },
   "dependencies": {
     "mysql2": "^3.24.5",
