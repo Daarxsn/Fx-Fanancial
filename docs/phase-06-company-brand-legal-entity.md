@@ -106,4 +106,9 @@ Approved tax registrations and tax rules are selected by document date. Numberin
 
 The issue endpoint fails closed for inactive/incomplete/unapproved configurations and out-of-scope invoices. It uses an idempotency key, records an audit event, and exposes only snapshot metadata in its response. Legacy supplier snapshots exclude full bank account details; complete approved billing details remain only in the private configuration snapshot.
 
-The CI suite includes concurrent numbering, financial-year boundary, date-effective tax and registration, snapshot hashing, immutable snapshot, version-history and negative scope/configuration checks. Real tax values, registration numbers, numbering decisions, and production activation still require finance/tax approval and a controlled deployment migration.
+The passing CI suite includes concurrent numbering, financial-year boundary, date-effective tax and registration, snapshot hashing, immutable snapshot, version-history, positive invoice issuance/idempotency, and negative scope/configuration checks.
+
+- Full CI (commit `f0b56ce5416ff89eb053b34615339d65a0ff47b0`): https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38542228014
+- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38542227977
+
+Real tax values, registration numbers, numbering decisions, finance/tax approval, and production activation still require approved values and a controlled deployment migration.

@@ -217,17 +217,23 @@ Evidence:
 - [x] Database triggers reject snapshot updates and deletes; same-key issue retries return the original result, while conflicting keys are rejected.
 - [x] MySQL integration tests cover twelve concurrent allocations, financial-year boundaries, tax/registration effective periods, brand-specific template preference, snapshot hash and preservation after configuration edits.
 - [x] API contract tests confirm unconfigured tax setup blocks issue and out-of-scope invoices are concealed.
+- [x] End-to-end API test issues a valid synthetic invoice, verifies its snapshot ID/hash and selected tax/template/numbering references, checks same-key replay and rejects a conflicting key.
+- [x] Full CI acceptance passed on `f0b56ce5416ff89eb053b34615339d65a0ff47b0`, including the ten-migration MySQL run, logical dump/restore, security/API contracts, Phase 6B integration suite, OpenAPI, UI validation, lint, TypeScript and production build.
+- [x] Lockfile/bootstrap workflow passed for the same commit.
 - [ ] Finance/tax owners approve actual registration details, rates, numbering policy, templates and legal-entity/brand relationships before production issuance.
 
 Evidence:
-- Migration: `database/migrations/009_phase_6b_invoice_tax_bindings.sql`.
+- Full CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38542228014
+- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38542227977
+- Migration 009: `database/migrations/009_phase_6b_invoice_tax_bindings.sql`.
+- Migration 010: `database/migrations/010_phase_6b_snapshot_trigger_restore.sql`.
 - Issue endpoint: `src/app/api/v1/invoices/[invoiceId]/issue/route.ts`.
 - Configuration services: `src/lib/configuration/service.ts`.
 - MySQL integration: `scripts/verify-phase-6b-configuration.ts`.
 - Security/API regression suite: `scripts/verify-master-data-api.mjs`.
 - OpenAPI contract: `docs/openapi.yaml`.
 
-**Production boundary:** this checklist records implementation and authored tests, not live-data migration or tax/legal sign-off.
+**Production boundary:** all technical CI acceptance checks listed above passed on disposable MySQL. Live database migration, finance/tax approvals, and production rollout remain controlled deployment steps.
 
 ## Evidence notes
 
