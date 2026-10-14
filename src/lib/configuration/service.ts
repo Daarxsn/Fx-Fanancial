@@ -10,6 +10,7 @@ export type LegalEntityRecord = RowDataPacket & {
   website: string | null; currency: string; locale: string | null; time_zone: string | null;
   logo_reference: string | null; bank_details_json: unknown; invoice_terms: string | null; invoice_footer: string | null;
   default_tax_code: string | null; tax_setup_status: string; tax_setup_approval_reference: string | null;
+  tax_setup_approved_by: string | null; tax_setup_approved_at: Date | null;
   is_active: number; created_at: Date; updated_at: Date;
 };
 
@@ -52,6 +53,7 @@ export function publicLegalEntity(row: LegalEntityRecord) {
     bankAccountLast4: accountNumber.length >= 4 ? accountNumber.slice(-4) : null,
     invoiceTerms: row.invoice_terms, invoiceFooter: row.invoice_footer, defaultTaxCode: row.default_tax_code,
     taxSetupStatus: row.tax_setup_status, taxSetupApprovalReference: row.tax_setup_approval_reference,
+    taxSetupApprovedBy: row.tax_setup_approved_by, taxSetupApprovedAt: row.tax_setup_approved_at,
     isActive: Boolean(row.is_active), createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
@@ -67,10 +69,12 @@ export async function recordAudit(
   after: unknown,
 ) {
   await conn.execute(
-    `INSERT INTO audit_events (id, actor_id, action, entity_type, entity_id, outcome, before_json, after_json, correlation_id)
-     VALUES (?, ?, ?, ?, ?, 'SUCCESS', ?, ?, ?)`,
+    `INSERT INTO audit_events
+      (id, actor_id, action, entity_type, entity_id, outcome, before_json, after_json, correlation_id, change_reason)
+     VALUES (?, ?, ?, ?, ?, 'SUCCESS', ?, ?, ?, ?)`,
     [randomUUID(), actorId, action, entityType, entityId,
-      before === null ? null : JSON.stringify(before), after === null ? null : JSON.stringify(after), reason.slice(0, 128)],
+      before === null ? null : JSON.stringify(before), after === null ? null : JSON.stringify(after),
+      randomUUID(), reason.trim().slice(0, 1000)],
   );
 }
 
@@ -100,6 +104,7 @@ export async function captureLegalEntityConfigVersion(
     logoReference: row.logo_reference, bankDetails: jsonValue(row.bank_details_json),
     invoiceTerms: row.invoice_terms, invoiceFooter: row.invoice_footer, defaultTaxCode: row.default_tax_code,
     taxSetupStatus: row.tax_setup_status, taxSetupApprovalReference: row.tax_setup_approval_reference,
+    taxSetupApprovedBy: row.tax_setup_approved_by, taxSetupApprovedAt: row.tax_setup_approved_at,
     isActive: Boolean(row.is_active),
   };
   const serialized = canonicalJson(snapshot);
