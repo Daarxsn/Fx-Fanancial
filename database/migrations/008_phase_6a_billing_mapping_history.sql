@@ -9,6 +9,18 @@ UPDATE brand_legal_entities
    SET effective_from = DATE(created_at)
  WHERE effective_from IS NULL;
 
+-- Old API values treated effective_until as an inclusive date. Convert it to the next
+-- midnight before changing to timestamp columns, preserving the original inclusive behavior.
+UPDATE brand_legal_entities
+   SET effective_until = DATE_ADD(effective_until, INTERVAL 1 DAY)
+ WHERE effective_until IS NOT NULL;
+UPDATE business_unit_legal_entities
+   SET effective_until = DATE_ADD(effective_until, INTERVAL 1 DAY)
+ WHERE effective_until IS NOT NULL;
+UPDATE brand_business_units
+   SET effective_until = DATE_ADD(effective_until, INTERVAL 1 DAY)
+ WHERE effective_until IS NOT NULL;
+
 ALTER TABLE brand_legal_entities
   MODIFY effective_from DATETIME(3) NOT NULL,
   MODIFY effective_until DATETIME(3) NULL,
