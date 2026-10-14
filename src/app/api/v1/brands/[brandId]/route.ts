@@ -59,24 +59,15 @@ export async function PATCH(request:NextRequest,context:Context){
   if(patch.isActive!==undefined)add("is_active",patch.isActive?1:0);
   if(assigns.length)await conn.execute(`UPDATE brands SET ${assigns.join(",")} WHERE id=?`,[...vals,brandId]);
   if(incomingIds){
-   const desiredSet=new Set(desiredIds);
-   const currentSet=new Set(currentMappings.map(m=>m.legal_entity_id));
-   for(const mapping of currentMappings){
-    if(!desiredSet.has(mapping.legal_entity_id)){
-     await conn.execute(`UPDATE brand_legal_entities SET effective_until=NOW(3)
-       WHERE brand_id=? AND legal_entity_id=? AND effective_from=? AND (effective_until IS NULL OR effective_until>NOW(3))`,
+   const currentOrder=currentMappings.map(m=>m.legal_entity_id);
+   const mappingChanged=currentOrder.length!==desiredIds.length||desiredIds.some((id,index)=>id!==currentOrder[index]);
+   if(mappingChanged){
+    for(const mapping of currentMappings)await conn.execute(`UPDATE brand_legal_entities SET effective_until=NOW(3)
+      WHERE brand_id=? AND legal_entity_id=? AND effective_from=? AND (effective_until IS NULL OR effective_until>NOW(3))`,
       [brandId,mapping.legal_entity_id,mapping.effective_from]);
-    }else{
-     await conn.execute(`UPDATE brand_legal_entities SET is_default=?
-       WHERE brand_id=? AND legal_entity_id=? AND effective_from=? AND (effective_until IS NULL OR effective_until>NOW(3))`,
-      [desiredIds[0]===mapping.legal_entity_id?1:0,brandId,mapping.legal_entity_id,mapping.effective_from]);
-    }
-   }
-   for(let i=0;i<desiredIds.length;i++){
-    const legalEntityId=desiredIds[i];
-    if(!currentSet.has(legalEntityId))await conn.execute(
-     "INSERT INTO brand_legal_entities (brand_id,legal_entity_id,is_default,effective_from) VALUES (?,?,?,NOW(3))",
-     [brandId,legalEntityId,i===0?1:0]);
+    for(let i=0;i<desiredIds.length;i++)await conn.execute(
+      "INSERT INTO brand_legal_entities (brand_id,legal_entity_id,is_default,effective_from) VALUES (?,?,?,NOW(3))",
+      [brandId,desiredIds[i],i===0?1:0]);
    }
   }
   const [fresh]=await conn.execute<(RowDataPacket & {name:string;code:string;description:string|null;logo_reference:string|null;theme_json:unknown;default_template_key:string|null;is_active:number})[]>(
