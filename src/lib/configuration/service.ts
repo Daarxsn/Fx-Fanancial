@@ -6,7 +6,7 @@ import { ConfigurationConflictError, ConfigurationNotReadyError } from "@/lib/co
 
 export type LegalEntityRecord = RowDataPacket & {
   id: string; legal_name: string; display_name: string; registration_number: string | null; tax_identifier: string | null;
-  address_json: unknown; country_code: string | null; invoice_email: string | null; invoice_phone: string | null;
+  address_json: unknown; billing_address_json: unknown; country_code: string | null; invoice_email: string | null; invoice_phone: string | null;
   website: string | null; currency: string; locale: string | null; time_zone: string | null;
   logo_reference: string | null; bank_details_json: unknown; invoice_terms: string | null; invoice_footer: string | null;
   default_tax_code: string | null; tax_setup_status: string; tax_setup_approval_reference: string | null;
@@ -46,7 +46,7 @@ export function publicLegalEntity(row: LegalEntityRecord) {
   return {
     id: row.id, legalName: row.legal_name, displayName: row.display_name,
     registrationNumber: row.registration_number, taxIdentifier: row.tax_identifier,
-    address: jsonValue(row.address_json), countryCode: row.country_code,
+    address: jsonValue(row.address_json), billingAddress: row.billing_address_json == null ? null : jsonValue(row.billing_address_json), countryCode: row.country_code,
     invoiceEmail: row.invoice_email, invoicePhone: row.invoice_phone, website: row.website,
     currency: row.currency, locale: row.locale, timeZone: row.time_zone, logoReference: row.logo_reference,
     bankDetailsConfigured: Object.values(bank).some((v) => typeof v === "string" && v.trim().length > 0),
@@ -80,7 +80,7 @@ export async function recordAudit(
 
 export async function loadEntity(conn: PoolConnection, id: string): Promise<LegalEntityRecord | null> {
   const [rows] = await conn.execute<LegalEntityRecord[]>(
-    `SELECT id, legal_name, display_name, registration_number, tax_identifier, address_json, country_code,
+    `SELECT id, legal_name, display_name, registration_number, tax_identifier, address_json, billing_address_json, country_code,
       invoice_email, invoice_phone, website, currency, locale, time_zone, logo_reference, bank_details_json,
       invoice_terms, invoice_footer, default_tax_code, tax_setup_status, tax_setup_approval_reference,
       tax_setup_approved_by, tax_setup_approved_at, is_active, created_at, updated_at
@@ -99,7 +99,7 @@ export async function captureLegalEntityConfigVersion(
   const snapshot = {
     schemaVersion: 1, legalEntityId: row.id, legalName: row.legal_name, displayName: row.display_name,
     registrationNumber: row.registration_number, taxIdentifier: row.tax_identifier, address: jsonValue(row.address_json),
-    countryCode: row.country_code, invoiceEmail: row.invoice_email, invoicePhone: row.invoice_phone,
+    billingAddress: row.billing_address_json == null ? null : jsonValue(row.billing_address_json), countryCode: row.country_code, invoiceEmail: row.invoice_email, invoicePhone: row.invoice_phone,
     website: row.website, currency: row.currency, locale: row.locale, timeZone: row.time_zone,
     logoReference: row.logo_reference, bankDetails: jsonValue(row.bank_details_json),
     invoiceTerms: row.invoice_terms, invoiceFooter: row.invoice_footer, defaultTaxCode: row.default_tax_code,
@@ -162,7 +162,7 @@ export async function readinessForEntity(legalEntityId: string) {
   }
   const [numberingRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     `SELECT COUNT(*) AS n FROM invoice_numbering_configs
-      WHERE legal_entity_id = ? AND brand_id IS NULL AND document_type = 'INVOICE' AND is_active = TRUE AND effective_from <= CURRENT_DATE()
+      WHERE legal_entity_id = ? AND document_type = 'INVOICE' AND is_active = TRUE AND effective_from <= CURRENT_DATE()
         AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())
         AND approval_reference IS NOT NULL`, [legalEntityId]);
   checks.push({ key: "numbering", passed: Number(numberingRows[0]?.n ?? 0) === 1, message: "Exactly one active, approved invoice numbering series must be effective." });
@@ -270,7 +270,7 @@ export async function captureDocumentConfigurationSnapshot(
     default_tax_code: string | null; tax_setup_status: string; tax_setup_approval_reference: string | null;
     tax_setup_approved_by: string | null; tax_setup_approved_at: Date | null; is_active: number;
   })[]>(
-    `SELECT id,legal_name,display_name,registration_number,tax_identifier,address_json,country_code,currency,locale,time_zone,
+    `SELECT id,legal_name,display_name,registration_number,tax_identifier,address_json,billing_address_json,country_code,currency,locale,time_zone,
       logo_reference,bank_details_json,invoice_terms,invoice_footer,default_tax_code,tax_setup_status,
       tax_setup_approval_reference,tax_setup_approved_by,tax_setup_approved_at,is_active FROM legal_entities WHERE id=? FOR UPDATE`, [input.legalEntityId]);
   const entity = entities[0];
@@ -293,7 +293,7 @@ export async function captureDocumentConfigurationSnapshot(
   if (input.brandId) {
     const [mappings] = await conn.execute<(RowDataPacket & { is_active: number })[]>(
       `SELECT b.is_active FROM brand_legal_entities m JOIN brands b ON b.id=m.brand_id
-        WHERE m.brand_id=? AND m.legal_entity_id=? LIMIT 1 FOR UPDATE`, [input.brandId, input.legalEntityId]);
+        WHERE m.brand_id=? AND m.legal_entity_id=? AND m.effective_from<=NOW(3) AND (m.effective_until IS NULL OR m.effective_until>NOW(3)) LIMIT 1 FOR UPDATE`, [input.brandId, input.legalEntityId]);
     if (!mappings.length || !mappings[0].is_active) throw new ConfigurationNotReadyError("The selected brand is inactive or is not explicitly mapped to this legal entity.");
     const [brandVersions] = await conn.execute<(RowDataPacket & { id: string; config_snapshot: unknown })[]>(
       `SELECT v.id,v.config_snapshot FROM brand_config_versions v
