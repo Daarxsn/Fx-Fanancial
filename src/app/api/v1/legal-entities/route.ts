@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     await assertCsrf(request);
     const actor=await requirePermission("settings:manage");
     const input=legalEntityCreateSchema.parse(await request.json());
-    if (input.taxSetupStatus !== "UNCONFIGURED") requireFinanceConfigurationApprover(actor);
+    if (input.taxSetupStatus !== "UNCONFIGURED" || input.bankDetails) requireFinanceConfigurationApprover(actor);
     const id=randomUUID();
     const conn=await pool.getConnection();
     let output;
@@ -55,11 +55,11 @@ export async function POST(request: NextRequest) {
       await conn.beginTransaction();
       await conn.execute<ResultSetHeader>(
         `INSERT INTO legal_entities
-         (id,legal_name,display_name,registration_number,tax_identifier,address_json,country_code,invoice_email,invoice_phone,
+         (id,legal_name,display_name,registration_number,tax_identifier,address_json,billing_address_json,country_code,invoice_email,invoice_phone,
           website,currency,locale,time_zone,logo_reference,bank_details_json,invoice_terms,invoice_footer,default_tax_code,
           tax_setup_status,tax_setup_approval_reference,tax_setup_approved_by,tax_setup_approved_at,is_active)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE)`,
-        [id,input.legalName,input.displayName,input.registrationNumber||null,input.taxIdentifier||null,JSON.stringify(input.address),
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,TRUE)`,
+        [id,input.legalName,input.displayName,input.registrationNumber||null,input.taxIdentifier||null,JSON.stringify(input.address),input.billingAddress?JSON.stringify(input.billingAddress):null,
           input.countryCode,input.invoiceEmail||null,input.invoicePhone||null,input.website||null,input.currency,
           input.locale||null,input.timeZone||null,input.logoReference||null,input.bankDetails?JSON.stringify(input.bankDetails):null,
           input.invoiceTerms??null,input.invoiceFooter??null,input.defaultTaxCode||null,input.taxSetupStatus,
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       if(!row) throw new Error("Configuration creation failed");
       const version=await captureLegalEntityConfigVersion(conn,row,actor.userId,input.changeReason);
       await recordAudit(conn,actor.userId,"legal_entity.created","legal_entity",id,input.changeReason,null,
-        { ...output, configVersion: version.versionNumber });
+        { ...publicLegalEntity(row), configVersion: version.versionNumber });
       output=publicLegalEntity(row);
       await conn.commit();
     } catch(error) { await conn.rollback(); throw error; }
