@@ -24,7 +24,11 @@ export const bankDetailsSchema = z.object({
   ifsc: optionalText(40),
   swift: optionalText(40),
   instructions: optionalText(1000),
-}).strict();
+}).strict().superRefine((value, ctx) => {
+  for (const key of ["accountName", "bankName", "accountNumber"] as const) {
+    if (!value[key]?.trim()) ctx.addIssue({ code: "custom", path: [key], message: "Account holder, bank name and account number are required when saving bank details." });
+  }
+});
 
 const taxSetupSchema = z.enum(["UNCONFIGURED", "APPROVED_NOT_APPLICABLE", "APPROVED_CONFIGURED"]);
 export const legalEntityCreateSchema = z.object({
