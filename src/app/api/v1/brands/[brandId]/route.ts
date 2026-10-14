@@ -16,14 +16,16 @@ function jsonVal(v:unknown){if(typeof v!=="string")return v;try{return JSON.pars
 export async function GET(_request:NextRequest,context:Context){
  try{
   const {brandId}=await context.params;const actor=await requirePermission("settings:manage");
-  const [mappings]=await pool.execute<(RowDataPacket & {legal_entity_id:string})[]>("SELECT legal_entity_id FROM brand_legal_entities WHERE brand_id=? ORDER BY legal_entity_id",[brandId]);
-  if(!mappings.length||mappings.some(m=>!actor.legalEntityIds.includes(m.legal_entity_id)))return jsonNoStore({error:{code:"NOT_FOUND",message:"Brand not found in your assigned scope."}},404);
+  const [mappings]=await pool.execute<(RowDataPacket & {legal_entity_id:string})[]>(`SELECT legal_entity_id FROM brand_legal_entities
+    WHERE brand_id=? AND effective_from<=NOW(3) AND (effective_until IS NULL OR effective_until>NOW(3)) ORDER BY legal_entity_id`,[brandId]);
+  const scopedMappings=mappings.filter(m=>actor.legalEntityIds.includes(m.legal_entity_id));
+  if(!scopedMappings.length)return jsonNoStore({error:{code:"NOT_FOUND",message:"Brand not found in your assigned scope."}},404);
   const [rows]=await pool.execute<(RowDataPacket & {id:string;name:string;code:string;description:string|null;logo_reference:string|null;theme_json:unknown;default_template_key:string|null;is_active:number;created_at:Date;updated_at:Date})[]>(
    "SELECT id,name,code,description,logo_reference,theme_json,default_template_key,is_active,created_at,updated_at FROM brands WHERE id=? LIMIT 1",[brandId]);
   if(!rows.length)return jsonNoStore({error:{code:"NOT_FOUND",message:"Brand not found"}},404);
   const [versions]=await pool.execute<(RowDataPacket & {version_number:number;effective_from:Date;change_reason:string;created_at:Date})[]>(
    "SELECT version_number,effective_from,change_reason,created_at FROM brand_config_versions WHERE brand_id=? ORDER BY version_number DESC LIMIT 50",[brandId]);
-  return jsonNoStore({data:{...rows[0],theme:jsonVal(rows[0].theme_json),isActive:Boolean(rows[0].is_active),legalEntityIds:mappings.map(m=>m.legal_entity_id),
+  return jsonNoStore({data:{...rows[0],theme:jsonVal(rows[0].theme_json),isActive:Boolean(rows[0].is_active),legalEntityIds:scopedMappings.map(m=>m.legal_entity_id),
    versions:versions.map(v=>({versionNumber:Number(v.version_number),effectiveFrom:v.effective_from,changeReason:v.change_reason,createdAt:v.created_at}))}});
  }catch(error){return apiError(error)}
 }
@@ -38,7 +40,7 @@ export async function PATCH(request:NextRequest,context:Context){
    "SELECT id,name,code,description,logo_reference,theme_json,default_template_key,is_active FROM brands WHERE id=? FOR UPDATE",[brandId]);
   if(!currentRows.length){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Brand not found"}},404)}
   const [currentMappings]=await conn.execute<(RowDataPacket & {legal_entity_id:string;is_default:number})[]>(
-   "SELECT legal_entity_id,is_default FROM brand_legal_entities WHERE brand_id=? ORDER BY is_default DESC,legal_entity_id FOR UPDATE",[brandId]);
+   "SELECT legal_entity_id,is_default,effective_from FROM brand_legal_entities WHERE brand_id=? AND effective_from<=NOW(3) AND (effective_until IS NULL OR effective_until>NOW(3)) ORDER BY is_default DESC,legal_entity_id FOR UPDATE",[brandId]);
   if(!currentMappings.length||currentMappings.some(m=>!actor.legalEntityIds.includes(m.legal_entity_id))){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Brand not found in your assigned scope."}},404)}
   const desiredIds=incomingIds?[...new Set(incomingIds)]:currentMappings.map(m=>m.legal_entity_id);
   if(incomingIds&&desiredIds.length!==incomingIds.length){await conn.rollback();return jsonNoStore({error:{code:"VALIDATION_ERROR",message:"Duplicate legal entity mappings are not allowed"}},400)}
@@ -57,22 +59,41 @@ export async function PATCH(request:NextRequest,context:Context){
   if(patch.isActive!==undefined)add("is_active",patch.isActive?1:0);
   if(assigns.length)await conn.execute(`UPDATE brands SET ${assigns.join(",")} WHERE id=?`,[...vals,brandId]);
   if(incomingIds){
-   await conn.execute("DELETE FROM brand_legal_entities WHERE brand_id=?",[brandId]);
-   for(let i=0;i<desiredIds.length;i++)await conn.execute(
-    "INSERT INTO brand_legal_entities (brand_id,legal_entity_id,is_default,effective_from) VALUES (?,?,?,CURRENT_DATE())",
-    [brandId,desiredIds[i],i===0?1:0]);
+   const desiredSet=new Set(desiredIds);
+   const currentSet=new Set(currentMappings.map(m=>m.legal_entity_id));
+   for(const mapping of currentMappings){
+    if(!desiredSet.has(mapping.legal_entity_id)){
+     await conn.execute(`UPDATE brand_legal_entities SET effective_until=NOW(3)
+       WHERE brand_id=? AND legal_entity_id=? AND effective_from=? AND (effective_until IS NULL OR effective_until>NOW(3))`,
+      [brandId,mapping.legal_entity_id,mapping.effective_from]);
+    }else{
+     await conn.execute(`UPDATE brand_legal_entities SET is_default=?
+       WHERE brand_id=? AND legal_entity_id=? AND effective_from=? AND (effective_until IS NULL OR effective_until>NOW(3))`,
+      [desiredIds[0]===mapping.legal_entity_id?1:0,brandId,mapping.legal_entity_id,mapping.effective_from]);
+    }
+   }
+   for(let i=0;i<desiredIds.length;i++){
+    const legalEntityId=desiredIds[i];
+    if(!currentSet.has(legalEntityId))await conn.execute(
+     "INSERT INTO brand_legal_entities (brand_id,legal_entity_id,is_default,effective_from) VALUES (?,?,?,NOW(3))",
+     [brandId,legalEntityId,i===0?1:0]);
+   }
   }
   const [fresh]=await conn.execute<(RowDataPacket & {name:string;code:string;description:string|null;logo_reference:string|null;theme_json:unknown;default_template_key:string|null;is_active:number})[]>(
    "SELECT name,code,description,logo_reference,theme_json,default_template_key,is_active FROM brands WHERE id=?",[brandId]);
   const versionRow=await conn.execute<(RowDataPacket & {version_number:number})[]>(
    "SELECT version_number FROM brand_config_versions WHERE brand_id=? ORDER BY version_number DESC LIMIT 1 FOR UPDATE",[brandId]);
   const version=Number(versionRow[0][0]?.version_number??0)+1;const row=fresh[0];
-  const snapshot={schemaVersion:1,brandId,...row,theme:jsonVal(row.theme_json),isActive:Boolean(row.is_active),legalEntityIds:desiredIds};
+  const snapshot={schemaVersion:1,brandId,name:row.name,code:row.code,description:row.description,logoReference:row.logo_reference,
+   theme:jsonVal(row.theme_json),defaultTemplateKey:row.default_template_key,isActive:Boolean(row.is_active),legalEntityIds:desiredIds};
   await conn.execute("INSERT INTO brand_config_versions (id,brand_id,version_number,effective_from,config_snapshot,change_reason,changed_by) VALUES (?,?,?,NOW(3),?,?,?)",
    [randomUUID(),brandId,version,canonicalJson(snapshot),changeReason,actor.userId]);
   await recordAudit(conn,actor.userId,"brand.configuration_changed","brand",brandId,changeReason,
-   {configVersion:version-1,legalEntityIds:currentMappings.map(m=>m.legal_entity_id)},
-   {configVersion:version,legalEntityIds:desiredIds,changedFields:[...Object.keys(patch),...(incomingIds?["legalEntityIds"]:[])]});
+   {brandId,name:currentRows[0].name,code:currentRows[0].code,description:currentRows[0].description,
+    logoReference:currentRows[0].logo_reference,theme:jsonVal(currentRows[0].theme_json),
+    defaultTemplateKey:currentRows[0].default_template_key,isActive:Boolean(currentRows[0].is_active),
+    legalEntityIds:currentMappings.map(m=>m.legal_entity_id),configVersion:version-1},
+   {...snapshot,configVersion:version,changedFields:[...Object.keys(patch),...(incomingIds?["legalEntityIds"]:[])]});
   await conn.commit();
   return jsonNoStore({data:{...snapshot,configVersion:version}});
  }catch(error){if(conn)try{await conn.rollback()}catch{}return apiError(error)}
