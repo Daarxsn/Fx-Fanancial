@@ -265,7 +265,7 @@ export async function captureDocumentConfigurationSnapshot(
 
   const [entities] = await conn.execute<(RowDataPacket & {
     id: string; legal_name: string; display_name: string; registration_number: string | null; tax_identifier: string | null;
-    address_json: unknown; country_code: string | null; currency: string; locale: string | null; time_zone: string | null;
+    address_json: unknown; billing_address_json: unknown; country_code: string | null; currency: string; locale: string | null; time_zone: string | null;
     logo_reference: string | null; bank_details_json: unknown; invoice_terms: string | null; invoice_footer: string | null;
     default_tax_code: string | null; tax_setup_status: string; tax_setup_approval_reference: string | null;
     tax_setup_approved_by: string | null; tax_setup_approved_at: Date | null; is_active: number;
