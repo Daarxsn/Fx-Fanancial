@@ -74,7 +74,7 @@ export async function PATCH(request:NextRequest,context:Context){
    const valid=new Set(mappings.map(x=>x.brand_id));
    if(brandIds.some(id=>!valid.has(id))){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"Each brand must be active and explicitly mapped to a selected legal entity."}},409)}
   }
-  const assignments:string[]=[];const values:unknown[]=[];
+  const assignments:string[]=[];const values:(string|number|boolean|Date|null)[]=[];
   if(patch.name!==undefined){assignments.push("name=?");values.push(patch.name)}
   if(patch.description!==undefined){assignments.push("description=?");values.push(patch.description||null)}
   if(patch.isActive!==undefined){assignments.push("is_active=?");values.push(patch.isActive?1:0)}

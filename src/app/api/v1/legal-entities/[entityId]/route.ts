@@ -52,8 +52,8 @@ export async function PATCH(request:NextRequest,context:Context){
       await conn.rollback();
       return jsonNoStore({error:{code:"VALIDATION_ERROR",message:"Registered address country must match the legal entity country."}},400);
     }
-    const assignments:string[]=[];const values:unknown[]=[];const changed:string[]=[];
-    const set=(key:string,column:string,value:unknown)=>{assignments.push(`${column}=?`);values.push(value);changed.push(key);};
+    const assignments:string[]=[];const values:(string|number|boolean|Date|null)[]=[];const changed:string[]=[];
+    const set=(key:string,column:string,value:string|number|boolean|Date|null)=>{assignments.push(`${column}=?`);values.push(value);changed.push(key);};
     if(patch.legalName!==undefined)set("legalName","legal_name",patch.legalName);
     if(patch.displayName!==undefined)set("displayName","display_name",patch.displayName);
     if(patch.registrationNumber!==undefined)set("registrationNumber","registration_number",patch.registrationNumber||null);

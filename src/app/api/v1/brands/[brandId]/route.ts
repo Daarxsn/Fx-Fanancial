@@ -50,7 +50,7 @@ export async function PATCH(request:NextRequest,context:Context){
     `SELECT id,is_active FROM legal_entities WHERE id IN (${desiredIds.map(()=>"?").join(",")}) FOR UPDATE`,desiredIds);
    if(entities.length!==desiredIds.length||entities.some(e=>!e.is_active)){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"Each brand mapping must reference an existing active legal entity."}},409)}
   }
-  const assigns:string[]=[];const vals:unknown[]=[];const add=(col:string,val:unknown)=>{assigns.push(`${col}=?`);vals.push(val)};
+  const assigns:string[]=[];const vals:(string|number|boolean|Date|null)[]=[];const add=(col:string,val:string|number|boolean|Date|null)=>{assigns.push(`${col}=?`);vals.push(val)};
   if(patch.name!==undefined)add("name",patch.name);
   if(patch.description!==undefined)add("description",patch.description||null);
   if(patch.logoReference!==undefined)add("logo_reference",patch.logoReference||null);
