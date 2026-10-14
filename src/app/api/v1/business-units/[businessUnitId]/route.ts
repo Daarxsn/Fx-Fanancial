@@ -55,10 +55,10 @@ export async function PATCH(request:NextRequest,context:Context){
    "SELECT id,code,name,description,is_active FROM business_units WHERE id=? FOR UPDATE",[businessUnitId]);
   if(!rows.length){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Business unit not found"}},404)}
   const [oldEntities]=await conn.execute<(RowDataPacket & {legal_entity_id:string;is_primary:number;effective_from:Date})[]>(
-   "SELECT legal_entity_id,is_primary,effective_from FROM business_unit_legal_entities WHERE business_unit_id=? AND effective_from<=NOW(3) AND (effective_until IS NULL OR effective_until>NOW(3)) FOR UPDATE",[businessUnitId]);
+   "SELECT legal_entity_id,is_primary,effective_from FROM business_unit_legal_entities WHERE business_unit_id=? AND effective_from<=NOW(3) AND (effective_until IS NULL OR effective_until>NOW(3)) ORDER BY is_primary DESC,legal_entity_id FOR UPDATE",[businessUnitId]);
   if(!oldEntities.length||oldEntities.some(e=>!actor.legalEntityIds.includes(e.legal_entity_id))){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Business unit not found in your assigned scope."}},404)}
   const [oldBrands]=await conn.execute<(RowDataPacket & {brand_id:string;effective_from:Date})[]>(
-   "SELECT brand_id,effective_from FROM brand_business_units WHERE business_unit_id=? AND effective_from<=NOW(3) AND (effective_until IS NULL OR effective_until>NOW(3)) FOR UPDATE",[businessUnitId]);
+   "SELECT brand_id,effective_from FROM brand_business_units WHERE business_unit_id=? AND effective_from<=NOW(3) AND (effective_until IS NULL OR effective_until>NOW(3)) ORDER BY brand_id FOR UPDATE",[businessUnitId]);
   const entityIds=incomingEntityIds?[...incomingEntityIds]:oldEntities.map(e=>e.legal_entity_id);
   const brandIds=incomingBrandIds?[...incomingBrandIds]:oldBrands.map(e=>e.brand_id);
   if(entityIds.some(id=>!actor.legalEntityIds.includes(id))){await conn.rollback();return jsonNoStore({error:{code:"FORBIDDEN",message:"Every mapping must be within your assigned legal-entity scope."}},403)}
@@ -80,30 +80,28 @@ export async function PATCH(request:NextRequest,context:Context){
   if(patch.isActive!==undefined){assignments.push("is_active=?");values.push(patch.isActive?1:0)}
   if(assignments.length)await conn.execute(`UPDATE business_units SET ${assignments.join(",")} WHERE id=?`,[...values,businessUnitId]);
   if(incomingEntityIds){
-   const desiredSet=new Set(entityIds);const currentSet=new Set(oldEntities.map(e=>e.legal_entity_id));
-   for(const mapping of oldEntities){
-    if(!desiredSet.has(mapping.legal_entity_id)){
-     await conn.execute(`UPDATE business_unit_legal_entities SET effective_until=NOW(3)
+   const currentOrder=oldEntities.map(e=>e.legal_entity_id);
+   const mappingChanged=currentOrder.length!==entityIds.length||entityIds.some((id,index)=>id!==currentOrder[index]);
+   if(mappingChanged){
+    for(const mapping of oldEntities)await conn.execute(`UPDATE business_unit_legal_entities SET effective_until=NOW(3)
       WHERE business_unit_id=? AND legal_entity_id=? AND effective_from=? AND (effective_until IS NULL OR effective_until>NOW(3))`,
       [businessUnitId,mapping.legal_entity_id,mapping.effective_from]);
-    }else{
-     await conn.execute(`UPDATE business_unit_legal_entities SET is_primary=?
-      WHERE business_unit_id=? AND legal_entity_id=? AND effective_from=? AND (effective_until IS NULL OR effective_until>NOW(3))`,
-      [entityIds[0]===mapping.legal_entity_id?1:0,businessUnitId,mapping.legal_entity_id,mapping.effective_from]);
-    }
+    for(let i=0;i<entityIds.length;i++)await conn.execute(
+      "INSERT INTO business_unit_legal_entities (business_unit_id,legal_entity_id,is_primary,effective_from) VALUES (?,?,?,NOW(3))",
+      [businessUnitId,entityIds[i],i===0?1:0]);
    }
-   for(let i=0;i<entityIds.length;i++)if(!currentSet.has(entityIds[i]))await conn.execute(
-    "INSERT INTO business_unit_legal_entities (business_unit_id,legal_entity_id,is_primary,effective_from) VALUES (?,?,?,NOW(3))",
-    [businessUnitId,entityIds[i],i===0?1:0]);
   }
   if(incomingBrandIds){
-   const desiredSet=new Set(brandIds);const currentSet=new Set(oldBrands.map(b=>b.brand_id));
-   for(const mapping of oldBrands)if(!desiredSet.has(mapping.brand_id))await conn.execute(
-    `UPDATE brand_business_units SET effective_until=NOW(3)
-     WHERE brand_id=? AND business_unit_id=? AND effective_from=? AND (effective_until IS NULL OR effective_until>NOW(3))`,
-    [mapping.brand_id,businessUnitId,mapping.effective_from]);
-   for(const brandId of brandIds)if(!currentSet.has(brandId))await conn.execute(
-    "INSERT INTO brand_business_units (brand_id,business_unit_id,effective_from) VALUES (?,?,NOW(3))",[brandId,businessUnitId]);
+   const currentOrder=oldBrands.map(b=>b.brand_id);
+   const mappingChanged=currentOrder.length!==brandIds.length||brandIds.some((id,index)=>id!==currentOrder[index]);
+   if(mappingChanged){
+    for(const mapping of oldBrands)await conn.execute(`UPDATE brand_business_units SET effective_until=NOW(3)
+      WHERE brand_id=? AND business_unit_id=? AND effective_from=? AND (effective_until IS NULL OR effective_until>NOW(3))`,
+      [mapping.brand_id,businessUnitId,mapping.effective_from]);
+    for(const brandId of brandIds)await conn.execute(
+      "INSERT INTO brand_business_units (brand_id,business_unit_id,effective_from) VALUES (?,?,NOW(3))",
+      [brandId,businessUnitId]);
+   }
   }
   const [fresh]=await conn.execute<(RowDataPacket & {code:string;name:string;description:string|null;is_active:number;updated_at:Date})[]>(
    "SELECT code,name,description,is_active,updated_at FROM business_units WHERE id=?",[businessUnitId]);
