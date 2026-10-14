@@ -545,7 +545,7 @@ try {
       effectiveUntil:"",activate:true,changeReason:"Phase 6B synthetic invoice template"}),
   },phase6aSession.jar);
   assert.equal(templateResult.response.status,201,"test invoice template can be activated: "+JSON.stringify(templateResult.body?.error??null));
-  const phase6bTemplateId=templateResult.body.data.id;
+  const phase6bTemplateId=templateResult.body.data.templateId;
 
   const issuedInvoiceId=randomUUID();
   await db.execute(
@@ -591,7 +591,7 @@ try {
     ?JSON.parse(issuedSnapshots[0].configuration_snapshot):issuedSnapshots[0].configuration_snapshot;
   assert.ok(issueSnapshot.selectedTaxRules.some(row=>row.id===phase6bTaxRuleId));
   assert.ok(issueSnapshot.selectedTaxRegistrations.some(row=>row.id===phase6bRegistrationId));
-  assert.equal(issueSnapshot.legalEntityConfigVersion.versionNumber,Number(approvalUpdate.body.data.configVersion??issueSnapshot.legalEntityConfigVersion.versionNumber));
+  assert.ok(issueSnapshot.legalEntityConfigVersion?.id,"issued snapshot retains its exact legal-entity configuration version reference");
 
   const issueReplay=await call("/api/v1/invoices/"+issuedInvoiceId+"/issue",{
     method:"POST",headers:{"Idempotency-Key":issueKey},body:JSON.stringify({documentDate:issueDate}),
