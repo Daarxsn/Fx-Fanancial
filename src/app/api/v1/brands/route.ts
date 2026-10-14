@@ -24,7 +24,7 @@ export async function GET(request:NextRequest){
    const query=(request.nextUrl.searchParams.get("query")??"").trim().slice(0,100);
    const status=request.nextUrl.searchParams.get("status")??"active";
    if(!["active","inactive","all"].includes(status))return jsonNoStore({error:{code:"VALIDATION_ERROR",message:"status must be active, inactive, or all"}},400);
-   const clauses=[`ble.legal_entity_id IN (${scopes.map(()=>"?").join(",")})`];
+   const clauses=[`ble.legal_entity_id IN (${scopes.map(()=>"?").join(",")})`, `ble.effective_from <= NOW(3)`, `(ble.effective_until IS NULL OR ble.effective_until > NOW(3))`];
    const params:unknown[]=[...scopes];
    if(status!=="all"){clauses.push("b.is_active = ?");params.push(status==="active"?1:0)}
    if(query){clauses.push("(b.name LIKE ? OR b.code LIKE ?)");const safe=query.replace(/[\\\\%_]/g,"\\\\$&");params.push(`%${safe}%`,`%${safe}%`)}
@@ -38,6 +38,7 @@ export async function GET(request:NextRequest){
      const [mappings]=await pool.query<(RowDataPacket & {brand_id:string;legal_entity_id:string;is_default:number})[]>(
        `SELECT brand_id,legal_entity_id,is_default FROM brand_legal_entities
         WHERE brand_id IN (${ids.map(()=>"?").join(",")}) AND legal_entity_id IN (${scopes.map(()=>"?").join(",")})
+          AND effective_from <= NOW(3) AND (effective_until IS NULL OR effective_until > NOW(3))
         ORDER BY is_default DESC,legal_entity_id`,[...ids,...scopes]);
      for(const m of mappings){const arr=mappingByBrand.get(m.brand_id)??[];arr.push({legalEntityId:m.legal_entity_id,isDefault:Boolean(m.is_default)});mappingByBrand.set(m.brand_id,arr)}
    }
@@ -66,7 +67,7 @@ export async function POST(request:NextRequest){
     [id,input.name,input.code,input.description||null,input.logoReference||null,input.theme?JSON.stringify(input.theme):null,input.defaultTemplateKey||null]);
    for(let i=0;i<legalEntityIds.length;i++){
      await conn.execute(
-       "INSERT INTO brand_legal_entities (brand_id,legal_entity_id,is_default,effective_from) VALUES (?,?,?,CURRENT_DATE())",
+       "INSERT INTO brand_legal_entities (brand_id,legal_entity_id,is_default,effective_from) VALUES (?,?,?,NOW(3))",
        [id,legalEntityIds[i],i===0?1:0]);
    }
    const snapshot={schemaVersion:1,brandId:id,name:input.name,code:input.code,description:input.description||null,logoReference:input.logoReference||null,
@@ -76,7 +77,7 @@ export async function POST(request:NextRequest){
     `INSERT INTO brand_config_versions (id,brand_id,version_number,effective_from,config_snapshot,change_reason,changed_by)
      VALUES (?,?,1,NOW(3),?,?,?)`,[randomUUID(),id,serialized,input.changeReason,actor.userId]);
    await recordAudit(conn,actor.userId,"brand.created","brand",id,input.changeReason,null,
-    {configVersion:1,code:input.code,legalEntityCount:legalEntityIds.length});
+    {...snapshot,configVersion:1});
    await conn.commit();
    return jsonNoStore({data:{id,...snapshot,isActive:true,configVersion:1}},201);
  }catch(error){if(conn)try{await conn.rollback()}catch{}return apiError(error)}
