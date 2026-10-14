@@ -1653,12 +1653,45 @@ components:
         taxSetupApprovalReference: { type: string, maxLength: 255 }
         changeReason: { type: string, minLength: 3, maxLength: 1000 }
     LegalEntityUpdateInput:
-      allOf:
-        - $ref: "#/components/schemas/LegalEntityInput"
-      description: Partial legal-entity configuration update. changeReason is still required.
-      properties:
-        isActive: { type: boolean }
+      type: object
+      additionalProperties: false
       required: [changeReason]
+      properties:
+        legalName: { type: string, minLength: 1, maxLength: 255 }
+        displayName: { type: string, minLength: 1, maxLength: 255 }
+        registrationNumber: { type: string, maxLength: 100 }
+        taxIdentifier: { type: string, maxLength: 100 }
+        address: { $ref: "#/components/schemas/LegalEntityAddress" }
+        billingAddress:
+          anyOf:
+            - { $ref: "#/components/schemas/LegalEntityAddress" }
+            - { type: "null" }
+        countryCode: { type: string, pattern: '^[A-Z]{2}$' }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        invoiceEmail: { type: string, format: email, maxLength: 320 }
+        invoicePhone: { type: string, maxLength: 50 }
+        website: { type: string, format: uri, maxLength: 255 }
+        locale: { type: string, minLength: 2, maxLength: 35 }
+        timeZone: { type: string, minLength: 1, maxLength: 80 }
+        logoReference: { type: string, maxLength: 1000 }
+        bankDetails:
+          type: object
+          additionalProperties: false
+          required: [accountName, bankName, accountNumber]
+          properties:
+            accountName: { type: string, minLength: 1, maxLength: 160 }
+            bankName: { type: string, minLength: 1, maxLength: 160 }
+            accountNumber: { type: string, minLength: 1, maxLength: 80, writeOnly: true }
+            ifsc: { type: string, maxLength: 40 }
+            swift: { type: string, maxLength: 40 }
+            instructions: { type: string, maxLength: 1000 }
+        invoiceTerms: { type: string, maxLength: 5000 }
+        invoiceFooter: { type: string, maxLength: 5000 }
+        defaultTaxCode: { type: string, maxLength: 80 }
+        taxSetupStatus: { type: string, enum: [UNCONFIGURED, APPROVED_CONFIGURED, APPROVED_NOT_APPLICABLE] }
+        taxSetupApprovalReference: { type: string, maxLength: 255 }
+        isActive: { type: boolean }
+        changeReason: { type: string, minLength: 3, maxLength: 1000 }
     LegalEntity:
       type: object
       required: [id, legalName, displayName, currency, isActive, address, bankDetailsConfigured]
