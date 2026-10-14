@@ -10,7 +10,7 @@ type Entity = {
   bankAccountLast4:string|null; invoiceTerms:string|null; invoiceFooter:string|null; defaultTaxCode:string|null;
   taxSetupStatus:string; taxSetupApprovalReference:string|null; isActive:boolean;
 };
-type Brand={id:string;name:string;code:string;description:string|null;logoReference:string|null;defaultTemplateKey:string|null;isActive:boolean;legalEntityMappings:{legalEntityId:string;isDefault:boolean}[]};
+type Brand={id:string;name:string;code:string;description:string|null;logoReference:string|null;defaultTemplateKey:string|null;theme:Record<string,unknown>|null;isActive:boolean;legalEntityMappings:{legalEntityId:string;isDefault:boolean}[]};
 type Unit={id:string;code:string;name:string;description:string|null;isActive:boolean;legalEntities:{id:string;isPrimary:boolean}[];brandIds:string[]};
 type Registration={id:string;registrationKey:string;versionNumber:number;registrationType:string;jurisdiction:string;registrationNumber:string;displayLabel:string;isPrimary:boolean;effectiveFrom:string;effectiveUntil:string|null;approvalReference:string;isActive:boolean};
 type TaxRule={id:string;legalEntityId:string;taxCode:string;displayName:string;jurisdiction:string;ratePercent:string;calculationMode:string;effectiveFrom:string;effectiveUntil:string|null;isActive:boolean;approvalReference:string|null};
@@ -22,7 +22,7 @@ type Tab="company"|"brands"|"units"|"tax"|"numbering"|"templates";
 type Draft=Record<string,string|boolean>;
 const today=()=>new Date().toISOString().slice(0,10);
 const companyBlank=():Draft=>({legalName:"",displayName:"",registrationNumber:"",taxIdentifier:"",countryCode:"",currency:"INR",line1:"",line2:"",city:"",state:"",postalCode:"",billingLine1:"",billingLine2:"",billingCity:"",billingState:"",billingPostalCode:"",billingCountryCode:"",invoiceEmail:"",invoicePhone:"",website:"",locale:"en-IN",timeZone:"Asia/Kolkata",logoReference:"",invoiceTerms:"",invoiceFooter:"",defaultTaxCode:"",taxSetupStatus:"UNCONFIGURED",taxSetupApprovalReference:"",bankAccountName:"",bankName:"",bankAccountNumber:"",bankIfsc:"",bankSwift:"",replaceBank:false,changeReason:"Initial legal entity configuration"});
-const brandBlank=():Draft=>({name:"",code:"",description:"",logoReference:"",defaultTemplateKey:"",legalEntityIds:"",changeReason:"Initial brand configuration"});
+const brandBlank=():Draft=>({name:"",code:"",description:"",logoReference:"",defaultTemplateKey:"",themeAccent:"#B51F32",themeStyle:"STANDARD",legalEntityIds:"",changeReason:"Initial brand configuration"});
 const unitBlank=():Draft=>({code:"",name:"",description:"",legalEntityIds:"",brandIds:"",changeReason:"Initial business unit configuration"});
 const registrationBlank=():Draft=>({registrationKey:"",registrationType:"GSTIN",jurisdiction:"",registrationNumber:"",displayLabel:"",isPrimary:true,effectiveFrom:today(),effectiveUntil:"",approvalReference:"",changeReason:"Approved tax registration configuration"});
 const taxBlank=():Draft=>({taxCode:"",displayName:"",jurisdiction:"",ratePercent:"",calculationMode:"EXCLUSIVE",effectiveFrom:today(),effectiveUntil:"",approvalReference:"",changeReason:"Approved tax rule configuration"});
@@ -141,6 +141,7 @@ export default function SettingsPage(){
  async function saveBrand(){
   const entityIds=commaIds(String(brand.legalEntityIds));
   const body={name:brand.name,description:brand.description,logoReference:brand.logoReference,defaultTemplateKey:brand.defaultTemplateKey,
+   theme:{accentColor:String(brand.themeAccent),presentationStyle:String(brand.themeStyle)},
    legalEntityIds:entityIds,changeReason:brand.changeReason};
   if(brandEdit)await api("/api/v1/brands/"+brandEdit,"PATCH",body);
   else await api("/api/v1/brands","POST",{...body,code:brand.code});
@@ -260,13 +261,15 @@ export default function SettingsPage(){
     <Input id="brandCode" label="Stable brand code" value={String(brand.code)} required disabled={Boolean(brandEdit)} onChange={s=>setValue(setBrand,"code",s.toUpperCase())}/>
     <Input id="brandLogo" label="Logo reference" value={String(brand.logoReference)} onChange={s=>setValue(setBrand,"logoReference",s)}/>
     <Input id="brandTemplate" label="Preferred template key" value={String(brand.defaultTemplateKey)} onChange={s=>setValue(setBrand,"defaultTemplateKey",s)}/>
+    <Input id="brandAccent" label="Presentation accent" type="color" value={String(brand.themeAccent)} onChange={s=>setValue(setBrand,"themeAccent",s)}/>
+    <Select id="brandStyle" label="Presentation style" value={String(brand.themeStyle)} onChange={s=>setValue(setBrand,"themeStyle",s)} options={[{value:"STANDARD",label:"Standard"},{value:"MINIMAL",label:"Minimal"},{value:"EDITORIAL",label:"Editorial"}]}/>
    </Grid><TextAreaField id="brandDescription" label="Description" value={String(brand.description)} onChange={e=>setValue(setBrand,"description",e.target.value)} rows={2}/>
    <TextField id="brandEntities" label="Legal entity UUIDs" required value={String(brand.legalEntityIds)} onChange={e=>setValue(setBrand,"legalEntityIds",e.target.value)} hint="Comma-separated IDs from your entity list; the server verifies each mapping."/>
    <TextField id="brandReason" label="Reason for change" required value={String(brand.changeReason)} onChange={e=>setValue(setBrand,"changeReason",e.target.value)}/>
    <div className="config-form-actions"><Button type="submit" disabled={saving}>{saving?"Saving…":brandEdit?"Save brand version":"Create brand"}</Button>{brandEdit?<Button variant="ghost" onClick={()=>{setBrandEdit("");setBrand(brandBlank())}}>Cancel</Button>:null}</div></form></Card>
    {brands.length===0?<EmptyState title="No mapped brands" description="Create a brand and select the legal entities it is explicitly permitted to represent." icon="box"/>:<div className="config-record-list">{brands.map(b=><RecordCard key={b.id} title={b.name} subtitle={b.code} meta={b.description??"Brand identity"} active={b.isActive}
     details={<><Detail label="Entity mappings">{b.legalEntityMappings.length}</Detail><Detail label="Logo">{b.logoReference||"Not set"}</Detail><Detail label="Preferred template">{b.defaultTemplateKey||"None"}</Detail></>}
-    actions={<><Button size="sm" variant="secondary" onClick={()=>{setBrandEdit(b.id);setBrand({name:b.name,code:b.code,description:b.description??"",logoReference:b.logoReference??"",defaultTemplateKey:b.defaultTemplateKey??"",legalEntityIds:b.legalEntityMappings.map(m=>m.legalEntityId).join(", "),changeReason:"Update brand configuration"})}}>Edit</Button><Button size="sm" variant={b.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/brands/"+b.id,b.isActive,b.name)}>{b.isActive?"Deactivate":"Reactivate"}</Button></>}/>)}</div>}
+    actions={<><Button size="sm" variant="secondary" onClick={()=>{setBrandEdit(b.id);setBrand({name:b.name,code:b.code,description:b.description??"",logoReference:b.logoReference??"",defaultTemplateKey:b.defaultTemplateKey??"",themeAccent:typeof b.theme?.accentColor==="string"?b.theme.accentColor:"#B51F32",themeStyle:typeof b.theme?.presentationStyle==="string"?b.theme.presentationStyle:"STANDARD",legalEntityIds:b.legalEntityMappings.map(m=>m.legalEntityId).join(", "),changeReason:"Update brand configuration"})}}>Edit</Button><Button size="sm" variant={b.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/brands/"+b.id,b.isActive,b.name)}>{b.isActive?"Deactivate":"Reactivate"}</Button></>}/>)}</div>}
   </div>:null}
 
   {tab==="units"?<div className="config-main config-main--full">
