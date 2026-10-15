@@ -524,6 +524,28 @@ try {
   assert.equal(taxRuleResult.response.status,201,"approved test tax rule can be created: "+JSON.stringify(taxRuleResult.body?.error??null));
   const phase6bTaxRuleId=taxRuleResult.body.data.id;
 
+  // Second jurisdiction fixture proves each invoice line's registration must match its rule.
+  const otherRegResult=await call("/api/v1/legal-entities/"+entityA.id+"/tax-registrations",{
+    method:"POST",
+    body:JSON.stringify({registrationKey:"P6B_OTHER_REG_"+phase6bSuffix,registrationType:"OTHER",
+      jurisdiction:"CI-OTHER-JURISDICTION",registrationNumber:"CI-OTHER-REG-NUM-"+phase6bSuffix,
+      displayLabel:"Synthetic second-jurisdiction registration",isPrimary:false,effectiveFrom:"2020-01-01",effectiveUntil:"",
+      approvalReference:"CI-OTHER-REG-APPROVAL-"+phase6bSuffix,changeReason:"Phase 6B mismatched-line registration fixture"}),
+  },phase6aSession.jar);
+  assert.equal(otherRegResult.response.status,201,"second-jurisdiction synthetic registration can be created: "+JSON.stringify(otherRegResult.body?.error??null));
+  const phase6bOtherRegistrationId=otherRegResult.body.data.id;
+
+  const otherTaxRuleResult=await call("/api/v1/tax-rules",{
+    method:"POST",
+    body:JSON.stringify({legalEntityId:entityA.id,taxCode:"P6B_ALT_"+phase6bSuffix,displayName:"Synthetic second-jurisdiction tax rule",
+      jurisdiction:"CI-OTHER-JURISDICTION",ratePercent:"18",calculationMode:"EXCLUSIVE",effectiveFrom:"2020-01-01",
+      effectiveUntil:"",approvalReference:"CI-OTHER-TAX-APPROVAL-"+phase6bSuffix,
+      changeReason:"Phase 6B mismatched-line tax-rule fixture"}),
+  },phase6aSession.jar);
+  assert.equal(otherTaxRuleResult.response.status,201,"second-jurisdiction synthetic tax rule can be created: "+JSON.stringify(otherTaxRuleResult.body?.error??null));
+  const phase6bOtherTaxRuleId=otherTaxRuleResult.body.data.id;
+  const phase6bOtherTaxCode=otherTaxRuleResult.body.data.taxCode;
+
   const numberingResult=await call("/api/v1/numbering-configs",{
     method:"POST",
     body:JSON.stringify({legalEntityId:entityA.id,documentType:"INVOICE",seriesCode:"P6B_"+phase6bSuffix,
@@ -606,6 +628,36 @@ try {
   },phase6aSession.jar);
   assert.equal(conflictingReplay.response.status,409,"a different idempotency key cannot reissue the issued invoice");
   assert.equal(conflictingReplay.body.error.code,"CONFIGURATION_CONFLICT");
+
+  // Both rules and both registrations are individually valid, but each invoice line is
+  // deliberately paired with the other jurisdiction's registration. Issuance must reject it.
+  const mismatchedTaxInvoiceId=randomUUID();
+  await db.execute(
+    "INSERT INTO invoices (id,legal_entity_id,brand_id,customer_id,document_type,lifecycle_status,payment_terms_days,currency,subtotal,discount_total,tax_total,grand_total) VALUES (?, ?, NULL, ?, 'INVOICE','DRAFT',30,'INR',200.0000,0,36.0000,236.0000)",
+    [mismatchedTaxInvoiceId,entityA.id,created.body.data.id],
+  );
+  await db.execute(
+    "INSERT INTO invoice_lines (id,invoice_id,line_number,description,quantity,unit_price,discount_amount,tax_rate,tax_code,tax_rule_id,tax_registration_id,tax_amount,line_total) VALUES (?,?,1,'CI mismatched jurisdiction line A',1.0000,100.0000,0,18.000000,?,?,?,18.0000,118.0000)",
+    [randomUUID(),mismatchedTaxInvoiceId,phase6bTaxCode,phase6bTaxRuleId,phase6bOtherRegistrationId],
+  );
+  await db.execute(
+    "INSERT INTO invoice_lines (id,invoice_id,line_number,description,quantity,unit_price,discount_amount,tax_rate,tax_code,tax_rule_id,tax_registration_id,tax_amount,line_total) VALUES (?,?,2,'CI mismatched jurisdiction line B',1.0000,100.0000,0,18.000000,?,?,?,18.0000,118.0000)",
+    [randomUUID(),mismatchedTaxInvoiceId,phase6bOtherTaxCode,phase6bOtherTaxRuleId,phase6bRegistrationId],
+  );
+  const mismatchedTaxIssue=await call("/api/v1/invoices/"+mismatchedTaxInvoiceId+"/issue",{
+    method:"POST",headers:{"Idempotency-Key":"p6b-tax-pair-"+phase6bSuffix.toLowerCase()+"-001"},
+    body:JSON.stringify({documentDate:issueDate}),
+  },phase6aSession.jar);
+  assert.equal(mismatchedTaxIssue.response.status,409,"a line cannot use a registration from a different tax jurisdiction");
+  assert.equal(mismatchedTaxIssue.body.error.code,"CONFIGURATION_NOT_READY");
+  const [mismatchedInvoiceState]=await db.execute("SELECT lifecycle_status FROM invoices WHERE id=?",[mismatchedTaxInvoiceId]);
+  assert.equal(mismatchedInvoiceState[0].lifecycle_status,"DRAFT","failed tax-jurisdiction validation must leave the invoice as draft");
+  const [mismatchedSnapshots]=await db.execute(
+    "SELECT id FROM document_configuration_snapshots WHERE resource_type='INVOICE' AND resource_id=?",[mismatchedTaxInvoiceId],
+  );
+  assert.equal(mismatchedSnapshots.length,0,"failed validation must not persist a configuration snapshot");
+  console.log("PASS: issuance rejects cross-jurisdiction line/registration pairings and rolls back the issue transaction.");
+
   console.log("PASS: Phase 6B end-to-end issue path validates finance-approved rules, reserves and persists the invoice number, stores the immutable configuration snapshot/hash, masks bank details in the supplier snapshot, and enforces same-key replay/conflicting-key rejection.");
 
   // Debit notes share the transactional numbering/snapshot path but use their own document-type series.

@@ -7,14 +7,74 @@ import {
   loadEntity, readinessForEntity, reserveDocumentNumber, sha256,
 } from "@/lib/configuration/service";
 import { ConfigurationConflictError, ConfigurationNotReadyError } from "@/lib/configuration/errors";
+import {
+  numberingCreateSchema, taxRegistrationCreateSchema, taxRuleCreateSchema, templateCreateSchema,
+} from "@/lib/validation/configuration";
 
 type SnapshotRow = RowDataPacket & { id:string; configuration_snapshot:unknown; configuration_sha256:string };
+
+function verifyConfigurationDateValidation() {
+  const legalEntityId = randomUUID();
+  const taxRule = {
+    legalEntityId, taxCode: "CI_DATE_TEST", displayName: "CI date test",
+    jurisdiction: "CI-JURISDICTION", ratePercent: "18", calculationMode: "EXCLUSIVE" as const,
+    effectiveFrom: "2026-01-01", effectiveUntil: "", approvalReference: "CI-DATE-APPROVAL",
+    changeReason: "CI calendar-date validation",
+  };
+  const numbering = {
+    legalEntityId, documentType: "INVOICE" as const, seriesCode: "CI_DATE_TEST", prefix: "CI-", suffix: "",
+    sequenceWidth: 5, includeFinancialYear: true, financialYearStartMonth: 4, financialYearStartDay: 1,
+    timeZone: "Asia/Kolkata", effectiveFrom: "2026-01-01", effectiveUntil: "",
+    approvalReference: "CI-DATE-APPROVAL", activate: true, changeReason: "CI calendar-date validation",
+  };
+  const template = {
+    legalEntityId, documentType: "INVOICE" as const, templateKey: "CI_DATE_TEST",
+    displayName: "CI date test template",
+    templateConfig: {
+      pageSize: "A4" as const, orientation: "PORTRAIT" as const, layout: "STANDARD" as const,
+      accentColor: "#931314", showLogo: true, showTaxBreakdown: true, showBankDetails: false,
+      showPaymentTerms: true, showCustomerTaxIdentifier: false, showFooter: true,
+    },
+    effectiveFrom: "2026-01-01", effectiveUntil: "", activate: true,
+    changeReason: "CI calendar-date validation",
+  };
+  const registration = {
+    registrationKey: "CI_DATE_TEST", registrationType: "OTHER" as const, jurisdiction: "CI-JURISDICTION",
+    registrationNumber: "CI-DATE-REG", displayLabel: "CI date test", isPrimary: false,
+    effectiveFrom: "2026-01-01", effectiveUntil: "", approvalReference: "CI-DATE-APPROVAL",
+    changeReason: "CI calendar-date validation",
+  };
+  assert.equal(taxRuleCreateSchema.safeParse(taxRule).success, true);
+  assert.equal(numberingCreateSchema.safeParse(numbering).success, true);
+  assert.equal(templateCreateSchema.safeParse(template).success, true);
+  assert.equal(taxRegistrationCreateSchema.safeParse(registration).success, true);
+
+  const impossibleDates = ["2026-02-30", "2026-13-01", "2026-04-31"];
+  for (const date of impossibleDates) {
+    assert.equal(taxRuleCreateSchema.safeParse({ ...taxRule, effectiveFrom: date }).success, false, `tax rule start date rejects ${date}`);
+    assert.equal(taxRuleCreateSchema.safeParse({ ...taxRule, effectiveUntil: date }).success, false, `tax rule end date rejects ${date}`);
+    assert.equal(numberingCreateSchema.safeParse({ ...numbering, effectiveFrom: date }).success, false, `numbering start date rejects ${date}`);
+    assert.equal(numberingCreateSchema.safeParse({ ...numbering, effectiveUntil: date }).success, false, `numbering end date rejects ${date}`);
+    assert.equal(templateCreateSchema.safeParse({ ...template, effectiveFrom: date }).success, false, `template start date rejects ${date}`);
+    assert.equal(templateCreateSchema.safeParse({ ...template, effectiveUntil: date }).success, false, `template end date rejects ${date}`);
+    assert.equal(taxRegistrationCreateSchema.safeParse({ ...registration, effectiveFrom: date }).success, false, `registration start date rejects ${date}`);
+    assert.equal(taxRegistrationCreateSchema.safeParse({ ...registration, effectiveUntil: date }).success, false, `registration end date rejects ${date}`);
+  }
+  assert.equal(
+    numberingCreateSchema.safeParse({ ...numbering, financialYearStartMonth: 2, financialYearStartDay: 29 }).success,
+    false,
+    "an annual financial-year boundary must exist every year; February 29 is not a valid recurring start date",
+  );
+  console.log("PASS: Phase 6 configuration schemas reject impossible effective dates and recurring February 29 fiscal-year starts.");
+}
+
 function parseObject(value: unknown): Record<string, unknown> {
   if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
   if (typeof value === "string") return JSON.parse(value) as Record<string, unknown>;
   throw new Error("Expected a JSON object from MySQL.");
 }
 async function main() {
+  verifyConfigurationDateValidation();
   const suffix = randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase();
   const actorId = randomUUID(), entityId = randomUUID(), brandId = randomUUID();
   const taxRuleId = randomUUID(), registrationId = randomUUID();

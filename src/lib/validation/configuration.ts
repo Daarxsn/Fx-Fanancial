@@ -120,8 +120,8 @@ export const taxRuleCreateSchema = z.object({
   jurisdiction: z.string().trim().min(1).max(120),
   ratePercent: z.string().regex(/^(0|[1-9]\d{0,2})(\.\d{1,6})?$/, "Enter a non-negative percentage with up to six decimal places."),
   calculationMode: z.enum(["EXCLUSIVE", "INCLUSIVE"]),
-  effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  effectiveUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  effectiveFrom: calendarDateSchema,
+  effectiveUntil: calendarDateSchema.optional().or(z.literal("")),
   approvalReference: z.string().trim().min(3).max(255),
   changeReason: z.string().trim().min(3).max(1000),
 }).strict().superRefine((value, ctx) => {
@@ -140,14 +140,14 @@ export const numberingCreateSchema = z.object({
   financialYearStartMonth: z.number().int().min(1).max(12),
   financialYearStartDay: z.number().int().min(1).max(31),
   timeZone: z.string().trim().min(1).max(80),
-  effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  effectiveUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  effectiveFrom: calendarDateSchema,
+  effectiveUntil: calendarDateSchema.optional().or(z.literal("")),
   approvalReference: z.string().trim().min(3).max(255),
   activate: z.boolean().optional().default(false),
   changeReason: z.string().trim().min(3).max(1000),
 }).strict().superRefine((value, ctx) => {
   if (value.effectiveUntil && value.effectiveUntil < value.effectiveFrom) ctx.addIssue({ code: "custom", path: ["effectiveUntil"], message: "End date must not precede start date." });
-  const maxDay = new Date(Date.UTC(2024, value.financialYearStartMonth, 0)).getUTCDate();
+  const maxDay = new Date(Date.UTC(2023, value.financialYearStartMonth, 0)).getUTCDate();
   if (value.financialYearStartDay > maxDay) ctx.addIssue({ code: "custom", path: ["financialYearStartDay"], message: "Financial-year start day is invalid for the selected month." });
   try { new Intl.DateTimeFormat("en-US", { timeZone: value.timeZone }); }
   catch { ctx.addIssue({ code: "custom", path: ["timeZone"], message: "Use a supported IANA time zone." }); }
@@ -174,8 +174,8 @@ export const templateCreateSchema = z.object({
   templateKey: z.string().trim().min(2).max(80).regex(/^[A-Za-z0-9_-]+$/),
   displayName: z.string().trim().min(1).max(160),
   templateConfig: documentTemplateConfigSchema,
-  effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  effectiveUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  effectiveFrom: calendarDateSchema,
+  effectiveUntil: calendarDateSchema.optional().or(z.literal("")),
   activate: z.boolean().optional().default(false),
   changeReason: z.string().trim().min(3).max(1000),
 }).strict().superRefine((value, ctx) => {

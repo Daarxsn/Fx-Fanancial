@@ -124,8 +124,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ in
     const [lineRows] = await conn.execute<(RowDataPacket & {
       id: string; line_number: number; tax_code: string | null; tax_rule_id: string | null; tax_registration_id: string | null;
       tax_rate: string | number; tax_amount: string | number; configured_tax_code: string | null; configured_rate: string | number | null;
+      configured_tax_jurisdiction: string | null; configured_registration_jurisdiction: string | null;
     })[]>(
-      "SELECT l.id,l.line_number,l.tax_code,l.tax_rule_id,l.tax_registration_id,l.tax_rate,l.tax_amount,r.tax_code AS configured_tax_code,r.rate AS configured_rate FROM invoice_lines l LEFT JOIN tax_rules r ON r.id=l.tax_rule_id WHERE l.invoice_id=? ORDER BY l.line_number FOR UPDATE",
+      "SELECT l.id,l.line_number,l.tax_code,l.tax_rule_id,l.tax_registration_id,l.tax_rate,l.tax_amount,r.tax_code AS configured_tax_code,r.rate AS configured_rate,r.jurisdiction AS configured_tax_jurisdiction,tr.jurisdiction AS configured_registration_jurisdiction FROM invoice_lines l LEFT JOIN tax_rules r ON r.id=l.tax_rule_id LEFT JOIN legal_entity_tax_registrations tr ON tr.id=l.tax_registration_id WHERE l.invoice_id=? ORDER BY l.line_number FOR UPDATE",
       [invoice.id],
     );
     if (!lineRows.length) throw new ConfigurationNotReadyError("At least one invoice line is required before issuance.");
@@ -137,10 +138,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ in
     let taxRuleIds: string[] = [];
     let taxRegistrationIds: string[] = [];
     if (taxStatus === "APPROVED_CONFIGURED") {
-      const invalid = lineRows.find((line) =>
-        !line.tax_rule_id || !line.tax_registration_id || !line.tax_code ||
-        line.configured_tax_code !== line.tax_code || !sameRate(line.tax_rate, line.configured_rate));
-      if (invalid) throw new ConfigurationNotReadyError("Every line must reference an approved tax rule and registration, with a code and rate matching the stored line values.");
+      const invalid = lineRows.find((line) => {
+        const taxJurisdiction = line.configured_tax_jurisdiction?.trim().toLowerCase();
+        const registrationJurisdiction = line.configured_registration_jurisdiction?.trim().toLowerCase();
+        return !line.tax_rule_id || !line.tax_registration_id || !line.tax_code ||
+          line.configured_tax_code !== line.tax_code || !sameRate(line.tax_rate, line.configured_rate) ||
+          !taxJurisdiction || !registrationJurisdiction || taxJurisdiction !== registrationJurisdiction;
+      });
+      if (invalid) throw new ConfigurationNotReadyError("Every invoice line must reference an approved tax rule and a registration for the same jurisdiction, with a matching tax code and rate.");
       taxRuleIds = [...new Set(lineRows.map((line) => String(line.tax_rule_id)))];
       taxRegistrationIds = [...new Set(lineRows.map((line) => String(line.tax_registration_id)))];
     } else if (taxStatus === "APPROVED_NOT_APPLICABLE") {
