@@ -618,6 +618,28 @@ try {
   assert.equal(templateResult.response.status,201,"test invoice template can be activated: "+JSON.stringify(templateResult.body?.error??null));
   const phase6bTemplateId=templateResult.body.data.templateId;
 
+  const issueDate=new Date().toISOString().slice(0,10);
+  const currencyMismatchInvoiceId=randomUUID();
+  await db.execute(
+    "INSERT INTO invoices (id,legal_entity_id,brand_id,customer_id,document_type,lifecycle_status,payment_terms_days,currency,subtotal,discount_total,tax_total,grand_total) VALUES (?, ?, NULL, ?, 'INVOICE','DRAFT',30,'USD',100.0000,0,18.0000,118.0000)",
+    [currencyMismatchInvoiceId,entityA.id,created.body.data.id],
+  );
+  await db.execute(
+    "INSERT INTO invoice_lines (id,invoice_id,line_number,description,quantity,unit_price,discount_amount,tax_rate,tax_code,tax_rule_id,tax_registration_id,tax_amount,line_total) VALUES (?,?,1,'CI unsupported currency line',1.0000,100.0000,0,18.000000,?,?,?,18.0000,118.0000)",
+    [randomUUID(),currencyMismatchInvoiceId,phase6bTaxCode,phase6bTaxRuleId,phase6bRegistrationId],
+  );
+  const blockedCurrencyIssue=await call("/api/v1/invoices/"+currencyMismatchInvoiceId+"/issue",{
+    method:"POST",headers:{"Idempotency-Key":"p6b-currency-"+phase6bSuffix.toLowerCase()+"-001"},
+    body:JSON.stringify({documentDate:issueDate}),
+  },phase6aSession.jar);
+  assert.equal(blockedCurrencyIssue.response.status,409,"unapproved multi-currency issuance must be blocked");
+  assert.equal(blockedCurrencyIssue.body.error.code,"CONFIGURATION_NOT_READY");
+  const [currencyMismatchRows]=await db.execute("SELECT lifecycle_status FROM invoices WHERE id=?",[currencyMismatchInvoiceId]);
+  assert.equal(currencyMismatchRows[0].lifecycle_status,"DRAFT","currency mismatch must not issue the invoice");
+  const [currencyMismatchSnapshots]=await db.execute("SELECT id FROM document_configuration_snapshots WHERE resource_type='INVOICE' AND resource_id=?",[currencyMismatchInvoiceId]);
+  assert.equal(currencyMismatchSnapshots.length,0,"blocked currency mismatch must not capture an issue snapshot or allocate a document configuration");
+  console.log("PASS: issuance blocks unsupported currency and leaves the draft unissued.");
+
   const issuedInvoiceId=randomUUID();
   await db.execute(
     "INSERT INTO invoices (id,legal_entity_id,brand_id,customer_id,document_type,lifecycle_status,payment_terms_days,currency,subtotal,discount_total,tax_total,grand_total) VALUES (?, ?, NULL, ?, 'INVOICE','DRAFT',30,'INR',100.0000,0,18.0000,118.0000)",
@@ -627,7 +649,6 @@ try {
     "INSERT INTO invoice_lines (id,invoice_id,line_number,description,quantity,unit_price,discount_amount,tax_rate,tax_code,tax_rule_id,tax_registration_id,tax_amount,line_total) VALUES (?,?,1,'CI taxable line',1.0000,100.0000,0,18.000000,?,?,?,18.0000,118.0000)",
     [randomUUID(),issuedInvoiceId,phase6bTaxCode,phase6bTaxRuleId,phase6bRegistrationId],
   );
-  const issueDate=new Date().toISOString().slice(0,10);
   const issueKey="p6b-happy-"+phase6bSuffix.toLowerCase()+"-001";
   const issueResult=await call("/api/v1/invoices/"+issuedInvoiceId+"/issue",{
     method:"POST",headers:{"Idempotency-Key":issueKey},body:JSON.stringify({documentDate:issueDate}),
