@@ -416,11 +416,11 @@ export default function SettingsPage(){
   </div>:null}
 
   {tab==="templates"?<div className="config-main config-main--full">
-   <Heading label="DOCUMENT PRESENTATION" title="Invoice and document templates" description="Configure versioned document rules and compare them against the uploaded brand samples. A reference image is not an active template or an issued PDF."/>
+   <Heading label="DOCUMENT PRESENTATION" title="Invoice and document templates" description="Configure versioned document rules and compare them against sanitized invoice-layout reconstructions based on the supplied brand samples. Reference artwork is not an active template or an issued PDF."/>
    <section className="config-template-reference" aria-labelledby="config-template-reference-title">
     <div className="config-template-reference__heading">
-     <p className="eyebrow">UPLOADED BRAND ASSETS</p>
-     <h3 id="config-template-reference-title">Approved invoice sample references</h3>
+     <p className="eyebrow">BRAND &amp; TEMPLATE REFERENCES</p>
+     <h3 id="config-template-reference-title">Invoice layout reference reconstructions</h3>
      <p>These editable SVG reference layouts are visual reconstructions guided by your supplied MyFX POS, Digitech and Coworks sample pack. They are shown for design matching only; they are not pixel copies of the source sheets and do not create a configured template, store customer data, allocate a document number or issue an invoice.</p>
     </div>
     <div className="config-template-reference-grid">
