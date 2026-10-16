@@ -5,7 +5,7 @@ import { pool } from "@/lib/db/pool";
 import { requirePermission } from "@/lib/auth/authorize";
 import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
-import { customerCreateSchema, type uuidSchema } from "@/lib/validation/master-data";
+import { customerCreateSchema } from "@/lib/validation/master-data";
 import { MAX_CSV_BYTES, MAX_CSV_ROWS, parseCsv, parseJsonCell, normalizeCsvHeader, type CsvRow, type CsvParseIssue } from "@/lib/master-data/csv";
 
 export const runtime="nodejs";
