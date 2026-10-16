@@ -1,7 +1,4 @@
-# Phase 06A — Company, Legal Entity and Brand Configuration
-
-**Status:** Phase 06A/06B implementation and regression fixes are merged into `main`; the post-merge CI and lockfile/bootstrap workflows passed on `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3` (CI run `38886347059`, bootstrap run `38886346994`). PR #6 adds the exact supplied WebP exports for the corporate logo, MyFX POS, Digitech and Coworks, corrects logo CSS and strengthens UI asset validation. CI passed on head `51dced4626dc333158e594160b7e8264d8ddd186` (run `38888043868`); PR #6 is green but not yet merged at the time of this note. Business-owner sign-off remains required. Do not treat sample values or proposed records as real company/tax information.
-
+**Status:** Phase 06A/06B implementation and regression fixes are merged into `main`; the latest audited revision is `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69`. Post-merge CI and lockfile/bootstrap passed on that revision (CI run `38889236087`, bootstrap run `38889236031`). PR #6 merged the exact supplied WebP exports for the corporate logo, MyFX POS, Digitech and Coworks, corrected logo CSS and strengthened UI asset validation. Business-owner sign-off remains required. Do not treat sample values or proposed records as real company/tax information.
 ## Core distinction
 
 The system must model these separately:
@@ -117,7 +114,7 @@ Real tax values, registration numbers, numbering decisions, finance/tax approval
 
 ## Brand asset integration audit (2026-10-16)
 
-PR #4 added reconstructed SVG logo/template references to `main` at `7b7e591128facbb66beda6cbe4b781e42759d6ff`. PR #6 adds the exact supplied WebP exports for Falchion Xeniaa, MyFX POS, FX Digitech and FX Coworks to the UI on branch `phase-01-06-visual-fidelity`; these exact exports are not yet on `main` until PR #6 merges:
+PR #4 added reconstructed SVG logo/template references to `main` at `7b7e591128facbb66beda6cbe4b781e42759d6ff`. PR #6 then merged the exact supplied WebP exports for Falchion Xeniaa, MyFX POS, FX Digitech and FX Coworks into `main` at `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69`.
 
 - `falchion-xeniaa-logo.webp`, `myfx-pos.webp`, `fx-digitech.webp`, `fx-coworks.webp` — exact supplied transparent logo exports proposed for live shell/auth/header use in PR #6.
 - The four `.svg` logo variants and three SVG invoice layouts — reconstructed reference art retained for design/dev reference.
