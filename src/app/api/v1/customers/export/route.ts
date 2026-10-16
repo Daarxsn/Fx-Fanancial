@@ -41,7 +41,7 @@ export async function GET(request:NextRequest){
    customerCode:row.customer_code,name:row.name,email:row.email,phone:row.phone,
    billingAddressJson:row.billing_address_json===null||row.billing_address_json===undefined?"":typeof row.billing_address_json==="string"?row.billing_address_json:JSON.stringify(row.billing_address_json),
    shippingAddressJson:row.shipping_address_json===null||row.shipping_address_json===undefined?"":typeof row.shipping_address_json==="string"?row.shipping_address_json:JSON.stringify(row.shipping_address_json),
-   purchaseOrderReference:row.purchase_order_reference,paymentTermsDays:Number(row.payment_terms_days),
+   purchaseOrderReference:row.purchase_order_reference,paymentTermsDays:row.payment_terms_days===null?"":Number(row.payment_terms_days),
    ...(sensitive?{
      taxIdentifier:row.tax_identifier,
      taxIdentifiersJson:row.tax_identifiers_json===null||row.tax_identifiers_json===undefined?"":typeof row.tax_identifiers_json==="string"?row.tax_identifiers_json:JSON.stringify(row.tax_identifiers_json),
