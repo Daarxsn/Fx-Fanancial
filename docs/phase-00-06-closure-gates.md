@@ -9,21 +9,21 @@ This is the pre-Phase-07 release checklist. Do not use this page to infer busine
 - [x] Reference seed safely rerun: 22 permission definitions, seven roles and baseline role-permission templates; no extra users or scopes created by the seed.
 - [x] `/api/health` and `/api/v1/health` return HTTP 200 with `database: ok`.
 - [x] Administrator bootstrap succeeded and the developer signed in locally.
-- [x] Closure PR #4 merged to `main` as `7b7e591128facbb66beda6cbe4b781e42759d6ff`; PR #5 and PR #6 also merged, with latest main at `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69` and CI/bootstrap green.
+- [x] Closure PR #4 merged to `main` as `7b7e591128facbb66beda6cbe4b781e42759d6ff`; PR #5 and PR #6 also merged, with consolidated `main` at `b8297972f31ab18d87632dfa718c4ef49c70d35e` and CI/bootstrap green.
 
 ## Code/document work merged to main (PRs #4, #5 and #6, plus follow-up commits)
 
 - [x] Align global UI tokens to the uploaded brand guide's primary palette.
 - [x] Add SVG logo/template reference reconstructions in PR #4; invoice-layout visuals remain reference-only and not active templates.
 - [x] Replace stale repository audit text with a dated, evidence-bounded audit and document remaining gates in PR #4/#5.
-- [x] PR #6 merge revision `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69` passed post-merge CI/bootstrap: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236087), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236031). The subsequent brand-picker/palette-validation follow-up is on `main` and is awaiting its latest CI result.
+- [x] PR #6 merge revision `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69` passed post-merge CI/bootstrap: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236087), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236031). The brand-picker/palette-validation follow-up and audit-branch history are now integrated into `main`; latest CI/bootstrap passed: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38893456152), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38893456184).
 
 ## UI fidelity work merged in PR #6
 
 - [x] Use exact supplied WebP exports for Falchion Xeniaa, MyFX POS, FX Digitech and Coworks in the UI; test WebP signatures, paths and expected CSS classes.
 - [x] Keep three invoice-layout SVGs sanitized and reference-only rather than exposing raw sample sheets in `public/`.
 - [x] PR #6 merged to `main` as `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69`; post-merge CI and lockfile/bootstrap passed: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236087), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236031).
-- [x] Port the useful brand-selection changes from draft PR #3 directly onto `main` while retaining the newer WebP assets: approved logo picker, selected-brand template-preview logo, responsive picker styling, and API palette allow-list validation. New CI must pass on the current main revision.
+- [x] Port the useful brand-selection changes from draft PR #3 directly onto `main` while retaining the newer WebP assets: approved logo picker, selected-brand template-preview logo, responsive picker styling, API palette allow-list validation, and overview mark. Current main CI/bootstrap passed at `b8297972f31ab18d87632dfa718c4ef49c70d35e`.
 - [ ] Manually inspect desktop/tablet/mobile and light/dark logo sizing in a real browser.
 
 ## Must remain open until independently verified/approved

@@ -1,16 +1,16 @@
 # Repository Audit — Phases 00–06
 
 **Audit date:** 2026-10-16  
-**Audited baseline:** `main` after PR #6 merge plus Phase 6 brand-picker/palette-validation follow-up (2026-10-16)  
-**Merged closure work:** PRs #4, #5 and #6 are merged to `main`. PR #6 merge commit is `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69`; its CI passed before merge (run `38888975682`), and post-merge CI/bootstrap passed (runs `38889236087` and `38889236031`). Exact supplied WebP assets for the corporate logo, MyFX POS, Digitech and Coworks are now merged.  
+**Audited baseline:** `main` at `b8297972f31ab18d87632dfa718c4ef49c70d35e` (2026-10-16)  
+**Merged closure work:** PRs #4, #5 and #6 are merged to `main`. The unique audit branch history was integrated in merge commit `b8297972f31ab18d87632dfa718c4ef49c70d35e`, with the compatible brand-picker/palette work ported while retaining exact supplied WebP assets. Latest CI and lockfile/bootstrap passed on the audited revision (runs `38893456152` and `38893456184`).  
 **Scope:** tracked repository tree, SQL migrations, Next.js route handlers and screens, validation, auth/RBAC helpers, OpenAPI, CI workflows, implementation tracker, and uploaded brand/logo/template assets. This is not a production penetration test or an approval of company/tax facts.
 
 ## Executive result
 
 The earlier 2026-10-09 audit was stale and incorrectly described several now-implemented systems as missing. Since then, the repository gained a lockfile, ten migrations, database verification/migration tooling, local-password authentication, session and CSRF protections, role/permission templates and integration checks, effective-dated legal entity/brand/tax/numbering/template configuration, and transactional invoice issuance with immutable configuration snapshots. Post-merge GitHub Actions runs on the audited `main` revision passed:
 
-- Latest main CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236087
-- Latest main lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236031
+- Latest main CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38893456152
+- Latest main lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38893456184
 - PR #6 pre-merge UI CI (passed): https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38888975682. Post-merge main CI/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236087 and https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236031.
 
 The developer separately confirmed against the intended Aiven development database that `npm run db:verify` passed with an active TLS cipher and `rejectUnauthorized=true`; migrations 001–010 applied and safely reran; the role/reference seed safely reran; and both health endpoints returned HTTP 200. These are useful development evidence, not production recovery/backup evidence.
@@ -50,7 +50,7 @@ The developer separately confirmed against the intended Aiven development databa
 **Still required for production:** configure exact public HTTPS `APP_ORIGIN`, high-entropy deployment `SESSION_SECRET`, trusted proxy settings only behind verified ingress, mail/invitation delivery if required, and any company-mandated SSO/MFA/password-recovery controls.
 
 ### Phase 06 — Company, brand, tax, numbering and template configuration
-**Verified:** permission/scope-checked configuration APIs, audit reasons/version history, masking of bank details, effective-dated registration/rule/series/template checks, tax-jurisdiction readiness checks, currency consistency guard, server-side numbering and invoice issue transaction with configuration snapshot/hash, idempotency and snapshot immutability integration coverage. Exact corporate/MyFX/Digitech/Coworks WebP logo exports are merged. The approved brand picker and preview logo selection, plus API palette allow-list validation, have been ported to `main`; latest CI is the acceptance gate for these incremental changes. Sanitized invoice layout references remain reference-only.
+**Verified:** permission/scope-checked configuration APIs, audit reasons/version history, masking of bank details, effective-dated registration/rule/series/template checks, tax-jurisdiction readiness checks, currency consistency guard, server-side numbering and invoice issue transaction with configuration snapshot/hash, idempotency and snapshot immutability integration coverage. Exact corporate/MyFX/Digitech/Coworks WebP logo exports are merged. The approved brand picker and preview logo selection, plus API palette allow-list validation, have been ported to `main`; CI and lockfile/bootstrap passed on consolidated main at `b8297972f31ab18d87632dfa718c4ef49c70d35e`. Sanitized invoice layout references remain reference-only.
 
 **Still required:** finance/business approval of real legal entity data, brand mappings, tax registrations/rules, number formats, templates and statutory scope; configure the actual legal entity in the database before any document can issue. Uploaded sample sheets are not registered as active template configs. A working PDF render/download/private object-storage/email delivery pipeline is not evidenced by the current source and must not be claimed as complete.
 
@@ -74,3 +74,8 @@ No phase is marked complete solely because its specification or a route exists. 
 ### Exact logo exports follow-up
 
 The merged PR #6 uses supplied exact transparent WebP exports for the main Falchion Xeniaa logo and all three product brands, MyFX POS, FX Digitech and FX Coworks. The three invoice layout SVGs remain sanitized reconstructions; no raw invoice samples with sample financial/business data are copied into the public assets. The updated PR #6 CI validation remains the gate before merge.
+
+
+## Branch consolidation result (2026-10-16)
+
+All nine remote branch heads are now ancestors of `main` or equal to `main`; no branch has commits ahead of `main`. The only previously unique work was the three-commit `audit/phase-01-06-completion` branch, whose compatible changes were ported and whose history was incorporated into merge commit `b8297972f31ab18d87632dfa718c4ef49c70d35e`. Stale duplicate logo reconstructions were not allowed to replace the exact supplied WebP assets. The related draft PR #3 was closed after porting its useful changes.
