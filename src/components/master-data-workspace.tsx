@@ -85,7 +85,6 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
  const canWrite=permissions.includes(resource==="customers"?"customers:write":"catalog:write");
  const canArchive=permissions.includes(resource==="customers"?"customers:archive":"catalog:archive");
  const basePath=resource==="customers"?"/api/v1/customers":"/api/v1/catalog/items";
- const fields=resource==="customers"?customerFields:catalogFields;
 
  const request=useCallback(async(url:string,init:RequestInit={}):Promise<{response:Response;body:ApiPayload}>=>{
   const response=await fetch(url,{...init,cache:"no-store",headers:{"Accept":"application/json",...(init.body?{"Content-Type":"application/json"}:{}),...(init.headers??{})}});
@@ -107,8 +106,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
   }catch(e){setError(e instanceof Error?e.message:"Could not load records.");}
   finally{setLoading(false);}
  },[basePath,deferredQuery,status,offset,request]);
- useEffect(()=>{void refresh();},[refresh]);
- useEffect(()=>{setOffset(0);},[deferredQuery,status]);
+ useEffect(()=>{Promise.resolve().then(()=>refresh());},[refresh]);
 
  const openCreate=()=>{setEditing(null);setForm(emptyForm(resource));setWarnings([]);setError("");setSuccess("");setDetail(null);setEditorOpen(true);};
  const openDetails=async(id:string)=>{
@@ -186,10 +184,10 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
  return <div className="master-data-workspace">
   <div className="master-data-toolbar">
    <div className="master-data-search"><label className="form-label" htmlFor={resource+"-search"}>Search records</label>
-    <input className="form-control" id={resource+"-search"} value={query} onChange={e=>setQuery(e.target.value)} placeholder={resource==="customers"?"Name, code, email, phone or tax ID":"Name or item/service code"} />
+    <input className="form-control" id={resource+"-search"} value={query} onChange={e=>{setQuery(e.target.value);setOffset(0);}} placeholder={resource==="customers"?"Name, code, email, phone or tax ID":"Name or item/service code"} />
    </div>
    <div className="master-data-filter"><label className="form-label" htmlFor={resource+"-status"}>Status</label>
-    <select id={resource+"-status"} className="form-control" value={status} onChange={e=>setStatus(e.target.value)}>
+    <select id={resource+"-status"} className="form-control" value={status} onChange={e=>{setStatus(e.target.value);setOffset(0);}}>
      <option value="active">Active</option><option value="archived">Archived</option><option value="all">All records</option>
     </select>
    </div>
