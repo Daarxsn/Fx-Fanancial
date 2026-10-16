@@ -93,9 +93,9 @@ The number format must be generated server-side. The database must enforce uniqu
 - [x] Bank account values are not returned in ordinary API responses; bank writes are finance-approver-only.
 - [x] Entity/brand/business-unit configuration versions and audit reasons are recorded; mapping history is retained.
 - [x] Integration tests are authored for sensitive-field masking, change history and cross-scope isolation.
-- [ ] The latest `main` revision, including follow-up regression tests, passes GitHub Actions.
+- [x] The merged `main` revision passes both post-merge GitHub Actions workflows (CI and lockfile/bootstrap; merge commit `7b7e591128facbb66beda6cbe4b781e42759d6ff`).
 - [ ] The business owner validates actual legal identifiers, approved finance/tax references, banking instructions, and intended brand/entity/business-unit mappings.
-- [ ] Phase 6B separately verifies numbering, tax, templates and immutable snapshots inside invoice issuance before production issuance is enabled.
+- [x] Phase 6B CI integration tests verify numbering concurrency and financial-year boundaries, approved date-effective tax/registrations, jurisdiction-matched readiness, template selection, idempotent issuance, canonical SHA-256 snapshot capture, configuration-history preservation and immutable snapshots using synthetic MySQL fixtures.
 
 No real tax, bank or legal identity values should be invented to make the setup appear complete. CI fixture data is synthetic and must never be promoted to production.
 
@@ -108,15 +108,16 @@ The issue endpoint fails closed for inactive/incomplete/unapproved configuration
 
 The passing CI suite includes concurrent numbering, financial-year boundary, date-effective tax and registration, snapshot hashing, immutable snapshot, version-history, positive invoice issuance/idempotency, and negative scope/configuration checks.
 
-- Full CI (commit `f0b56ce5416ff89eb053b34615339d65a0ff47b0`): https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38542228014
-- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38542227977
+- Phase 6B integration coverage: `scripts/verify-phase-6b-configuration.ts` and CI workflow step `Verify Phase 6B numbering and immutable configuration snapshots`.
+- Post-merge CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38884363880
+- Post-merge lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38884364023
 
 Real tax values, registration numbers, numbering decisions, finance/tax approval, and production activation still require approved values and a controlled deployment migration.
 
 
 ## Brand asset integration audit (2026-10-16)
 
-The uploaded **FX Brand Guidelines** and image packs have now been converted into scalable SVG reconstructions under `public/brand/` on the Phase 01–06 closure branch:
+The uploaded **FX Brand Guidelines** and image packs have now been converted into scalable SVG reconstructions under `public/brand/` on `main` in merge commit `7b7e591128facbb66beda6cbe4b781e42759d6ff` (PR #4):
 
 - `falchion-xeniaa-logo.svg` — primary application lockup.
 - `myfx-pos.svg`, `fx-digitech.svg`, `fx-coworks.svg` — product/brand logo variants from the supplied logo packs.
