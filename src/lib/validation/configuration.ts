@@ -87,6 +87,8 @@ export const legalEntityUpdateSchema = legalEntityFieldsSchema.partial().extend(
   }
 });
 
+const approvedAccentColors = ["#DAAF51", "#931314", "#111111", "#F4F4F5", "#FFFFFF", "#67AF7A", "#F5C25C", "#F25138"] as const;
+
 export const brandCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   code: z.string().trim().min(2).max(40).regex(/^[A-Z0-9][A-Z0-9_-]*$/, "Use uppercase letters, digits, underscore or hyphen."),
@@ -98,6 +100,9 @@ export const brandCreateSchema = z.object({
   changeReason: z.string().trim().min(3).max(1000),
 }).strict().superRefine((value, ctx) => {
   if (value.theme && JSON.stringify(value.theme).length > 32000) ctx.addIssue({ code: "custom", path: ["theme"], message: "Brand theme must be under 32 KB." });
+  if (value.theme?.accentColor !== undefined && (typeof value.theme.accentColor !== "string" || !approvedAccentColors.includes(value.theme.accentColor.toUpperCase() as (typeof approvedAccentColors)[number]))) {
+    ctx.addIssue({ code: "custom", path: ["theme", "accentColor"], message: "Accent must use an approved brand-guide colour." });
+  }
 });
 
 export const brandUpdateSchema = z.object({
@@ -111,6 +116,9 @@ export const brandUpdateSchema = z.object({
   changeReason: z.string().trim().min(3).max(1000),
 }).strict().superRefine((value, ctx) => {
   if (value.theme && JSON.stringify(value.theme).length > 32000) ctx.addIssue({ code: "custom", path: ["theme"], message: "Brand theme must be under 32 KB." });
+  if (value.theme?.accentColor !== undefined && (typeof value.theme.accentColor !== "string" || !approvedAccentColors.includes(value.theme.accentColor.toUpperCase() as (typeof approvedAccentColors)[number]))) {
+    ctx.addIssue({ code: "custom", path: ["theme", "accentColor"], message: "Accent must use an approved brand-guide colour." });
+  }
 });
 
 export const taxRuleCreateSchema = z.object({
@@ -157,7 +165,7 @@ export const documentTemplateConfigSchema = z.object({
   pageSize: z.enum(["A4", "A5", "LETTER"]),
   orientation: z.enum(["PORTRAIT", "LANDSCAPE"]),
   layout: z.enum(["COMPACT", "STANDARD", "DETAILED"]),
-  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  accentColor: z.enum(["#DAAF51", "#931314", "#111111", "#F4F4F5", "#FFFFFF", "#67AF7A", "#F5C25C", "#F25138"]),
   showLogo: z.boolean(),
   showTaxBreakdown: z.boolean(),
   showBankDetails: z.boolean(),

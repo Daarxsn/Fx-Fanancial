@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent, type Dispatch, type SetStateAction, type ReactNode, type CSSProperties } from "react";
+import Image from "next/image";
+import { BRAND_LOGO_ASSETS, APPROVED_BRAND_COLORS, resolveBrandLogo, isApprovedBrandColor } from "@/lib/brand-assets";
 import { Breadcrumbs, Button, Card, EmptyState, InlineAlert, LoadingState, PageHeader, StatusBadge, TextField, TextAreaField, SelectField } from "@/components/ui";
 
 type Entity = {
@@ -28,13 +30,13 @@ const today=(timeZone="Asia/Kolkata")=>{
  return `${part("year")}-${part("month")}-${part("day")}`;
 };
 const companyBlank=():Draft=>({legalName:"",displayName:"",registrationNumber:"",taxIdentifier:"",countryCode:"",currency:"INR",line1:"",line2:"",city:"",state:"",postalCode:"",billingLine1:"",billingLine2:"",billingCity:"",billingState:"",billingPostalCode:"",billingCountryCode:"",invoiceEmail:"",invoicePhone:"",website:"",locale:"en-IN",timeZone:"Asia/Kolkata",logoReference:"",invoiceTerms:"",invoiceFooter:"",defaultTaxCode:"",taxSetupStatus:"UNCONFIGURED",taxSetupApprovalReference:"",bankAccountName:"",bankName:"",bankAccountNumber:"",bankIfsc:"",bankSwift:"",replaceBank:false,changeReason:"Initial legal entity configuration"});
-const brandBlank=():Draft=>({name:"",code:"",description:"",logoReference:"",defaultTemplateKey:"",themeAccent:"#B51F32",themeStyle:"STANDARD",legalEntityIds:"",changeReason:"Initial brand configuration"});
+const brandBlank=():Draft=>({name:"",code:"",description:"",logoReference:"",defaultTemplateKey:"",themeAccent:"#931314",themeStyle:"STANDARD",legalEntityIds:"",changeReason:"Initial brand configuration"});
 const unitBlank=():Draft=>({code:"",name:"",description:"",legalEntityIds:"",brandIds:"",changeReason:"Initial business unit configuration"});
 const registrationBlank=():Draft=>({registrationKey:"",registrationType:"GSTIN",jurisdiction:"",registrationNumber:"",displayLabel:"",isPrimary:true,effectiveFrom:today(),effectiveUntil:"",approvalReference:"",changeReason:"Approved tax registration configuration"});
 const taxBlank=():Draft=>({taxCode:"",displayName:"",jurisdiction:"",ratePercent:"",calculationMode:"EXCLUSIVE",effectiveFrom:today(),effectiveUntil:"",approvalReference:"",changeReason:"Approved tax rule configuration"});
 const numberingBlank=():Draft=>({documentType:"INVOICE",seriesCode:"INV",prefix:"",suffix:"",sequenceWidth:"5",includeFinancialYear:true,financialYearStartMonth:"4",financialYearStartDay:"1",timeZone:"Asia/Kolkata",effectiveFrom:today(),effectiveUntil:"",approvalReference:"",activate:false,changeReason:"Numbering configuration"});
 const templateBlank=():Draft=>({brandId:"",documentType:"INVOICE",templateKey:"STANDARD",displayName:"Standard invoice",
- templateConfig:JSON.stringify({pageSize:"A4",orientation:"PORTRAIT",layout:"STANDARD",accentColor:"#B51F32",showLogo:true,showTaxBreakdown:true,showBankDetails:false,showPaymentTerms:true,showCustomerTaxIdentifier:false,showFooter:true,footerText:""},null,2),
+ templateConfig:JSON.stringify({pageSize:"A4",orientation:"PORTRAIT",layout:"STANDARD",accentColor:"#931314",showLogo:true,showTaxBreakdown:true,showBankDetails:false,showPaymentTerms:true,showCustomerTaxIdentifier:false,showFooter:true,footerText:""},null,2),
  effectiveFrom:today(),effectiveUntil:"",activate:false,changeReason:"Document template configuration"});
 async function api<T>(path:string,method="GET",body?:unknown):Promise<T>{
  let csrf="";
@@ -57,8 +59,8 @@ function RecordCard({title,subtitle,meta,active,details,actions}:{title:string;s
  return <Card className="config-record-card"><div className="config-record-top"><div className="config-identity-mark"><span>{title.slice(0,1).toUpperCase()}</span></div><div className="config-record-name"><h3>{title}</h3><p>{subtitle}</p>{meta?<small>{meta}</small>:null}</div><StatusBadge tone={active?"success":"neutral"}>{active?"Active":"Inactive"}</StatusBadge></div><div className="config-record-details">{details}</div>{actions?<div className="config-record-bottom"><span/><div className="config-action-row">{actions}</div></div>:null}</Card>;
 }
 function Detail({label,children}:{label:string;children:ReactNode}){return <span><small>{label}</small>{children}</span>}
-function TemplatePreview({config,title,documentType,issuerName}:{config:Record<string,unknown>|null;title:string;documentType:string;issuerName:string}){
- const accent=typeof config?.accentColor==="string"&&/^#[0-9A-Fa-f]{6}$/.test(config.accentColor)?config.accentColor:"#931314";
+function TemplatePreview({config,title,documentType,issuerName,logoSource,logoAlt}:{config:Record<string,unknown>|null;title:string;documentType:string;issuerName:string;logoSource:string;logoAlt:string}){
+ const accent=isApprovedBrandColor(config?.accentColor)?config.accentColor:"#931314";
  const pageSize=config?.pageSize==="A5"?"A5":config?.pageSize==="LETTER"?"LETTER":"A4";
  const orientation=config?.orientation==="LANDSCAPE"?"LANDSCAPE":"PORTRAIT";
  const showLogo=config?.showLogo!==false,showTax=config?.showTaxBreakdown!==false,showTerms=config?.showPaymentTerms!==false;
@@ -75,7 +77,7 @@ function TemplatePreview({config,title,documentType,issuerName}:{config:Record<s
    <article className={`config-template-paper config-template-paper--${orientation.toLowerCase()}`} style={{"--template-accent":accent} as CSSProperties} aria-label="Illustrative document page">
     <div className="config-template-paper__accent"/>
     <header className="config-template-paper__header">
-     {showLogo?<div className="config-template-paper__logo" aria-label="Logo placeholder">{issuer.slice(0,2).toUpperCase()}</div>:null}
+     {showLogo?<Image className="config-template-paper__logo-image" src={logoSource} alt={logoAlt} width={180} height={58} unoptimized />:null}
      <div className="config-template-paper__issuer"><strong>{issuer}</strong><span>Registered supplier · Contact and address</span></div>
      <div className="config-template-paper__document"><small>DOCUMENT PREVIEW</small><h4>{docLabel}</h4><span>NOT ISSUED</span></div>
     </header>
@@ -237,6 +239,9 @@ export default function SettingsPage(){
 
  let templatePreviewConfig:Record<string,unknown>|null=null;
  try{const parsed:unknown=JSON.parse(String(template.templateConfig));if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))templatePreviewConfig=parsed as Record<string,unknown>}catch{/* Invalid JSON should not be rendered as a document. */}
+ const templateBrand=brands.find(b=>b.id===String(template.brandId));
+ const selectedLogo=resolveBrandLogo(templateBrand?.logoReference??entity?.logoReference);
+
  const tabs:[Tab,string,string][]=[["company","Company & entities","Legal identities"],["brands","Brands","Commercial identities"],["units","Business units","Organization"],["tax","Tax","Registrations & rules"],["numbering","Numbering series","Fiscal-year rules"],["templates","Templates","Document layout"]];
  if(busy)return <div className="page"><Breadcrumbs items={[{label:"Configure"},{label:"Settings",href:"/settings"},{label:"Company & invoicing"}]}/><PageHeader eyebrow="SETTINGS" title="Company & invoice configuration" description="Legal identity, brand mapping, tax setup, numbering and document templates."/><LoadingState label="Loading configuration…"/></div>;
 
@@ -322,15 +327,23 @@ export default function SettingsPage(){
     <Input id="brandCode" label="Stable brand code" value={String(brand.code)} required disabled={Boolean(brandEdit)} onChange={s=>setValue(setBrand,"code",s.toUpperCase())}/>
     <Input id="brandLogo" label="Logo reference" value={String(brand.logoReference)} onChange={s=>setValue(setBrand,"logoReference",s)}/>
     <Input id="brandTemplate" label="Preferred template key" value={String(brand.defaultTemplateKey)} onChange={s=>setValue(setBrand,"defaultTemplateKey",s)}/>
-    <Input id="brandAccent" label="Presentation accent" type="color" value={String(brand.themeAccent)} onChange={s=>setValue(setBrand,"themeAccent",s)}/>
+    <Select id="brandAccent" label="Presentation accent" value={String(brand.themeAccent)} onChange={s=>setValue(setBrand,"themeAccent",s)} options={APPROVED_BRAND_COLORS.map(c=>({value:c.value,label:c.name+" · "+c.value}))}/>
     <Select id="brandStyle" label="Presentation style" value={String(brand.themeStyle)} onChange={s=>setValue(setBrand,"themeStyle",s)} options={[{value:"STANDARD",label:"Standard"},{value:"MINIMAL",label:"Minimal"},{value:"EDITORIAL",label:"Editorial"}]}/>
-   </Grid><TextAreaField id="brandDescription" label="Description" value={String(brand.description)} onChange={e=>setValue(setBrand,"description",e.target.value)} rows={2}/>
+   </Grid>
+   <div className="form-field form-field--wide"><span className="form-label">Approved logo asset</span><p className="form-hint">Choose only an asset from the approved brand library. Selecting a logo also applies its documented accent.</p>
+    <div className="brand-logo-picker" role="group" aria-label="Choose a brand logo">
+     {BRAND_LOGO_ASSETS.map(asset=><button key={asset.code} type="button" className="brand-logo-picker__choice" aria-pressed={String(brand.logoReference)===asset.logoReference} onClick={()=>{setValue(setBrand,"logoReference",asset.logoReference);setValue(setBrand,"themeAccent",asset.accentColor)}}>
+      <span className="brand-logo-picker__preview"><Image src={asset.logoReference} alt="" width={120} height={52} unoptimized /></span>
+      <span className="brand-logo-picker__copy"><strong>{asset.name}</strong><small>{asset.audience} identity</small><span style={{"--brand-accent":asset.accentColor} as CSSProperties}/></span>
+     </button>)}
+    </div>
+   </div><TextAreaField id="brandDescription" label="Description" value={String(brand.description)} onChange={e=>setValue(setBrand,"description",e.target.value)} rows={2}/>
    <TextField id="brandEntities" label="Legal entity UUIDs" required value={String(brand.legalEntityIds)} onChange={e=>setValue(setBrand,"legalEntityIds",e.target.value)} hint="Comma-separated IDs from your entity list; the server verifies each mapping."/>
    <TextField id="brandReason" label="Reason for change" required value={String(brand.changeReason)} onChange={e=>setValue(setBrand,"changeReason",e.target.value)}/>
    <div className="config-form-actions"><Button type="submit" disabled={saving}>{saving?"Saving…":brandEdit?"Save brand version":"Create brand"}</Button>{brandEdit?<Button variant="ghost" onClick={()=>{setBrandEdit("");setBrand(brandBlank())}}>Cancel</Button>:null}</div></form></Card>
    {brands.length===0?<EmptyState title="No mapped brands" description="Create a brand and select the legal entities it is explicitly permitted to represent." icon="box"/>:<div className="config-record-list">{brands.map(b=><RecordCard key={b.id} title={b.name} subtitle={b.code} meta={b.description??"Brand identity"} active={b.isActive}
     details={<><Detail label="Entity mappings">{b.legalEntityMappings.length}</Detail><Detail label="Logo">{b.logoReference||"Not set"}</Detail><Detail label="Preferred template">{b.defaultTemplateKey||"None"}</Detail></>}
-    actions={<><Button size="sm" variant="secondary" onClick={()=>{setBrandEdit(b.id);setBrand({name:b.name,code:b.code,description:b.description??"",logoReference:b.logoReference??"",defaultTemplateKey:b.defaultTemplateKey??"",themeAccent:typeof b.theme?.accentColor==="string"?b.theme.accentColor:"#B51F32",themeStyle:typeof b.theme?.presentationStyle==="string"?b.theme.presentationStyle:"STANDARD",legalEntityIds:b.legalEntityMappings.map(m=>m.legalEntityId).join(", "),changeReason:"Update brand configuration"})}}>Edit</Button><Button size="sm" variant={b.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/brands/"+b.id,b.isActive,b.name)}>{b.isActive?"Deactivate":"Reactivate"}</Button></>}/>)}</div>}
+    actions={<><Button size="sm" variant="secondary" onClick={()=>{setBrandEdit(b.id);setBrand({name:b.name,code:b.code,description:b.description??"",logoReference:b.logoReference??"",defaultTemplateKey:b.defaultTemplateKey??"",themeAccent:typeof b.theme?.accentColor==="string"?b.theme.accentColor:"#931314",themeStyle:typeof b.theme?.presentationStyle==="string"?b.theme.presentationStyle:"STANDARD",legalEntityIds:b.legalEntityMappings.map(m=>m.legalEntityId).join(", "),changeReason:"Update brand configuration"})}}>Edit</Button><Button size="sm" variant={b.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/brands/"+b.id,b.isActive,b.name)}>{b.isActive?"Deactivate":"Reactivate"}</Button></>}/>)}</div>}
   </div>:null}
 
   {tab==="units"?<div className="config-main config-main--full">
@@ -427,7 +440,7 @@ export default function SettingsPage(){
     </Grid><TextAreaField id="tplConfig" label="Validated template configuration (JSON)" value={String(template.templateConfig)} required onChange={e=>setValue(setTemplate,"templateConfig",e.target.value)} rows={12} hint="Supported keys: pageSize, orientation, layout, accentColor, showLogo, showTaxBreakdown, showBankDetails, showPaymentTerms, showCustomerTaxIdentifier, showFooter, footerText."/>
     <label className="config-checkbox"><input type="checkbox" checked={template.activate===true} onChange={e=>setValue(setTemplate,"activate",e.target.checked)}/><span>Activate now if there is no overlapping active template for this entity/brand/type</span></label>
     <TextField id="tplReason" label="Reason for change" required value={String(template.changeReason)} onChange={e=>setValue(setTemplate,"changeReason",e.target.value)}/><Button type="submit" disabled={saving}>Save template version</Button></form></Card>
-    <TemplatePreview config={templatePreviewConfig} title={String(template.displayName)} documentType={String(template.documentType)} issuerName={entity.displayName}/>
+    <TemplatePreview config={templatePreviewConfig} title={String(template.displayName)} documentType={String(template.documentType)} issuerName={entity.displayName} logoSource={selectedLogo.logoReference} logoAlt={selectedLogo.name}/>
     {templates.filter(t=>t.legalEntityId===entityId).length===0?<EmptyState title="No templates yet" description="An active invoice template is required for readiness." icon="file"/>:<div className="config-record-list">{templates.filter(t=>t.legalEntityId===entityId).map(t=><RecordCard key={t.id} title={t.displayName} subtitle={t.templateKey+" · "+t.documentType} meta={"Version "+t.versionNumber+" · "+(t.brandId?accessibleBrands.find(b=>b.id===t.brandId)?.name??"Brand-specific":"Entity default")} active={t.isActive}
      details={<><Detail label="Page">{String(t.templateConfig.pageSize??"—")+" · "+String(t.templateConfig.orientation??"—")}</Detail><Detail label="Tax breakdown">{t.templateConfig.showTaxBreakdown?"Shown":"Hidden"}</Detail><Detail label="Effective">{compactDate(t.effectiveFrom)+" → "+compactDate(t.effectiveUntil)}</Detail></>}
      actions={<Button size="sm" variant={t.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/document-templates/"+t.id,t.isActive,t.displayName)}>{t.isActive?"Deactivate":"Activate"}</Button>}/>)}</div>}

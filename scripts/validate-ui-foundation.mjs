@@ -8,6 +8,12 @@ const sources = {
   overview: await readFile("src/app/(workspace)/page.tsx", "utf8"),
   sectionPage: await readFile("src/app/(workspace)/[section]/page.tsx", "utf8"),
   configurationSettings: await readFile("src/app/(workspace)/settings/page.tsx", "utf8"),
+  brandAssets: await readFile("src/lib/brand-assets.ts", "utf8"),
+  falchionLogo: await readFile("public/brand/falchion-xeniaa-logo.svg", "utf8"),
+  falchionMark: await readFile("public/brand/falchion-xeniaa-mark.svg", "utf8"),
+  myfxLogo: await readFile("public/brand/myfx-pos-logo.svg", "utf8"),
+  digitechLogo: await readFile("public/brand/digitech-logo.svg", "utf8"),
+  coworksLogo: await readFile("public/brand/coworks-logo.svg", "utf8"),
   workspaceLayout: await readFile("src/app/(workspace)/layout.tsx", "utf8"),
   proxy: await readFile("src/proxy.ts", "utf8"),
   loading: await readFile("src/app/loading.tsx", "utf8"),
@@ -35,6 +41,12 @@ const checks = [
   ["unimplemented financial work is not shown as live data", sources.overview.includes("No activity is being shown") && sources.sectionPage.includes("not implemented yet")],
   ["workspace pages require a server-side active session", sources.workspaceLayout.includes("getSession()") && sources.workspaceLayout.includes('redirect("/login")')],
   ["cookie-less workspace navigation is redirected before rendering", sources.proxy.includes('request.cookies.get("fx_session")') && sources.proxy.includes('NextResponse.redirect(new URL("/login", request.url))') && sources.proxy.includes('pathname.startsWith("/api/")')],
+
+  ["brand guide uses Sansation headings and Open Sans body typography", sources.layout.includes("Sansation") && sources.layout.includes("Open_Sans") && sources.css.includes("--font-heading: var(--font-sansation)") && sources.css.includes("--font-body: var(--font-open-sans)")],
+  ["brand UI uses only approved guide hex colours", (() => { const palette = new Set(["#DAAF51", "#931314", "#111111", "#F4F4F5", "#FFFFFF", "#67AF7A", "#F5C25C", "#F25138"]); return [...sources.css.matchAll(/#[0-9A-Fa-f]{3,8}\\b/g)].every((match) => palette.has(match[0].toUpperCase())) && !sources.css.toLowerCase().includes("#b51f32"); })()],
+  ["uploaded product logos are included as first-party SVG assets", [sources.falchionLogo, sources.falchionMark, sources.myfxLogo, sources.digitechLogo, sources.coworksLogo].every((logo) => logo.includes("<svg") && logo.includes("</svg>")) && sources.brandAssets.includes("/brand/myfx-pos-logo.svg") && sources.brandAssets.includes("/brand/digitech-logo.svg") && sources.brandAssets.includes("/brand/coworks-logo.svg")],
+  ["brand and document template accent inputs are restricted to approved colours", sources.brandAssets.includes("APPROVED_BRAND_COLORS") && sources.configurationSettings.includes("APPROVED_BRAND_COLORS.map")],
+  ["template preview renders selected brand logo rather than an issuer-initial placeholder", sources.configurationSettings.includes("config-template-paper__logo-image") && sources.configurationSettings.includes("logoSource={selectedLogo.logoReference}") && !sources.configurationSettings.includes("issuer.slice(0,2).toUpperCase()")],
 ];
 
 for (const [name, pass] of checks) {

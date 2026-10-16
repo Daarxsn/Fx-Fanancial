@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "@/components/icon";
@@ -225,8 +226,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <aside className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`} id="primary-navigation" aria-label="Primary navigation">
         <Link className="sidebar-brand" href="/" aria-label="Falchion Xeniaa Finance home">
-          <span className="brand-mark">FX</span>
-          <span className="sidebar-brand__text"><strong>falchion<span>.</span></strong><small>FINANCE WORKSPACE</small></span>
+          <Image className="sidebar-brand__logo" src="/brand/falchion-xeniaa-logo.svg" alt="Falchion Xeniaa" width={190} height={49} priority unoptimized />
         </Link>
 
         <div className="workspace-switcher">
@@ -264,7 +264,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div><strong>Built for careful work</strong><p>Access-controlled workflows are being prepared.</p></div>
           </div>
           <div className="sidebar-footer">
-            <div className="avatar" aria-hidden="true">FX</div>
+            <div className="avatar avatar--brand" aria-hidden="true"><Image src="/brand/falchion-xeniaa-mark.svg" alt="" width={23} height={20} unoptimized /></div>
             <div className="sidebar-footer__identity"><strong>Falchion workspace</strong><span>Foundation environment</span></div>
             <span className="environment-indicator" aria-label="Foundation environment" title="Foundation environment" />
           </div>

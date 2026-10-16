@@ -1,28 +1,28 @@
 # Phase 04 — Design System and Application Shell
 
-**Status:** UI foundation completion gate passed. CI, UI foundation checks, lint, TypeScript and production build passed on commit `e5dbbba496d34d92632bcb0b4f3df754df1844e5`. Business workflows remain explicitly separate and are not represented as live while their protected endpoints are planned.
+**Status:** Shared UI foundation has a passing CI baseline. The brand-alignment work on `audit/phase-01-06-completion` integrates the uploaded logo assets and applies the provided guide palette and typography; this branch remains subject to CI and review. Business workflows are separate from the shell and are not represented as live while their protected endpoints are planned.
 
 ## 1. Visual language
 
-The workspace uses a restrained finance-operations visual system: warm-neutral canvas, white/surface cards, dark navy shell accents, brand red for primary actions, readable muted secondary text, thin dividers and small, deliberate status indicators.
+The interface follows the uploaded FX Brand Guidelines: Sansation for headings, Open Sans for UI/body text, Gold (`#DAAF51`) and Saffron Red (`#931314`) as primary accents, Charcoal (`#111111`) for dark surfaces, Platinum (`#F4F4F5`) and White (`#FFFFFF`) for light surfaces. The guide’s listed tertiary Green (`#67AF7A`), Yellow (`#F5C25C`) and Red (`#F25138`) are the only additional brand colours. Shades are derived with CSS `color-mix()` from those approved colours; unrelated navy, blue and custom-red values are not part of the palette.
 
 ### Implemented tokens
 
 Defined centrally in `src/app/globals.css`:
 
-- **Brand:** red primary action and accent (`--red`, `--red-hover`, `--red-tint`), deep navy (`--navy`, `--navy-soft`).
+- **Brand:** Gold and Saffron Red accents; Charcoal as the dark foundation; Platinum and White for light surfaces. `--red`, `--red-hover`, `--red-tint`, `--navy` and `--navy-soft` are semantic variable names only; their values use the approved palette.
 - **Surfaces:** canvas, surface, subtle surface, raised surface and hover surface; all have light/dark equivalents.
 - **Text:** strong, default, muted and muted-strong text tokens.
 - **State colors:** semantic success, warning, danger and info pairs, always shown with text/icons as well as color.
 - **Controls:** line/strong line, focus color, consistent small/medium/large radii and subtle/card shadows.
-- **Typography:** Geist Sans/Mono via Next font variables; a compact heading/body/metadata scale with tabular/financial content kept readable.
+- **Typography:** Sansation via `--font-sansation` for headings, Open Sans via `--font-open-sans` for body and UI, plus a monospaced numeric fallback where needed.
 - **Layout rhythm:** 4px spacing base and consistent component spacing; desktop content uses a maximum width while mobile pages preserve horizontal breathing room.
 - **Theme:** light by default; user can toggle dark/light mode from the shared header. The choice is saved in local storage as `fx-theme`. A storage restriction does not prevent switching theme for the current session.
 
 ### Component rules
 
 - Use theme tokens for surfaces and text together; do not pair a darkened background with an inherited dark text color.
-- Use brand red selectively for primary action/active navigation, not as a large background on every component.
+- Use Gold and Saffron Red selectively for primary action/active navigation, not as a large background on every component. Keep all hard-coded colour literals within the brand-guide palette; derive tints/shades from palette colours.
 - Status badges pair semantic text with icon and an appropriately tinted background/border.
 - Controls include minimum usable hit areas, visible hover/focus/disabled states, readable labels and clear button hierarchy.
 - Respect `prefers-reduced-motion`; do not rely on transitions/animation to convey meaning.
@@ -129,3 +129,12 @@ Evidence:
 - [ ] Connect user identity/menu, notifications, global search and permissions once authentication and those capabilities are approved and implemented.
 
 **Completion gate for Phase 04: PASSED.** The consistent, responsive UI foundation and automated code-level accessibility checks are implemented and CI-validated. Business workflows and production visual QA remain separate gates.
+
+
+## 6. First-party logo assets and document-template preview
+
+The current branch includes first-party SVG assets in `public/brand/` for the Falchion Xeniaa identity/mark and the supplied MyFX POS, Digitech and Coworks logo variants. The brand editor chooses from this allow-listed asset registry rather than asking operators to type arbitrary paths, and the same asset reference is used in the illustrative document-template preview. Accent controls and the template configuration schema enforce the colours listed in the uploaded guideline.
+
+The preview remains explicitly illustrative and unissued: it must not allocate an invoice number or display real customer details, tax values or bank account values. A stored logo reference is not an upload pipeline, private object store, or PDF rendering implementation. Do not describe invoice PDF generation/delivery as available until it has been separately implemented and tested.
+
+**Remaining visual sign-off:** after CI, manually review login, workspace, brand settings and template preview at desktop/tablet/mobile widths, in both themes, and compare the selected logo lockups with the uploaded source artwork.

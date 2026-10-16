@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { Button, InlineAlert, TextField, StatusBadge } from "@/components/ui";
@@ -50,10 +51,7 @@ export function LoginForm() {
 
   return (
     <section className="auth-card" aria-labelledby="login-title">
-      <div className="auth-card__brand">
-        <span className="brand-mark">FX</span>
-        <span><strong>falchion<span>.</span></strong><small>FINANCE WORKSPACE</small></span>
-      </div>
+      <div className="auth-card__brand"><Image src="/brand/falchion-xeniaa-logo.svg" alt="Falchion Xeniaa" width={224} height={58} priority unoptimized /></div>
       <StatusBadge tone="info" icon="lock">Private workspace</StatusBadge>
       <h1 id="login-title">Welcome back.</h1>
       <p className="auth-card__description">Sign in with your invited work account to continue.</p>

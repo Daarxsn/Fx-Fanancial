@@ -1,5 +1,7 @@
 # Phase 00–06 Implementation Tracker
 
+**Phase 7 gate:** Phase 7 is blocked by the product owner until Phases 1–6 have their technical acceptance evidence and all required business/finance/tax/legal decisions are signed off. Do not mark a phase 100% complete while any mandatory acceptance or external approval gate is open.
+
 This tracker records verified implementation evidence. Do not mark infrastructure or application behavior complete solely because documentation or source files exist.
 
 ## Phase 00 — Foundation
@@ -32,7 +34,9 @@ Evidence:
 - [x] CI logical dump restored into a separate disposable database with matching base-table count and migration ledger.
 - [x] Runtime health endpoint returned 200 for a healthy database and generic 503 for an unavailable database, without raw diagnostics.
 - [x] Backup, recovery and least-privilege access policy documented; provider pricing comparison reviewed from current official list-price pages.
-- [x] **Live completion gate:** developer ran `npm run db:verify` against the configured Aiven service; `SELECT 1` succeeded, MySQL reported an active TLS cipher, and certificate validation remained enabled (`rejectUnauthorized=true`).
+- [x] **Live development gate:** developer ran `npm run db:verify` against the configured Aiven development service on 2026-10-16; `SELECT 1` succeeded, MySQL reported an active TLS cipher, and certificate validation remained enabled (`rejectUnauthorized=true`).
+- [x] Development database initialized from a clean target with migrations 001–010; migration runner was repeated successfully; reference seed was run twice and remained idempotent.
+- [x] Both health endpoints returned HTTP 200 and reported `database: ok` after the service was powered on. The administrator bootstrap and local sign-in were also verified in the development environment.
 - [ ] Before production: verify actual Aiven plan backup retention and complete a provider-managed restore drill; approve business RPO/RTO targets and final provider spend ceiling.
 
 Evidence:
@@ -107,7 +111,7 @@ These are explicit runtime/production gates, not missing design deliverables. Ph
 **Foundation completion gate: COMPLETE.** Shared visual language, responsive application shell, reusable UI states and code-level accessibility/responsiveness checks are committed and CI-validated.
 
 - [x] Central design tokens for light/dark surfaces, typography, spacing, borders, shadows, focus and semantic status colors.
-- [x] Shared Geist typography and typed SVG icon set.
+- [x] Shared typed SVG icon set; typography and colour tokens are expected to follow the supplied brand guide (see active audit branch below).
 - [x] Responsive shell with primary navigation, active route indication, context top bar, environment label, breadcrumbs and content page layouts.
 - [x] Working light/dark toggle with preference persistence and fallback if browser storage is unavailable.
 - [x] Mobile navigation drawer, scrim, Escape-to-close, keyboard focus handling, background-scroll lock and resize-to-desktop behavior.
@@ -117,7 +121,8 @@ These are explicit runtime/production gates, not missing design deliverables. Ph
 - [x] Root route loading/error/not-found experiences and skip-to-main-content accessibility link.
 - [x] Overview and module foundation pages contain no fabricated finance totals or fake activity; planned APIs are not presented as active.
 - [x] UI foundation validator added to CI for theme tokens, semantic navigation, keyboard support, focus visibility, responsive breakpoints, reduced-motion support, reusable form/table/feedback primitives and route-level states.
-- [x] CI + lockfile workflows passed on the recorded UI revision: OpenAPI and existing database/API integration checks, UI foundation validation, lint, TypeScript and production build.
+- [x] CI + lockfile workflows passed on the recorded UI foundation revision: OpenAPI and existing database/API integration checks, UI foundation validation, lint, TypeScript and production build.
+- [ ] Brand correction branch integrates the uploaded logo variants, Sansation/Open Sans typography and only brand-guide-approved colours; mark complete only after the branch CI is green and visual regression review is performed.
 
 Evidence:
 - CI success: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38050370293
@@ -134,7 +139,7 @@ Evidence:
 - [ ] Connect customer/catalog list, detail, update and archive experiences to tested protected APIs. Current customer/catalog APIs support list/create only.
 - [ ] Implement and test invoice, quotation, payment/allocation/reversal, approval, document, email, reminder, reporting/export and full audit workflows before showing those actions as available.
 - [ ] Connect authenticated user identity, notifications, global search and permission-aware action visibility when those capabilities are implemented.
-- [ ] Perform a manual visual smoke review on desktop, tablet and narrow mobile browser widths before production release. This review has not been performed in this pass.
+- [ ] Perform a manual visual smoke review of login, shell, settings and document preview on desktop, tablet and narrow mobile widths and both themes; this has not yet been performed for the brand-corrected branch.
 
 The Phase 04 **UI foundation** is complete; these separate workflow and release-QA gates do not change the foundation sign-off.
 ## Phase 05 — Authentication and access control
@@ -239,7 +244,7 @@ Evidence:
 ## Evidence notes
 
 - The GitHub Actions workflows prove dependency installation, lint, TypeScript, secret scanning and production build for the specific successful revision; they do not prove database connectivity or that migrations were applied.
-- The database migrations and seed script have been applied and tested against disposable MySQL 8 in CI; the live Aiven TLS verification gate has since passed. Provider-level backup/restore verification remains outstanding.
+- The database migrations and reference seed have been applied to the developer-designated Aiven development database and tested against disposable MySQL 8 in CI; live TLS verification and HTTP 200 health checks passed on 2026-10-16. Provider-level backup/restore verification remains outstanding.
 - Local Mac status cannot be observed by GitHub Actions or this remote repository audit. Verify with `git status -sb`, `git rev-parse HEAD`, and `git rev-parse origin/main`.
 
-**Sign-off rule:** Phase 00's repository foundation is signed off based on the developer-confirmed clean/synchronized worktree and passing CI/lockfile workflows. This tracker/acceptance update triggers another CI run. Phase 01 remains in progress until its database integration and recovery tests have evidence.
+**Sign-off rule:** CI establishes the current tested code revision only. Phase 01 has passed its live development connectivity gate, but production recovery objectives/restore drill remain open. Phase 02 still requires authorized business and finance/tax approvals. Phase 04 brand corrections remain open until CI and visual QA. Phase 06 is not an end-to-end invoice product: the issue API is present, while user-facing draft creation/editing and PDF generation/delivery remain separate implementation gates. Phase 7 remains blocked.
