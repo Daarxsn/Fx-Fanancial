@@ -37,14 +37,18 @@ export async function POST(request:NextRequest,context:Context){
   const [entities]=await conn.execute<(RowDataPacket & {is_active:number})[]>("SELECT is_active FROM legal_entities WHERE id=? FOR UPDATE",[entityId]);
   if(!entities.length){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Legal entity not found"}},404)}
   if(!entities[0].is_active){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"Tax registrations cannot be added to an inactive legal entity."}},409)}
-  const [priorRows]=await conn.execute<(RowDataPacket & {id:string;version_number:number;effective_from:Date;effective_until:Date|null;is_active:number})[]>(
-   `SELECT id,version_number,effective_from,effective_until,is_active FROM legal_entity_tax_registrations
+  const [priorRows]=await conn.execute<(RowDataPacket & {id:string;version_number:number;effective_from_date:string;effective_until_date:string|null;is_active:number})[]>(
+   `SELECT id,version_number,DATE_FORMAT(effective_from,'%Y-%m-%d') AS effective_from_date,
+      DATE_FORMAT(effective_until,'%Y-%m-%d') AS effective_until_date,is_active
+    FROM legal_entity_tax_registrations
     WHERE legal_entity_id=? AND registration_key=? ORDER BY version_number DESC LIMIT 1 FOR UPDATE`,[entityId,input.registrationKey]);
   const prior=priorRows[0];
-  if(prior&&input.effectiveFrom<=String(prior.effective_from).slice(0,10)){
+  // MySQL DATE columns are returned as JavaScript Date objects by default. Query formatted
+  // calendar-date strings explicitly so version comparisons are timezone-independent.
+  if(prior&&input.effectiveFrom<=prior.effective_from_date){
    await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"A revision must start after the previous version's effective start date. Add a new registration key for a distinct registration."}},409)
   }
-  if(prior&&prior.is_active&&(!prior.effective_until||String(prior.effective_until).slice(0,10)>=input.effectiveFrom)){
+  if(prior&&prior.is_active&&(!prior.effective_until_date||prior.effective_until_date>=input.effectiveFrom)){
    const priorEndDate=new Date(input.effectiveFrom+"T00:00:00.000Z");priorEndDate.setUTCDate(priorEndDate.getUTCDate()-1);
    const end=priorEndDate.toISOString().slice(0,10);
    if(end<String(prior.effective_from).slice(0,10)){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"Registration revision would create an invalid effective period."}},409)}
