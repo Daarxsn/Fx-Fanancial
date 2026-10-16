@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Icon } from "@/components/icon";
 import { Breadcrumbs, Card, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 
@@ -34,7 +35,7 @@ export default function HomePage() {
           <div className="welcome-art__halo" />
           <div className="welcome-art__paper welcome-art__paper--back" />
           <div className="welcome-art__paper">
-            <span className="welcome-art__paper-mark">FX</span>
+            <Image className="welcome-art__paper-mark" src="/brand/falchion-xeniaa-mark.svg" alt="" width={29} height={28} unoptimized />
             <span className="welcome-art__line welcome-art__line--long" />
             <span className="welcome-art__line" />
             <span className="welcome-art__line welcome-art__line--mid" />

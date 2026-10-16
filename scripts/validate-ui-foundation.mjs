@@ -10,6 +10,7 @@ const sources = {
   sectionPage: await readFile("src/app/(workspace)/[section]/page.tsx", "utf8"),
   configurationSettings: await readFile("src/app/(workspace)/settings/page.tsx", "utf8"),
   brandAssets: await readFile("src/lib/brand-assets.ts", "utf8"),
+  brandMark: await readFile("public/brand/falchion-xeniaa-mark.svg", "utf8"),
   configurationValidation: await readFile("src/lib/validation/configuration.ts", "utf8"),
   brandLogo: await readFile("public/brand/falchion-xeniaa-logo.webp"),
   myfxBrand: await readFile("public/brand/myfx-pos.webp"),
@@ -51,6 +52,7 @@ const checks = [
   ["workspace pages require a server-side active session", sources.workspaceLayout.includes("getSession()") && sources.workspaceLayout.includes('redirect("/login")')],
   ["cookie-less workspace navigation is redirected before rendering", sources.proxy.includes('request.cookies.get("fx_session")') && sources.proxy.includes('NextResponse.redirect(new URL("/login", request.url))') && sources.proxy.includes('pathname.startsWith("/api/")')],
   ["approved brand asset picker uses the supplied WebP identities and selected logo in preview", sources.brandAssets.includes("/brand/falchion-xeniaa-logo.webp") && sources.brandAssets.includes("/brand/myfx-pos.webp") && sources.brandAssets.includes("/brand/fx-digitech.webp") && sources.brandAssets.includes("/brand/fx-coworks.webp") && sources.configurationSettings.includes("brand-logo-picker") && sources.configurationSettings.includes("logoSource={selectedLogo.logoReference}")],
+  ["overview illustration uses the dedicated Falchion mark asset", sources.brandMark.includes("<svg") && sources.brandMark.includes("</svg>") && sources.overview.includes('src="/brand/falchion-xeniaa-mark.svg"')],
   ["brand and template API validation reject unapproved accent colours", sources.configurationValidation.includes("approvedAccentColors") && sources.configurationValidation.includes("Accent must use an approved brand-guide colour.") && sources.configurationValidation.includes("accentColor: z.enum(approvedAccentColors)")],
 ];
 
