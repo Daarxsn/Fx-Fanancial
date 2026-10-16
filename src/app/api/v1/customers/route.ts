@@ -50,7 +50,8 @@ async function findCustomerDuplicates(input: {
 
 export async function GET(request: NextRequest) {
   try {
-    await requirePermission("customers:read");
+    const actor = await requirePermission("customers:read");
+    const canReadSensitive = actor.permissions.includes("settings:manage");
     const query = (request.nextUrl.searchParams.get("query") ?? "").trim().slice(0, 100);
     const status = request.nextUrl.searchParams.get("status") ?? "active";
     if (!["active", "archived", "all"].includes(status)) {
@@ -61,8 +62,6 @@ export async function GET(request: NextRequest) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isSafeInteger(offset) || offset < 0 || offset > 1000000) {
       return jsonNoStore({ error: { code: "VALIDATION_ERROR", message: "limit must be 1–100 and offset must be between 0 and 1000000" } }, 400);
     }
-    const actor = await requirePermission("customers:read");
-    const canReadSensitive = actor.permissions.includes("settings:manage");
     const clauses: string[] = [];
     const params: unknown[] = [];
     if (status !== "all") { clauses.push("c.is_active = ?"); params.push(status === "active" ? 1 : 0); }
@@ -70,10 +69,8 @@ export async function GET(request: NextRequest) {
       const escaped = query.replace(/[\\%_]/g, "\\$&");
       const pattern = `%${escaped}%`;
       clauses.push(`(c.name LIKE ? OR c.customer_code LIKE ? OR c.email LIKE ? OR c.phone LIKE ?
-        OR c.tax_identifier LIKE ?
-        OR EXISTS (SELECT 1 FROM customer_contacts cc WHERE cc.customer_id=c.id AND (cc.full_name LIKE ? OR cc.email LIKE ? OR cc.phone LIKE ?))
-        OR EXISTS (SELECT 1 FROM customer_tax_identifiers ti WHERE ti.customer_id=c.id AND (ti.identifier_value LIKE ? OR ti.normalized_identifier LIKE ?)))`);
-      params.push(pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern);
+        OR EXISTS (SELECT 1 FROM customer_contacts cc WHERE cc.customer_id=c.id AND (cc.full_name LIKE ? OR cc.email LIKE ? OR cc.phone LIKE ?))${canReadSensitive ? " OR c.tax_identifier LIKE ? OR EXISTS (SELECT 1 FROM customer_tax_identifiers ti WHERE ti.customer_id=c.id AND (ti.identifier_value LIKE ? OR ti.normalized_identifier LIKE ?))" : ""})`);
+      params.push(pattern, pattern, pattern, pattern, pattern, pattern, pattern, ...(canReadSensitive ? [pattern, pattern, pattern] : []));
     }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
     const [rows] = await pool.query<(RowDataPacket & {
