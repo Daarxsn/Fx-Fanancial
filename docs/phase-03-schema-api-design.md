@@ -183,7 +183,7 @@ OpenAPI is the machine-readable contract at [docs/openapi.yaml](openapi.yaml). E
 - GET/POST /api/v1/customers
 - GET/POST /api/v1/catalog/items
 
-Other operations are specified for future implementation and must not be presented as available before their Route Handler, service, authorization and tests exist. The API specification covers customer/catalog, legal entities, brands/mappings, tax rules, invoices, quotations/conversion, receipts/allocations/reversal, approvals, email, private documents, reminders, receivables report, exports and audit search.
+Other operations remain specified for future implementation and must not be presented as available before their Route Handler, service, authorization and tests exist. The customer/catalog master-data endpoints are now being implemented in Phase 07, including CSV import/export. The broader API specification also covers legal entities, brands/mappings, tax rules, invoices, quotations/conversion, receipts/allocations/reversal, approvals, email, private documents, reminders, receivables report, and audit search.
 
 The current login/session issuance flow and external identity provider remain a Phase 05 decision. Protected operations require the HttpOnly fx_session cookie; do not treat the OpenAPI cookie scheme as proof login routes are implemented.
 
