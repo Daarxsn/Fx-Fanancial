@@ -51,7 +51,7 @@ export async function POST(request:NextRequest,context:Context){
   if(prior&&prior.is_active&&(!prior.effective_until_date||prior.effective_until_date>=input.effectiveFrom)){
    const priorEndDate=new Date(input.effectiveFrom+"T00:00:00.000Z");priorEndDate.setUTCDate(priorEndDate.getUTCDate()-1);
    const end=priorEndDate.toISOString().slice(0,10);
-   if(end<String(prior.effective_from).slice(0,10)){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"Registration revision would create an invalid effective period."}},409)}
+   if(end<prior.effective_from_date){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"Registration revision would create an invalid effective period."}},409)}
    await conn.execute("UPDATE legal_entity_tax_registrations SET effective_until=? WHERE id=?",[end,prior.id]);
   }
   if(input.isPrimary){
