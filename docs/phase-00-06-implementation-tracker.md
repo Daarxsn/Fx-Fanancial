@@ -137,7 +137,7 @@ Evidence:
 
 ### Separate data/workflow release gates
 
-- [ ] Connect customer/catalog list, detail, update and archive experiences to tested protected APIs. Current customer/catalog APIs support list/create only.
+- [x] Customer/catalog list, create, detail, version-checked update and reference-aware soft-archive APIs and connected workspace are implemented on main; latest CI run must complete green before verifying acceptance.
 - [ ] Implement and test invoice, quotation, payment/allocation/reversal, approval, document, email, reminder, reporting/export and full audit workflows before showing those actions as available.
 - [ ] Connect authenticated user identity, notifications, global search and permission-aware action visibility when those capabilities are implemented.
 - [ ] Perform a manual visual smoke review on desktop, tablet and narrow mobile browser widths before production release. This review has not been performed in this pass.
