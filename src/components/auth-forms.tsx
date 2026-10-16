@@ -153,8 +153,8 @@ export function ActivateForm({ token }: { token: string }) {
   return (
     <section className="auth-card" aria-labelledby="activate-title">
       <div className="auth-card__brand">
-        <span className="brand-mark">FX</span>
-        <span><strong>falchion<span>.</span></strong><small>FINANCE WORKSPACE</small></span>
+        <Image className="auth-card__logo" src="/brand/falchion-xeniaa-logo.svg" alt="Falchion Xeniaa brand mark reference" width={330} height={165} priority />
+        <span className="auth-card__brand-caption">FINANCE WORKSPACE</span>
       </div>
       <StatusBadge tone="info" icon="shield">Invitation activation</StatusBadge>
       {activated ? (
