@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
@@ -38,13 +39,13 @@ export async function GET(request:NextRequest){
   ];
   const data=rows.map(row=>({
    customerCode:row.customer_code,name:row.name,email:row.email,phone:row.phone,
-   billingAddressJson:typeof row.billing_address_json==="string"?row.billing_address_json:JSON.stringify(row.billing_address_json??""),
-   shippingAddressJson:typeof row.shipping_address_json==="string"?row.shipping_address_json:JSON.stringify(row.shipping_address_json??""),
+   billingAddressJson:row.billing_address_json===null||row.billing_address_json===undefined?"":typeof row.billing_address_json==="string"?row.billing_address_json:JSON.stringify(row.billing_address_json),
+   shippingAddressJson:row.shipping_address_json===null||row.shipping_address_json===undefined?"":typeof row.shipping_address_json==="string"?row.shipping_address_json:JSON.stringify(row.shipping_address_json),
    purchaseOrderReference:row.purchase_order_reference,paymentTermsDays:Number(row.payment_terms_days),
    ...(sensitive?{
      taxIdentifier:row.tax_identifier,
-     taxIdentifiersJson:typeof row.tax_identifiers_json==="string"?row.tax_identifiers_json:JSON.stringify(row.tax_identifiers_json??""),
-     contactsJson:typeof row.contacts_json==="string"?row.contacts_json:JSON.stringify(row.contacts_json??""),
+     taxIdentifiersJson:row.tax_identifiers_json===null||row.tax_identifiers_json===undefined?"":typeof row.tax_identifiers_json==="string"?row.tax_identifiers_json:JSON.stringify(row.tax_identifiers_json),
+     contactsJson:row.contacts_json===null||row.contacts_json===undefined?"":typeof row.contacts_json==="string"?row.contacts_json:JSON.stringify(row.contacts_json),
      internalNotes:row.notes,
    }:{}),
    isActive:Boolean(row.is_active),createdAt:row.created_at.toISOString(),updatedAt:row.updated_at.toISOString(),
@@ -53,7 +54,7 @@ export async function GET(request:NextRequest){
   return new Response(csv,{status:200,headers:{
    "Content-Type":"text/csv; charset=utf-8",
    "Content-Disposition":'attachment; filename="falchion-customers.csv"',
-   "Cache-Control":"no-store","X-Content-Type-Options":"nosniff","X-Request-Id":crypto.randomUUID(),
+   "Cache-Control":"no-store","X-Content-Type-Options":"nosniff","X-Request-Id":randomUUID(),
   }});
  }catch(error){return apiError(error)}
 }
