@@ -76,7 +76,9 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
  const [query,setQuery]=useState("");const deferredQuery=useDeferredValue(query);
  const [status,setStatus]=useState("active");const [offset,setOffset]=useState(0);const limit=25;
  const [records,setRecords]=useState<Row[]>([]);const [pagination,setPagination]=useState({total:0,hasMore:false});
- const [permissions,setPermissions]=useState<Permissions>([]);\n const [importFile,setImportFile]=useState<File|null>(null);const [importReport,setImportReport]=useState<ImportReport|null>(null);\n const [importBusy,setImportBusy]=useState(false);const [confirmImportDuplicates,setConfirmImportDuplicates]=useState(false);const [fileInputKey,setFileInputKey]=useState(0);
+ const [permissions,setPermissions]=useState<Permissions>([]);
+ const [importFile,setImportFile]=useState<File|null>(null);const [importReport,setImportReport]=useState<ImportReport|null>(null);
+ const [importBusy,setImportBusy]=useState(false);const [confirmImportDuplicates,setConfirmImportDuplicates]=useState(false);const [fileInputKey,setFileInputKey]=useState(0);
  const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [error,setError]=useState("");
  const [success,setSuccess]=useState("");const [warnings,setWarnings]=useState<ApiPayload["duplicateWarnings"]>([]);
  const [form,setForm]=useState<Record<string,string>>(emptyForm(resource));
