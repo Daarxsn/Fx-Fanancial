@@ -41,13 +41,13 @@ export async function PATCH(request:NextRequest,context:Context){
     if(!current){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Legal entity not found"}},404);}
     if(patch.isActive===false && Boolean(current.is_active)){
       const [activeBrands]=await conn.execute<(RowDataPacket & {id:string})[]>(
-        `SELECT DISTINCT b.id FROM brands b
+        `SELECT b.id FROM brands b
           JOIN brand_legal_entities m ON m.brand_id=b.id
          WHERE m.legal_entity_id=? AND b.is_active=TRUE
            AND m.effective_from<=NOW(3) AND (m.effective_until IS NULL OR m.effective_until>NOW(3))
          LIMIT 1 FOR UPDATE`,[entityId]);
       const [activeUnits]=await conn.execute<(RowDataPacket & {id:string})[]>(
-        `SELECT DISTINCT u.id FROM business_units u
+        `SELECT u.id FROM business_units u
           JOIN business_unit_legal_entities m ON m.business_unit_id=u.id
          WHERE m.legal_entity_id=? AND u.is_active=TRUE
            AND m.effective_from<=NOW(3) AND (m.effective_until IS NULL OR m.effective_until>NOW(3))
