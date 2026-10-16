@@ -108,6 +108,7 @@ export async function POST(request: NextRequest) {
     await assertCsrf(request);
     const actor = await requirePermission("customers:write");
     const parsed = customerCreateSchema.parse(await request.json());
+    if(parsed.notes!==undefined&&!actor.permissions.includes("settings:manage"))return jsonNoStore({error:{code:"FORBIDDEN",message:"Internal notes are restricted to finance/settings administrators."}},403);
     const id = randomUUID();
     const email = parsed.email?.trim().toLowerCase() || null;
     const phone = parsed.phone?.trim() || null;
