@@ -2,7 +2,7 @@
 
 # Phase 00–06 Implementation Tracker
 
-**Phase 7 gate:** Phase 7 remains paused until the technical acceptance evidence for Phases 1–6 is verified and all required business/finance/tax/legal decisions have authorized sign-off. Do not mark phases complete solely to unblock later work.
+**Phase 7 gate:** Phase 7 is now in progress directly on `main` by explicit user instruction. Continue to preserve Phase 1–6 financial/security safeguards, keep production/business/legal acceptance gates visible, and do not mark Phases 1–6 signed-off merely because Phase 7 has begun.
 
 This tracker records verified implementation evidence. Do not mark infrastructure or application behavior complete solely because documentation or source files exist.
 
