@@ -1,4 +1,4 @@
-> **Phase 01–06 closure pass (2026-10-16):** PRs #4 and #5 are merged to `main` at `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3`; post-merge CI and lockfile/bootstrap passed ([CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886347059), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886346994)). PR #6 adds exact corporate/MyFX/Digitech/Coworks WebPs, corrected branding CSS and stronger UI validation; CI passed on head `51dced4626dc333158e594160b7e8264d8ddd186` ([CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38888043868)), but it is not merged yet. Developer-provided evidence confirms development Aiven MySQL TLS/query, migrations 001–010, reference-seed idempotency and both health endpoints. See `docs/repository-audit-phase-00-06.md` for remaining sign-offs and pre-production gates. Do **not** mark all phases signed off until the external Phase 02/production and visual-acceptance gates are completed.
+> **Phase 00–06 closure pass (2026-10-16):** PRs #4, #5 and #6 are merged to `main`; current audited main is `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69`. Post-merge CI and lockfile/bootstrap passed on that exact revision ([CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236087), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236031)). Exact supplied transparent WebP logo exports for Falchion Xeniaa, MyFX POS, FX Digitech and FX Coworks are now in the UI. Developer-provided evidence confirms development Aiven TLS/query, migrations 001–010, reference-seed idempotency and both health endpoints. External business/finance/tax approval, provider-level recovery, production configuration and manual browser acceptance remain open; do not infer full phase sign-off.
 
 # Phase 00–06 Implementation Tracker
 
@@ -8,7 +8,7 @@ This tracker records verified implementation evidence. Do not mark infrastructur
 
 - [x] Lockfile committed and CI uses `npm ci`.
 - [x] Clean CI checkout installs and builds on supported Node.js 24.
-- [ ] Reconcile the developer Mac worktree and preserve any untracked local authentication files before pulling the merged commit.
+- [ ] Developer to confirm the Mac worktree is synchronized with merged `main`; do not overwrite or discard local untracked authentication files while reconciling.
 - [x] Gitleaks secret scan passed on the tracked repository history after full-history checkout was configured.
 - [x] Environment conventions documented for local development, CI/test, staging and production.
 - [x] Contribution, review, security reporting and coding standards documented.
