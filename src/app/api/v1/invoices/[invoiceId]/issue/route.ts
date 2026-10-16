@@ -131,10 +131,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ in
     );
     if (!lineRows.length) throw new ConfigurationNotReadyError("At least one invoice line is required before issuance.");
 
-    const [entityRows] = await conn.execute<(RowDataPacket & { tax_setup_status: string })[]>(
-      "SELECT tax_setup_status FROM legal_entities WHERE id=? FOR UPDATE", [invoice.legal_entity_id],
+    const [entityRows] = await conn.execute<(RowDataPacket & { tax_setup_status: string; currency: string; is_active: number })[]>(
+      "SELECT tax_setup_status,currency,is_active FROM legal_entities WHERE id=? FOR UPDATE", [invoice.legal_entity_id],
     );
     const taxStatus = entityRows[0]?.tax_setup_status;
+    if (!entityRows.length || !entityRows[0].is_active) {
+      throw new ConfigurationNotReadyError("An active legal entity is required before invoice issuance.");
+    }
+    // Multi-currency and FX conversion are not implemented as approved business rules yet.
+    // Do not issue a document in a currency other than the legal entity's configured currency.
+    if (invoice.currency !== entityRows[0].currency) {
+      throw new ConfigurationNotReadyError("Invoice currency must match the legal entity currency until an approved multi-currency and FX policy is configured.");
+    }
     let taxRuleIds: string[] = [];
     let taxRegistrationIds: string[] = [];
     if (taxStatus === "APPROVED_CONFIGURED") {
