@@ -57,9 +57,10 @@ export async function POST(request:NextRequest,context:Context){
   if(input.isPrimary){
    const [overlap]=await conn.execute<(RowDataPacket & {id:string})[]>(
     `SELECT id FROM legal_entity_tax_registrations WHERE legal_entity_id=? AND registration_type=? AND is_primary=TRUE AND is_active=TRUE
+      AND LOWER(TRIM(jurisdiction))=LOWER(?)
       AND effective_from<=COALESCE(?,'9999-12-31') AND COALESCE(effective_until,'9999-12-31')>=?
       AND registration_key<>? FOR UPDATE`,
-    [entityId,input.registrationType,input.effectiveUntil||"9999-12-31",input.effectiveFrom,input.registrationKey]);
+    [entityId,input.registrationType,input.jurisdiction,input.effectiveUntil||"9999-12-31",input.effectiveFrom,input.registrationKey]);
    if(overlap.length){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"Another primary registration of this type overlaps the requested effective period."}},409)}
   }
   const id=randomUUID();const version=Number(prior?.version_number??0)+1;
