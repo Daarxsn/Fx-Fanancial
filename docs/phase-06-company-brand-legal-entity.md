@@ -1,6 +1,6 @@
 # Phase 06A — Company, Legal Entity and Brand Configuration
 
-**Status:** Implementation present on `phase-06-company-brand-config`; CI verification and business-owner sign-off are still required. Do not treat sample values or proposed records as real company/tax information.
+**Status:** Phase 06A/06B is merged into `main` through PR #2 (merge commit `16d3694`). Follow-up correctness fixes and regression tests are also being committed to `main`; confirm the latest `main` CI result before treating the phase as complete. Business-owner sign-off remains required. Do not treat sample values or proposed records as real company/tax information.
 
 ## Core distinction
 
@@ -93,7 +93,7 @@ The number format must be generated server-side. The database must enforce uniqu
 - [x] Bank account values are not returned in ordinary API responses; bank writes are finance-approver-only.
 - [x] Entity/brand/business-unit configuration versions and audit reasons are recorded; mapping history is retained.
 - [x] Integration tests are authored for sensitive-field masking, change history and cross-scope isolation.
-- [ ] The Phase 6A GitHub Actions workflow passes on the PR revision.
+- [ ] The latest `main` revision, including follow-up regression tests, passes GitHub Actions.
 - [ ] The business owner validates actual legal identifiers, approved finance/tax references, banking instructions, and intended brand/entity/business-unit mappings.
 - [ ] Phase 6B separately verifies numbering, tax, templates and immutable snapshots inside invoice issuance before production issuance is enabled.
 
