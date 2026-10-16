@@ -55,7 +55,7 @@ export async function PATCH(request:NextRequest,context:Context){
           JOIN business_unit_legal_entities m ON m.business_unit_id=u.id
          WHERE m.legal_entity_id=? AND u.is_active=TRUE
            AND m.effective_from<=NOW(3) AND (m.effective_until IS NULL OR m.effective_until>NOW(3))
-         LIMIT 1 FOR UPDATE`,[entityId]);
+         LIMIT 1`,[entityId]);
       if(activeBrands.length||activeUnits.length){
         await conn.rollback();
         return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"Deactivate all mapped brands and business units before deactivating this legal entity."}},409);
