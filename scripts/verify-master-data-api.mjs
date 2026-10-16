@@ -1016,7 +1016,7 @@ try {
   assert.equal(csvPreview.response.status, 200, "valid customer CSV previews without writes");
   assert.equal(csvPreview.body.data.valid, true);
   const csvBeforeCommit = await call("/api/v1/customers?query=" + encodeURIComponent(csvCustomerCode), {}, financeSession.jar);
-  assert.equal(csvBeforeCommit.body.pagination.total, 0, "validation-only CSV preview does not create rows");
+  assert.equal(csvBeforeCommit.body.meta.pagination.total, 0, "validation-only CSV preview does not create rows");
   const csvCommitted = await call("/api/v1/customers/import?mode=commit", {
     method: "POST", headers: { "Content-Type": "text/csv" }, body: customerCsv,
   }, financeSession.jar);
