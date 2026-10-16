@@ -1,0 +1,1 @@
+customerCode,name,email,phone,billingAddressJson,shippingAddressJson,purchaseOrderReference,paymentTermsDays,taxIdentifier,taxIdentifiersJson,contactsJson,internalNotes
