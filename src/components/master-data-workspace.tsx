@@ -170,8 +170,8 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
    const result=await mutate(url,editing?"PATCH":"POST",payload);
    if(!result.response.ok)throw new Error(result.body.error?.message??"The record could not be saved.");
    setWarnings(result.body.duplicateWarnings??[]);
-   setEditorOpen(false);setSuccess(editing?"Record updated. Any prior invoice/quotation snapshots remain unchanged.":"Record created.");
-   setDetail(obj(result.body.data) as Row);await refresh();
+   const savedId=str(obj(result.body.data).id);setEditorOpen(false);setSuccess(editing?"Record updated. Any prior invoice/quotation snapshots remain unchanged.":"Record created.");
+   await refresh();if(savedId)await openDetails(savedId);else setDetail(null);
   }catch(e){setError(e instanceof Error?e.message:"The record could not be saved.");}
   finally{setSaving(false);}
  };
