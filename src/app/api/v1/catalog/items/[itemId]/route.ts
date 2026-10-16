@@ -24,13 +24,17 @@ export async function GET(_request:NextRequest,context:Context){
            default_tax_code,is_active,record_version,archived_at,archive_reason,created_at,updated_at
     FROM catalog_items WHERE id=? LIMIT 1`,[id]);
   if(!rows.length)return jsonNoStore({error:{code:"NOT_FOUND",message:"Catalog item not found"}},404);
-  const row=rows[0];const canReadInternal=actor.permissions.includes("catalog:write")||actor.permissions.includes("settings:manage");
+  const row=rows[0];
+  const [[invoiceReferences]] = await pool.query<(RowDataPacket & {total:number})[]>("SELECT COUNT(*) AS total FROM invoice_lines WHERE catalog_item_id=?",[id]);
+  const [[quotationReferences]] = await pool.query<(RowDataPacket & {total:number})[]>("SELECT COUNT(*) AS total FROM quotation_lines WHERE catalog_item_id=?",[id]);
+  const canReadInternal=actor.permissions.includes("catalog:write")||actor.permissions.includes("settings:manage");
   return jsonNoStore({data:{
    id:row.id,itemCode:row.item_code,itemType:row.item_type,name:row.name,customerDescription:row.customer_description,
    ...(canReadInternal?{internalDescription:row.internal_description}:{}),unitCode:row.unit_code,
    defaultUnitPrice:row.default_unit_price,currency:row.currency,defaultTaxCode:row.default_tax_code,
    isActive:Boolean(row.is_active),recordVersion:Number(row.record_version),archivedAt:row.archived_at,archiveReason:row.archive_reason,
    createdAt:row.created_at,updatedAt:row.updated_at,
+   referenceCounts:{invoiceLines:Number(invoiceReferences.total),quotationLines:Number(quotationReferences.total)},
   }});
  }catch(error){return apiError(error)}
 }
