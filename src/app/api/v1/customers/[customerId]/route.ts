@@ -91,8 +91,8 @@ export async function PATCH(request:NextRequest,context:Context){
   if(patch.name!==undefined)set("name","name",next.name);
   if(patch.email!==undefined)set("email","email",next.email);
   if(patch.phone!==undefined)set("phone","phone",next.phone);
-  if(patch.billingAddress!==undefined)set("billingAddress","billing_address_json",JSON.stringify(patch.billingAddress));
-  if(patch.shippingAddress!==undefined)set("shippingAddress","shipping_address_json",JSON.stringify(patch.shippingAddress));
+  if(patch.billingAddress!==undefined)set("billingAddress","billing_address_json",patch.billingAddress===null?null:JSON.stringify(patch.billingAddress));
+  if(patch.shippingAddress!==undefined)set("shippingAddress","shipping_address_json",patch.shippingAddress===null?null:JSON.stringify(patch.shippingAddress));
   if(patch.purchaseOrderReference!==undefined)set("purchaseOrderReference","purchase_order_reference",patch.purchaseOrderReference.trim()||null);
   if(patch.paymentTermsDays!==undefined)set("paymentTermsDays","payment_terms_days",patch.paymentTermsDays);
   if(patch.taxIdentifier!==undefined)set("taxIdentifier","tax_identifier",next.taxIdentifier);
@@ -137,6 +137,7 @@ export async function PATCH(request:NextRequest,context:Context){
    ...(actor.permissions.includes("settings:manage")&&patch.notes!==undefined?{notes:patch.notes}:{}),
    isActive:true,recordVersion:expectedVersion+1},duplicateWarnings:duplicates});
  }catch(error){
+  if(conn) await conn.rollback().catch(()=>undefined);
   if(duplicateEntry(error))return jsonNoStore({error:{code:"DUPLICATE_RECORD",message:"A customer code is already in use. Review existing records before retrying."}},409);
   return apiError(error);
  }finally{conn?.release()}
