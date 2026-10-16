@@ -373,12 +373,12 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .section-guide-card .inline-alert { margin-top: auto; }
 
 .dialog-backdrop { position: fixed; z-index: 150; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(17 17 17 / 55%); backdrop-filter: blur(4px); }
-.confirm-dialog { width: min(100%, 440px); padding: 25px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--ink); box-shadow: 0 22px 90px rgb(0 0 0 / 25%); }
+.confirm-dialog { width: min(100%, 440px); padding: 25px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--ink); box-shadow: 0 22px 90px rgb(17 17 17 / 25%); }
 .confirm-dialog__icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 13px; background: var(--surface-hover); color: var(--red); }
 .confirm-dialog h2 { margin: 18px 0 8px; color: var(--ink-strong); font-size: 18px; letter-spacing: -.035em; }
 .confirm-dialog p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.75; }
 .confirm-dialog__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; margin-top: 24px; }
-.toast { position: fixed; z-index: 180; right: 22px; bottom: 22px; display: flex; align-items: center; gap: 10px; width: min(440px, calc(100vw - 32px)); padding: 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); color: var(--ink-strong); box-shadow: 0 12px 40px rgb(0 0 0 / 16%); font-size: 12px; }
+.toast { position: fixed; z-index: 180; right: 22px; bottom: 22px; display: flex; align-items: center; gap: 10px; width: min(440px, calc(100vw - 32px)); padding: 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); color: var(--ink-strong); box-shadow: 0 12px 40px rgb(17 17 17 / 16%); font-size: 12px; }
 .toast > svg { flex: 0 0 auto; }
 .toast--success > svg { color: var(--success); }
 .toast--error > svg { color: var(--danger); }
@@ -400,8 +400,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 @media (max-width: 900px) {
   :root { --sidebar-width: 248px; }
   .sidebar { position: fixed; top: 0; bottom: 0; left: 0; height: 100dvh; transform: translateX(-105%); transition: transform 200ms ease; box-shadow: none; }
-  .sidebar--open { transform: translateX(0); box-shadow: 18px 0 50px rgb(0 0 0 / 18%); }
-  .mobile-scrim { position: fixed; z-index: 55; inset: 0; display: block; border: 0; background: rgb(5 12 22 / 52%); }
+  .sidebar--open { transform: translateX(0); box-shadow: 18px 0 50px rgb(17 17 17 / 18%); }
+  .mobile-scrim { position: fixed; z-index: 55; inset: 0; display: block; border: 0; background: rgb(17 17 17 / 52%); }
   .mobile-menu-button { display: inline-grid !important; }
   .welcome-art { flex-basis: 195px; width: 195px; margin-right: -15px; transform: scale(.82); }
   .overview-lower-grid, .section-workspace-grid { grid-template-columns: minmax(0, 1fr); }
@@ -632,7 +632,8 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .config-template-preview__invalid { padding:20px; border:1px dashed var(--line-strong); border-radius:10px; color:var(--muted); font-size:12px; }
 .config-template-paper { width:100%; max-width:780px; min-height:470px; margin:0 auto; padding:25px 28px 22px; overflow-wrap:anywhere; border:1px solid color-mix(in srgb, #111111 10%, #FFFFFF); border-radius:3px; background:#FFFFFF; color:#111111; box-shadow:0 8px 28px rgb(17 17 17 / 9%); font-family:Arial,Helvetica,sans-serif; font-size:10px; }
 .config-template-paper--landscape { max-width:1000px; }
-.config-template-paper__accent { height:5px; margin:-25px -28px 22px; background:var(--template-accent,#931314); }
+.config-template-paper__accent { height:4px; margin:-25px -28px 0; background:linear-gradient(90deg, #DAAF51 0 42%, var(--template-accent,#931314) 42% 100%); }
+.config-template-paper__accent-secondary { height:2px; margin:0 -28px 22px; background:#DAAF51; }
 .config-template-paper__header { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:14px; padding-bottom:19px; border-bottom:1px solid color-mix(in srgb, #111111 10%, #FFFFFF); }
 .config-template-paper__logo { display:grid; width:43px; height:43px; place-items:center; border-radius:8px; background:var(--template-accent,#931314); color:#FFFFFF; font-size:13px; font-weight:850; letter-spacing:-.05em; }
 .config-template-paper__issuer { display:grid; gap:4px; min-width:0; }
@@ -659,7 +660,10 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .config-template-paper__totals { display:grid; grid-template-columns:minmax(0,1fr) auto; align-content:start; gap:8px 12px; padding:14px; border-radius:7px; background:#F4F4F5; color:color-mix(in srgb, #111111 58%, #FFFFFF); font-size:9px; }
 .config-template-paper__totals strong { color:#111111; text-align:right; font-size:9px; }
 .config-template-paper__totals .config-template-paper__grand { padding-top:8px; border-top:1px solid color-mix(in srgb, #111111 10%, #FFFFFF); color:var(--template-accent,#931314); font-size:10px; font-weight:800; }
-.config-template-paper__footer { margin-top:24px; padding-top:12px; border-top:2px solid var(--template-accent,#931314); color:color-mix(in srgb, #111111 58%, #FFFFFF); font-size:8px; line-height:1.6; white-space:pre-wrap; }
+.config-template-paper__amount-words strong { color:#111111; }
+.config-template-paper__signoff-note { margin-top:16px; color:#111111; font-size:9px; font-style:italic; }
+.config-template-paper__signature { display:inline-block; min-width:140px; margin-left:18px; padding-top:16px; border-top:1px solid color-mix(in srgb, #111111 20%, #FFFFFF); text-align:center; }
+.config-template-paper__footer { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; margin-top:24px; padding-top:12px; border-top:2px solid var(--template-accent,#931314); color:color-mix(in srgb, #111111 58%, #FFFFFF); font-size:8px; line-height:1.6; white-space:pre-wrap; }
 @media (max-width:620px) {
  .config-template-preview { padding:12px; }
  .config-template-preview__heading { flex-direction:column; }

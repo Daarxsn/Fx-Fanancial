@@ -75,7 +75,7 @@ function TemplatePreview({config,title,documentType,issuerName,logoSource,logoAl
   </div>
   {!config?<div className="config-template-preview__invalid" role="status">Enter valid JSON to preview the template configuration.</div>:
    <article className={`config-template-paper config-template-paper--${orientation.toLowerCase()}`} style={{"--template-accent":accent} as CSSProperties} aria-label="Illustrative document page">
-    <div className="config-template-paper__accent"/>
+    <div className="config-template-paper__accent"/><div className="config-template-paper__accent-secondary"/>
     <header className="config-template-paper__header">
      {showLogo?<Image className="config-template-paper__logo-image" src={logoSource} alt={logoAlt} width={180} height={58} unoptimized />:null}
      <div className="config-template-paper__issuer"><strong>{issuer}</strong><span>Registered supplier · Contact and address</span></div>
@@ -86,18 +86,20 @@ function TemplatePreview({config,title,documentType,issuerName,logoSource,logoAl
      <div><small>DOCUMENT DETAILS</small><span>Date: Not assigned</span><span>Number: Not allocated</span><span>Currency: As configured</span></div>
     </div>
     <table className="config-template-paper__table">
-     <thead><tr><th>Description</th><th>Qty</th><th>Unit price</th><th>Amount</th></tr></thead>
-     <tbody><tr><td>Line item description</td><td>—</td><td>—</td><td>—</td></tr></tbody>
+     <thead><tr><th>Description</th><th>HSN/SAC</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+     <tbody><tr><td>Line item description</td><td>—</td><td>—</td><td>—</td><td>—</td></tr></tbody>
     </table>
     <div className="config-template-paper__summary">
      <div className="config-template-paper__options">
       {showTerms?<p><strong>Payment terms</strong><span>Configured terms will appear here</span></p>:null}
       {showBank?<p><strong>Payment instructions</strong><span>Approved payment details placeholder — no bank information is shown in this preview</span></p>:null}
-      {showTax?<p><strong>Tax breakdown</strong><span>Approved tax details are selected for the document date</span></p>:null}
+      {showTax?<p><strong>Tax breakdown</strong><span>Approved tax details are selected for the document date</span></p>
+      <p className="config-template-paper__amount-words"><strong>Amount in words</strong><span>Generated from the verified total</span></p>
+      <p className="config-template-paper__signoff-note">Looking forward to doing business with you.</p>:null}
      </div>
      <div className="config-template-paper__totals"><span>Subtotal</span><strong>Calculated on issue</strong><span>Tax</span><strong>Calculated on issue</strong><span className="config-template-paper__grand">Total</span><strong className="config-template-paper__grand">Calculated on issue</strong></div>
     </div>
-    {showFooter?<footer className="config-template-paper__footer">{footer}</footer>:null}
+    {showFooter?<footer className="config-template-paper__footer"><span>{footer}</span><span className="config-template-paper__signature">Authorized signatory</span></footer>:null}
    </article>}
  </section>;
 }
