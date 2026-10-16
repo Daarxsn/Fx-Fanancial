@@ -142,6 +142,25 @@ async function main() {
 
     const readiness = await readinessForEntity(entityId);
     assert.equal(readiness.ready,true,"approved full configuration must pass issuance readiness: "+JSON.stringify(readiness.checks));
+
+    // Readiness must reject a tax rule/registration pair that only looks complete by count.
+    await pool.execute("UPDATE tax_rules SET jurisdiction='CI-UNREGISTERED-JURISDICTION' WHERE id=?",[taxRuleId]);
+    const mismatchedReadiness=await readinessForEntity(entityId);
+    assert.equal(mismatchedReadiness.checks.find(check=>check.key==="taxRules")?.passed,false,
+      "tax readiness must require a registered matching jurisdiction, not merely one rule and one registration");
+    await pool.execute("UPDATE tax_rules SET jurisdiction='CI-JURISDICTION' WHERE id=?",[taxRuleId]);
+    const restoredReadiness=await readinessForEntity(entityId);
+    assert.equal(restoredReadiness.ready,true,"restoring the matching jurisdiction restores readiness");
+
+    // An approved not-applicable decision is independent of a stale historical default tax-code field.
+    await pool.execute("UPDATE legal_entities SET tax_setup_status='APPROVED_NOT_APPLICABLE' WHERE id=?",[entityId]);
+    const notApplicableReadiness=await readinessForEntity(entityId);
+    assert.equal(notApplicableReadiness.checks.find(check=>check.key==="taxRules")?.passed,true,
+      "approved not-applicable setup does not require configured rates/registrations");
+    assert.equal(notApplicableReadiness.checks.some(check=>check.key==="defaultTaxCode"),false,
+      "an unused default tax code must not block an approved not-applicable decision");
+    await pool.execute("UPDATE legal_entities SET tax_setup_status='APPROVED_CONFIGURED' WHERE id=?",[entityId]);
+
     const dateRows = await pool.execute<(RowDataPacket & { today:string; before_tax_date:string })[]>(
       "SELECT DATE_FORMAT(CURRENT_DATE(),'%Y-%m-%d') AS today,DATE_FORMAT(DATE_SUB(CURRENT_DATE(),INTERVAL 31 DAY),'%Y-%m-%d') AS before_tax_date",
     );
