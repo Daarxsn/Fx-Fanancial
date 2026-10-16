@@ -61,6 +61,8 @@ export async function GET(request: NextRequest) {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isSafeInteger(offset) || offset < 0 || offset > 1000000) {
       return jsonNoStore({ error: { code: "VALIDATION_ERROR", message: "limit must be 1–100 and offset must be between 0 and 1000000" } }, 400);
     }
+    const actor = await requirePermission("customers:read");
+    const canReadSensitive = actor.permissions.includes("settings:manage");
     const clauses: string[] = [];
     const params: unknown[] = [];
     if (status !== "all") { clauses.push("c.is_active = ?"); params.push(status === "active" ? 1 : 0); }
@@ -93,7 +95,7 @@ export async function GET(request: NextRequest) {
         id:row.id,customerCode:row.customer_code,name:row.name,email:row.email,phone:row.phone,
         billingAddress:parseJson(row.billing_address_json),shippingAddress:parseJson(row.shipping_address_json),
         purchaseOrderReference:row.purchase_order_reference,paymentTermsDays:Number(row.payment_terms_days),
-        taxIdentifier:row.tax_identifier,isActive:Boolean(row.is_active),recordVersion:Number(row.record_version),
+        ...(canReadSensitive ? { taxIdentifier:row.tax_identifier } : {}),isActive:Boolean(row.is_active),recordVersion:Number(row.record_version),
         archivedAt:row.archived_at,createdAt:row.created_at,updatedAt:row.updated_at,
       })),
       pagination:{limit,offset,total:Number(countRow.total),hasMore:offset+rows.length<Number(countRow.total)},
