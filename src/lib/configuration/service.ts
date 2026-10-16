@@ -140,19 +140,30 @@ export async function readinessForEntity(legalEntityId: string) {
   const [versionRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     "SELECT COUNT(*) AS n FROM legal_entity_config_versions WHERE legal_entity_id = ?", [legalEntityId]);
   checks.push({ key: "configurationVersion", passed: Number(versionRows[0]?.n ?? 0) > 0, message: "An initial versioned configuration snapshot must be recorded before issuance." });
-  const [taxRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
-    `SELECT COUNT(*) AS n FROM tax_rules
-      WHERE legal_entity_id = ? AND is_active = TRUE AND approved_at IS NOT NULL
-        AND approval_reference IS NOT NULL AND effective_from <= CURRENT_DATE()
-        AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())`, [legalEntityId]);
-  const hasTax = Number(taxRows[0]?.n ?? 0) > 0;
-  const [registrationRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
-    `SELECT COUNT(*) AS n FROM legal_entity_tax_registrations
-      WHERE legal_entity_id = ? AND is_active = TRUE AND approved_at IS NOT NULL AND approval_reference IS NOT NULL
-        AND effective_from <= CURRENT_DATE() AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())`, [legalEntityId]);
-  const hasRegistration = Number(registrationRows[0]?.n ?? 0) > 0;
-  checks.push({ key: "taxRules", passed: entity.tax_setup_status === "APPROVED_NOT_APPLICABLE" || (entity.tax_setup_status === "APPROVED_CONFIGURED" && hasTax && hasRegistration), message: "Approved tax setup requires an effective approved tax registration and tax rule, or an explicitly approved not-applicable decision." });
-  if (entity.default_tax_code) {
+  // A rule and a registration in unrelated jurisdictions do not form a usable tax setup.
+  // Readiness should agree with the line-level jurisdiction checks used during issuance.
+  const [compatibleTaxRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
+    `SELECT COUNT(*) AS n
+       FROM tax_rules r
+      WHERE r.legal_entity_id = ? AND r.is_active = TRUE AND r.approved_at IS NOT NULL
+        AND r.approval_reference IS NOT NULL AND r.effective_from <= CURRENT_DATE()
+        AND (r.effective_until IS NULL OR r.effective_until >= CURRENT_DATE())
+        AND EXISTS (
+          SELECT 1 FROM legal_entity_tax_registrations tr
+           WHERE tr.legal_entity_id = r.legal_entity_id
+             AND LOWER(TRIM(tr.jurisdiction)) = LOWER(TRIM(r.jurisdiction))
+             AND tr.is_active = TRUE AND tr.approved_at IS NOT NULL AND tr.approval_reference IS NOT NULL
+             AND tr.effective_from <= CURRENT_DATE()
+             AND (tr.effective_until IS NULL OR tr.effective_until >= CURRENT_DATE())
+        )`, [legalEntityId]);
+  const hasCompatibleTaxAndRegistration = Number(compatibleTaxRows[0]?.n ?? 0) > 0;
+  checks.push({
+    key: "taxRules",
+    passed: entity.tax_setup_status === "APPROVED_NOT_APPLICABLE" ||
+      (entity.tax_setup_status === "APPROVED_CONFIGURED" && hasCompatibleTaxAndRegistration),
+    message: "Approved tax setup requires an effective approved tax rule paired with an approved registration for the same jurisdiction, or an explicitly approved not-applicable decision.",
+  });
+  if (entity.default_tax_code && entity.tax_setup_status === "APPROVED_CONFIGURED") {
     const [defaultTaxRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
       `SELECT COUNT(*) AS n FROM tax_rules WHERE legal_entity_id = ? AND tax_code = ? AND is_active = TRUE
         AND approved_at IS NOT NULL AND approval_reference IS NOT NULL AND effective_from <= CURRENT_DATE()
