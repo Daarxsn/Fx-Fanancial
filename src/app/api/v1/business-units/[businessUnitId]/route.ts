@@ -64,8 +64,12 @@ export async function PATCH(request:NextRequest,context:Context){
   if(entityIds.some(id=>!actor.legalEntityIds.includes(id))){await conn.rollback();return jsonNoStore({error:{code:"FORBIDDEN",message:"Every mapping must be within your assigned legal-entity scope."}},403)}
   const [entities]=await conn.query<(RowDataPacket & {id:string;is_active:number})[]>(
    `SELECT id,is_active FROM legal_entities WHERE id IN (${entityIds.map(()=>"?").join(",")}) FOR UPDATE`,entityIds);
-  if(entities.length!==entityIds.length||entities.some(e=>!e.is_active)){await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"All mapped legal entities must exist and be active."}},409)}
-  if(brandIds.length){
+  if(entities.length!==entityIds.length || ((patch.isActive === true || incomingEntityIds !== undefined) && entities.some(e=>!e.is_active))){
+   await conn.rollback();return jsonNoStore({error:{code:"CONFIGURATION_CONFLICT",message:"An active business unit and new mappings require existing active legal entities."}},409)
+  }
+  // Deactivation must remain possible after a related entity or brand becomes inactive.
+  // Validate related brands when activating the unit or explicitly changing its brand mappings.
+  if(brandIds.length && (patch.isActive === true || incomingBrandIds !== undefined)){
    const [mappings]=await conn.query<(RowDataPacket & {brand_id:string})[]>(
     `SELECT DISTINCT m.brand_id FROM brand_legal_entities m JOIN brands b ON b.id=m.brand_id
      WHERE m.brand_id IN (${brandIds.map(()=>"?").join(",")}) AND m.legal_entity_id IN (${entityIds.map(()=>"?").join(",")}) AND b.is_active=TRUE
