@@ -212,7 +212,7 @@ Evidence:
 - [x] Record change reason and safe before/after state in audit events; append version snapshots on configuration edits.
 - [x] Preserve old brand/business-unit mappings as effective-dated history instead of deleting them.
 - [x] Add CI acceptance coverage for bank masking, finance-only bank changes, version/audit history, mapping-history retention and legal-entity scope isolation.
-- [x] Main-branch CI and lockfile/bootstrap passed after PR #5 merge at `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3`: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886347059), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886346994). PR #6's current head `51dced4626dc333158e594160b7e8264d8ddd186` passed CI: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38888043868). It includes the exact Coworks WebP and reconciled evidence docs. Merge is now a code-review/merge action; manual browser sign-off remains outstanding.
+- [x] PR #6 merged directly into `main` at `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69`; exact supplied corporate/MyFX/Digitech/Coworks WebP assets are now part of main. Post-merge CI and lockfile/bootstrap passed on that revision: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236087), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236031). The evidence-doc refresh is on main; manual browser sign-off remains outstanding.
 - [ ] Business owner confirms actual legal identities, bank values, and brand/entity relationships; production setup must not use CI/sample fixtures.
 
 ## Phase 06B — Tax, Invoice Numbering & Document Configuration
