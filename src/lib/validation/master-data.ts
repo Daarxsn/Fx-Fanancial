@@ -34,7 +34,7 @@ export const customerCreateSchema = z.object({
   paymentTermsDays: z.number().int().min(0).max(365).optional(),
   taxIdentifier: z.string().trim().max(100).optional().or(z.literal("")),
   taxIdentifiers: z.array(taxIdentifierSchema).max(30).optional(),
-  contacts: z.array(contactSchema).max(30).optional(),
+  contacts: z.array(contactSchema).max(30).optional().refine((contacts) => !contacts || contacts.filter((contact) => contact.isPrimary).length <= 1, "Only one primary contact is allowed"),
   notes: z.string().max(5000).optional(),
 }).strict();
 
