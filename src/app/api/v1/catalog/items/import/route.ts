@@ -44,6 +44,15 @@ export async function POST(request:NextRequest){
   }
   if(errors.length)return jsonNoStore({error:{code:"CSV_VALIDATION_ERROR",message:"Fix the reported rows and validate the file again."},report:{rowCount:parsed.rows.length,validRows:prepared.length,errors:errors.slice(0,1000)}},422);
   const duplicateWarnings:Array<{rowNumber:number;matches:Array<{id:string;name:string;itemCode:string|null;matchOn:string[]}>}>=[];
+  const seenCodes=new Set<string>();
+  for(const {rowNumber,input} of prepared){
+   const code=input.itemCode?.trim().toLowerCase();if(!code)continue;
+   if(seenCodes.has(code)){errors.push({rowNumber,field:"itemCode",message:"This item/service code appears more than once in the import."});continue}
+   seenCodes.add(code);
+   const [existing]=await pool.execute<(RowDataPacket & {id:string})[]>("SELECT id FROM catalog_items WHERE LOWER(item_code)=LOWER(?) LIMIT 1",[input.itemCode?.trim()]);
+   if(existing.length)errors.push({rowNumber,field:"itemCode",message:"This item/service code is already in use. Choose another code before importing."});
+  }
+  if(errors.length)return jsonNoStore({error:{code:"CSV_VALIDATION_ERROR",message:"Resolve the reported row conflicts before importing."},report:{rowCount:parsed.rows.length,validRows:prepared.length,errors:errors.slice(0,1000)}},422);
   const seen=new Map<string,number>();
   for(const {rowNumber,input} of prepared){
    const keys=[input.itemCode?("code:"+input.itemCode.trim().toLowerCase()):"", "name:"+input.itemType+":"+input.name.trim().toLowerCase()].filter(Boolean);
