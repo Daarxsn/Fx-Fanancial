@@ -1,4 +1,4 @@
-> **Phase 01–06 closure pass (2026-10-16):** latest audited remote `main` was `c735e771bf923494070700055f43c3ab255d5a9d`. Live developer evidence confirms the Aiven MySQL query/TLS check, migrations 001–010, reference-seed idempotency and both health endpoints. Latest CI and lockfile/bootstrap workflows passed on that main SHA. Closure work is isolated on `phase-01-06-closure`; see `docs/repository-audit-phase-00-06.md` for the current, scope-limited audit. Do **not** mark the entire product or all phases signed off until the external Phase 02/production gates and documented remaining Phase 04/06 release gates are completed.
+> **Phase 01–06 closure pass (2026-10-16):** PR #4 merged to `main` as `7b7e591128facbb66beda6cbe4b781e42759d6ff`; post-merge CI and lockfile/bootstrap workflows passed ([CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38884363880), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38884364023)). Developer-provided evidence confirms development Aiven MySQL TLS/query, migrations 001–010, reference-seed idempotency and both health endpoints. See `docs/repository-audit-phase-00-06.md` for remaining sign-offs and pre-production gates. Do **not** mark the entire product or all phases signed off until the external Phase 02/production gates and documented remaining Phase 04/06 acceptance gates are completed.
 
 # Phase 00–06 Implementation Tracker
 
@@ -8,7 +8,7 @@ This tracker records verified implementation evidence. Do not mark infrastructur
 
 - [x] Lockfile committed and CI uses `npm ci`.
 - [x] Clean CI checkout installs and builds on supported Node.js 24.
-- [x] Developer Mac worktree reconciled and verified clean after pulling the latest remote commit.
+- [ ] Reconcile the developer Mac worktree and preserve any untracked local authentication files before pulling the merged commit.
 - [x] Gitleaks secret scan passed on the tracked repository history after full-history checkout was configured.
 - [x] Environment conventions documented for local development, CI/test, staging and production.
 - [x] Contribution, review, security reporting and coding standards documented.
@@ -175,7 +175,8 @@ Evidence:
 
 ### Separate production activation and future-feature gates
 
-- [ ] Apply migration 004 and the reference role-template seed to the intended Aiven database after a verified backup/restore preflight. CI against disposable MySQL does not claim the live database has been migrated.
+- [x] Developer-provided evidence confirms migrations 001–010 and the reference role-template seed were applied and safely rerun against the intended development Aiven database; verified TLS/query and both health endpoints passed.
+- [ ] Before production, complete a provider-managed Aiven restore drill into an isolated target, review the production schema/data and least-privilege runtime grants, then apply/verify any approved pending production migration. CI against disposable MySQL is not an Aiven managed-backup restore drill.
 - [ ] Set a high-entropy `SESSION_SECRET` and the exact public HTTPS `APP_ORIGIN` in the server environment before enabling production sign-in.
 - [ ] Keep `TRUST_PROXY_HEADERS` unset unless the deployment ingress strips inbound forwarded headers, writes trusted values and blocks direct application access. IP rate-limiting and source-IP logging require this explicit setup.
 - [ ] Run `npm run auth:bootstrap-admin` once against the selected target with private environment variables; assign no unapproved users or legal-entity scopes.

@@ -1,16 +1,16 @@
 # Repository Audit — Phases 00–06
 
 **Audit date:** 2026-10-16  
-**Audited baseline:** `main` at `c735e771bf923494070700055f43c3ab255d5a9d`  
-**Closure work:** isolated on branch `phase-01-06-closure`; this report is updated for that branch's proposed state.  
+**Audited baseline:** `main` at merge commit `7b7e591128facbb66beda6cbe4b781e42759d6ff`  
+**Closure work:** PR #4 merged to `main` at `7b7e591128facbb66beda6cbe4b781e42759d6ff`; this report reflects merged source.  
 **Scope:** tracked repository tree, SQL migrations, Next.js route handlers and screens, validation, auth/RBAC helpers, OpenAPI, CI workflows, implementation tracker, and uploaded brand/logo/template assets. This is not a production penetration test or an approval of company/tax facts.
 
 ## Executive result
 
-The earlier 2026-10-09 audit was stale and incorrectly described several now-implemented systems as missing. Since then, the repository gained a lockfile, ten migrations, database verification/migration tooling, local-password authentication, session and CSRF protections, role/permission templates and integration checks, effective-dated legal entity/brand/tax/numbering/template configuration, and transactional invoice issuance with immutable configuration snapshots. Latest observed GitHub Actions runs on the audited baseline passed:
+The earlier 2026-10-09 audit was stale and incorrectly described several now-implemented systems as missing. Since then, the repository gained a lockfile, ten migrations, database verification/migration tooling, local-password authentication, session and CSRF protections, role/permission templates and integration checks, effective-dated legal entity/brand/tax/numbering/template configuration, and transactional invoice issuance with immutable configuration snapshots. Post-merge GitHub Actions runs on the audited `main` revision passed:
 
-- CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38851740024
-- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38851740089
+- CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38884363880
+- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38884364023
 
 The developer separately confirmed against the intended Aiven development database that `npm run db:verify` passed with an active TLS cipher and `rejectUnauthorized=true`; migrations 001–010 applied and safely reran; the role/reference seed safely reran; and both health endpoints returned HTTP 200. These are useful development evidence, not production recovery/backup evidence.
 
@@ -21,7 +21,7 @@ The developer separately confirmed against the intended Aiven development databa
 ### Phase 00 — Repository foundation
 **Verified:** Next.js 16/React/TypeScript application; committed package lockfile; `npm ci`, lint, typecheck and production build pass locally at the audited baseline; CI includes secret scanning, MySQL tests and deterministic install.
 
-**Still required:** merge the closure branch after CI review; reconcile the developer's own working tree after merge; review any secret-scanner findings in full history; perform browser-level visual sign-off.
+**Still required:** reconcile the developer's own working tree after merge; review any secret-scanner findings in full history; perform browser-level visual sign-off.
 
 ### Phase 01 — Database and infrastructure
 **Verified:** `npm run db:verify` was run by the developer against Aiven, with TLS certificate verification enabled; ten migrations and role-template seeding are applied to the dedicated development/test database; migration and seed rerun were idempotent; health APIs returned database-ready HTTP 200. CI covers disposable MySQL migration/seed repeatability, safe failure responses and logical dump/restore.
@@ -59,7 +59,7 @@ The Library contains `FX Brand Guidelines(2).pdf`, `myfx pos logo.zip`, `FX Digi
 
 ## Required sequence to close the pre-Phase-7 gate
 
-1. Review/merge the closure branch after GitHub Actions pass; run it locally and visually inspect login, shell, Settings and the three reference samples.
+1. [x] Merge closure PR #4 and confirm post-merge CI/bootstrap pass. [ ] Run the merged app locally and visually inspect login, shell, Settings and the three reference reconstructions.
 2. Complete the Phase 02 sign-off packet with authorized people and actual evidence, or explicitly record decisions as blocked/not applicable with owner and rationale.
 3. Verify the Aiven plan's backup policy and complete the provider-level recovery drill; review DB grants and production deployment secrets/origin/proxy settings.
 4. Populate actual, approved legal entity/brand/tax/numbering/template configuration in the intended environment and re-check readiness; do not use CI/sample placeholders as actual values.
@@ -67,4 +67,4 @@ The Library contains `FX Brand Guidelines(2).pdf`, `myfx pos logo.zip`, `FX Digi
 
 ## Sign-off rule
 
-No phase is marked complete solely because its specification or a route exists. A full sign-off requires committed code, automated test evidence, real-environment evidence where applicable, and business/finance/tax authorization for business facts. The closure branch intentionally records the remaining operator and owner gates instead of fabricating completion.
+No phase is marked complete solely because its specification or a route exists. A full sign-off requires committed code, automated test evidence, real-environment evidence where applicable, and business/finance/tax authorization for business facts. The merged audit intentionally records the remaining operator and owner gates instead of fabricating completion.
