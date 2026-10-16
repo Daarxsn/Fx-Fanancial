@@ -145,7 +145,8 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
       purchaseOrderReference:form.purchaseOrderReference.trim(),paymentTermsDays:Number(form.paymentTermsDays||0),
       taxIdentifier:form.taxIdentifier.trim(),contacts,taxIdentifiers};
     const billingAddress=makeAddress(form,"bill");const shippingAddress=makeAddress(form,"ship");
-    if(billingAddress)payload.billingAddress=billingAddress;if(shippingAddress)payload.shippingAddress=shippingAddress;
+    if(billingAddress)payload.billingAddress=billingAddress;else if(editing)payload.billingAddress=null;
+    if(shippingAddress)payload.shippingAddress=shippingAddress;else if(editing)payload.shippingAddress=null;
    }else{
     payload={itemCode:form.itemCode.trim(),itemType:form.itemType,name:form.name.trim(),
       customerDescription:form.customerDescription.trim(),internalDescription:form.internalDescription,
@@ -253,7 +254,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
      <div><span>Legacy primary tax identifier</span><strong>{valueOf(detail,"taxIdentifier")||"Not supplied"}</strong></div>
      <div><span>Primary contact</span><strong>{Array.isArray(detail.contacts)?str(obj(detail.contacts.find(x=>Boolean(obj(x).isPrimary))??detail.contacts[0]).fullName)||"Not supplied":"Not supplied"}</strong></div>
      {Array.isArray(detail.taxIdentifiers)&&detail.taxIdentifiers.length?<div className="master-data-detail__wide"><span>Tax identifiers</span><strong>{detail.taxIdentifiers.map(t=>{const x=obj(t);return [str(x.identifierType),str(x.countryCode),str(x.jurisdiction),str(x.identifierValue)].filter(Boolean).join(" · ")}).join("; ")}</strong></div>:null}
-     {detail.invoiceReferenceCounts||detail.quotationReferenceCounts||detail.paymentReferenceCounts?<div className="master-data-detail__wide"><span>Historical references</span><strong>Invoices: {str(detail.invoiceReferenceCounts) || "0"} · Quotations: {str(detail.quotationReferenceCounts)||"0"} · Payments: {str(detail.paymentReferenceCounts)||"0"}</strong></div>:null}
+     {detail.referenceCounts?<div className="master-data-detail__wide"><span>Historical references</span><strong>Invoices: {str(obj(detail.referenceCounts).invoices) || "0"} · Quotations: {str(obj(detail.referenceCounts).quotations)||"0"} · Payments: {str(obj(detail.referenceCounts).payments)||"0"}</strong></div>:null}
     </>:<>
      <div><span>Code</span><strong>{valueOf(detail,"itemCode")||"Not assigned"}</strong></div><div><span>Type</span><strong>{valueOf(detail,"itemType")}</strong></div>
      <div><span>Unit</span><strong>{valueOf(detail,"unitCode")}</strong></div><div><span>Default unit price</span><strong>{valueOf(detail,"currency")} {valueOf(detail,"defaultUnitPrice")}</strong></div>
