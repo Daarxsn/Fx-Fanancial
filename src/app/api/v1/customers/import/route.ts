@@ -23,16 +23,28 @@ function parseCell(row:CsvRow,key:string,errors:CsvParseIssue[],array=false):unk
  return result.value;
 }
 
-async function duplicateMatches(input:{name:string;customerCode?:string;email?:string;phone?:string;taxIdentifier?:string;canReadSensitive:boolean}) {
+async function duplicateMatches(input:{name:string;customerCode?:string;email?:string;phone?:string;taxIdentifiers?:string[];canReadSensitive:boolean}) {
  const clauses:string[]=[];const params:unknown[]=[];
  clauses.push("LOWER(name)=LOWER(?)");params.push(input.name);
  if(input.customerCode){clauses.push("LOWER(customer_code)=LOWER(?)");params.push(input.customerCode)}
  if(input.email){clauses.push("LOWER(email)=LOWER(?)");params.push(input.email.toLowerCase())}
  if(input.phone){clauses.push("phone=?");params.push(input.phone)}
- if(input.canReadSensitive&&input.taxIdentifier){clauses.push("UPPER(REPLACE(REPLACE(tax_identifier,' ',''),'-',''))=?");params.push(normalizeIdentifier(input.taxIdentifier))}
- const [rows]=await pool.query<(RowDataPacket & {id:string;name:string;customer_code:string|null})[]>(
-  `SELECT id,name,customer_code FROM customers WHERE (${clauses.join(" OR ")}) ORDER BY name,id LIMIT 8`,params);
- return rows.map(row=>({id:row.id,name:row.name,customerCode:row.customer_code}));
+ const taxKeys=input.canReadSensitive?(input.taxIdentifiers??[]).map(normalizeIdentifier).filter(Boolean):[];
+ if(taxKeys.length){
+  clauses.push("UPPER(REPLACE(REPLACE(tax_identifier,' ',''),'-','')) IN ("+taxKeys.map(()=>"?").join(",")+")");
+  params.push(...taxKeys);
+  clauses.push("EXISTS (SELECT 1 FROM customer_tax_identifiers ti WHERE ti.customer_id=customers.id AND ti.normalized_identifier IN ("+taxKeys.map(()=>"?").join(",")+"))");
+  params.push(...taxKeys);
+ }
+ const [rows]=await pool.query<(RowDataPacket & {id:string;name:string;customer_code:string|null;email:string|null;phone:string|null;tax_identifier:string|null})[]>(
+  `SELECT id,name,customer_code,email,phone,tax_identifier FROM customers WHERE (${clauses.join(" OR ")}) ORDER BY name,id LIMIT 8`,params);
+ return rows.map(row=>({id:row.id,name:row.name,customerCode:row.customer_code,matchOn:[
+  row.name.toLowerCase()===input.name.trim().toLowerCase()?"name":null,
+  input.customerCode&&row.customer_code?.toLowerCase()===input.customerCode.toLowerCase()?"customerCode":null,
+  input.email&&row.email?.toLowerCase()===input.email.toLowerCase()?"email":null,
+  input.phone&&row.phone===input.phone?"phone":null,
+  taxKeys.length&&row.tax_identifier&&taxKeys.includes(normalizeIdentifier(row.tax_identifier))?"taxIdentifier":null,
+ ].filter((value):value is string=>Boolean(value))}));
 }
 
 export async function POST(request:NextRequest){
@@ -77,7 +89,17 @@ export async function POST(request:NextRequest){
    else prepared.push({rowNumber:row.rowNumber,input:validated.data});
   }
   if(errors.length)return jsonNoStore({error:{code:"CSV_VALIDATION_ERROR",message:"Fix the reported rows and validate the file again."},report:{rowCount:parsed.rows.length,validRows:prepared.length,errors:errors.slice(0,1000)}},422);
-  const duplicateWarnings:Array<{rowNumber:number;matches:Array<{id:string;name:string;customerCode:string|null}>}>=[];
+  const duplicateWarnings:Array<{rowNumber:number;matches:Array<{id:string;name:string;customerCode:string|null;matchOn?:string[]}>}>=[];
+  const duplicateCodes=new Set<string>();
+  for(const {rowNumber,input} of prepared){
+   const code=input.customerCode?.trim().toLowerCase();
+   if(!code)continue;
+   if(duplicateCodes.has(code)){errors.push({rowNumber,field:"customerCode",message:"This customer code appears more than once in the import."});continue}
+   duplicateCodes.add(code);
+   const [existing]=await pool.execute<(RowDataPacket & {id:string})[]>("SELECT id FROM customers WHERE LOWER(customer_code)=LOWER(?) LIMIT 1",[input.customerCode?.trim()]);
+   if(existing.length)errors.push({rowNumber,field:"customerCode",message:"This customer code is already in use. Choose a different code before importing."});
+  }
+  if(errors.length)return jsonNoStore({error:{code:"CSV_VALIDATION_ERROR",message:"Resolve the reported row conflicts before importing."},report:{rowCount:parsed.rows.length,validRows:prepared.length,errors:errors.slice(0,1000)}},422);
   const seen=new Map<string,number>();
   for(const row of prepared){
    const input=row.input;
@@ -87,7 +109,7 @@ export async function POST(request:NextRequest){
    const earlier=keys.map(key=>seen.get(key)).filter((number):number is number=>number!==undefined);
    for(const key of keys)seen.set(key,row.rowNumber);
    const matches=await duplicateMatches({name:input.name,customerCode:input.customerCode?.trim()||undefined,email:input.email?.trim()||undefined,
-     phone:input.phone?.trim()||undefined,taxIdentifier:input.taxIdentifier?.trim()||undefined,canReadSensitive:actor.permissions.includes("settings:manage")});
+     phone:input.phone?.trim()||undefined,taxIdentifiers:[input.taxIdentifier??"",...(input.taxIdentifiers??[]).map(t=>t.identifierValue)].filter(Boolean),canReadSensitive:actor.permissions.includes("settings:manage")});
    if(matches.length||earlier.length)duplicateWarnings.push({rowNumber:row.rowNumber,matches:[...matches,...earlier.map(n=>({id:`csv-row-${n}`,name:`Another row in this file (row ${n})`,customerCode:null}))]});
   }
   if(mode==="validate")return jsonNoStore({data:{mode,valid:errors.length===0,rowCount:prepared.length,errors,duplicateWarnings,
