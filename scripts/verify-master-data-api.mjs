@@ -795,14 +795,18 @@ try {
     method:"PATCH",body:JSON.stringify({isActive:false,changeReason:"Phase 6A deactivation regression: disable brand"}),
   },phase6aSession.jar);
   assert.equal(brandOff.response.status,200,"mapped brand can be deactivated");
-  const entityOff=await call("/api/v1/legal-entities/"+entityB.id,{
-    method:"PATCH",body:JSON.stringify({isActive:false,changeReason:"Phase 6A deactivation regression: disable entity"}),
+  const prematureEntityOff=await call("/api/v1/legal-entities/"+entityB.id,{
+    method:"PATCH",body:JSON.stringify({isActive:false,changeReason:"Phase 6A negative test: refuse while mapped unit is active"}),
   },phase6aSession.jar);
-  assert.equal(entityOff.response.status,200,"mapped legal entity can be deactivated");
+  assert.equal(prematureEntityOff.response.status,409,"legal entity cannot deactivate while a mapped business unit remains active");
   const unitOff=await call("/api/v1/business-units/"+recoveryUnit.body.data.id,{
     method:"PATCH",body:JSON.stringify({isActive:false,changeReason:"Phase 6A deactivation regression: disable unit"}),
   },phase6aSession.jar);
-  assert.equal(unitOff.response.status,200,"business unit must remain deactivatable after its entity/brand are inactive: "+JSON.stringify(unitOff.body?.error??null));
+  assert.equal(unitOff.response.status,200,"business unit can be deactivated after its mapped brand is inactive: "+JSON.stringify(unitOff.body?.error??null));
+  const entityOff=await call("/api/v1/legal-entities/"+entityB.id,{
+    method:"PATCH",body:JSON.stringify({isActive:false,changeReason:"Phase 6A deactivation regression: disable entity"}),
+  },phase6aSession.jar);
+  assert.equal(entityOff.response.status,200,"legal entity can be deactivated after all mapped brands and units are inactive");
   const unitReactivation=await call("/api/v1/business-units/"+recoveryUnit.body.data.id,{
     method:"PATCH",body:JSON.stringify({isActive:true,changeReason:"Phase 6A negative test: cannot reactivate unit"}),
   },phase6aSession.jar);
