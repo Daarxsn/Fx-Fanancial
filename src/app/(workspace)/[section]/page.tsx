@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { Icon } from "@/components/icon";
+import { MasterDataWorkspace } from "@/components/master-data-workspace";
 import { Breadcrumbs, Card, EmptyState, InlineAlert, PageHeader, StatusBadge } from "@/components/ui";
 
 const sections = {
@@ -121,7 +122,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
         <StatusBadge tone={data.status.includes("available") ? "info" : data.status === "Planned" ? "warning" : "success"}>{data.status}</StatusBadge>
       </div>
 
-      <div className="section-workspace-grid">
+      {section === "customers" || section === "catalog" ? <MasterDataWorkspace resource={section} /> : <div className="section-workspace-grid">
         <Card className="section-data-card">
           <div className="card-heading">
             <div><h2>{section === "settings" ? "Configuration areas" : section === "reports" ? "Available views" : "Workspace records"}</h2><p>Honest state, ready for implementation.</p></div>
@@ -141,7 +142,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
             This screen does not bypass permissions or treat browser-side calculations as authoritative.
           </InlineAlert>
         </Card>
-      </div>
+      </div>}
     </div>
   );
 }
