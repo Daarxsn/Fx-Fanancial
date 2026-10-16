@@ -87,6 +87,8 @@ export const legalEntityUpdateSchema = legalEntityFieldsSchema.partial().extend(
   }
 });
 
+const approvedAccentColors = ["#DCAF51", "#931314", "#111111", "#F4F4F5", "#FFFFFF", "#67AF7A", "#F5C25C", "#F25138"] as const;
+
 export const brandCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   code: z.string().trim().min(2).max(40).regex(/^[A-Z0-9][A-Z0-9_-]*$/, "Use uppercase letters, digits, underscore or hyphen."),

@@ -16,7 +16,7 @@ This is the pre-Phase-07 release checklist. Do not use this page to infer busine
 - [x] Align global UI tokens to the uploaded brand guide's primary palette.
 - [x] Add SVG logo/template reference reconstructions in PR #4; invoice-layout visuals remain reference-only and not active templates.
 - [x] Replace stale repository audit text with a dated, evidence-bounded audit and document remaining gates in PR #4/#5.
-- [x] Post-merge CI and lockfile/bootstrap on `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3` passed: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886347059) and [lockfile/bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886346994).
+- [x] PR #6 merge revision `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69` passed post-merge CI/bootstrap: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236087), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236031). The subsequent brand-picker/palette-validation follow-up is on `main` and is awaiting its latest CI result.
 
 ## UI fidelity work merged in PR #6
 
