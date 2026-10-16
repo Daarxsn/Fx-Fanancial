@@ -33,5 +33,5 @@ export async function POST(request:NextRequest,context:Context){
   await conn.commit();
   return jsonNoStore({data:{id,isActive:false,recordVersion:expectedVersion+1,archivedAt:new Date().toISOString(),referenceCounts,
    message:Object.values(referenceCounts).some(n=>n>0)?"Archived safely. Existing invoice and quotation lines remain linked for historical access.":"Archived. The record remains recoverable for audit/history."}});
- }catch(error){return apiError(error)}finally{conn?.release()}
+ }catch(error){if(conn) await conn.rollback().catch(()=>undefined);return apiError(error)}finally{conn?.release()}
 }
