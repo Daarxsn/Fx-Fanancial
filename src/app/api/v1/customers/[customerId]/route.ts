@@ -33,6 +33,9 @@ export async function GET(_request:NextRequest,context:Context){
   const [taxIdentifiers]=await pool.execute<(RowDataPacket & {id:string;identifier_type:string;country_code:string|null;jurisdiction:string|null;identifier_value:string})[]>(
    "SELECT id,identifier_type,country_code,jurisdiction,identifier_value FROM customer_tax_identifiers WHERE customer_id=? ORDER BY identifier_type,country_code,id",[id]);
   const row=rows[0];
+  const [[invoiceReferences]] = await pool.query<(RowDataPacket & {total:number})[]>("SELECT COUNT(*) AS total FROM invoices WHERE customer_id=?",[id]);
+  const [[quotationReferences]] = await pool.query<(RowDataPacket & {total:number})[]>("SELECT COUNT(*) AS total FROM quotations WHERE customer_id=?",[id]);
+  const [[paymentReferences]] = await pool.query<(RowDataPacket & {total:number})[]>("SELECT COUNT(*) AS total FROM payments WHERE customer_id=?",[id]);
   return jsonNoStore({data:{
    id:row.id,customerCode:row.customer_code,name:row.name,email:row.email,phone:row.phone,
    billingAddress:jsonValue(row.billing_address_json),shippingAddress:jsonValue(row.shipping_address_json),
@@ -42,6 +45,7 @@ export async function GET(_request:NextRequest,context:Context){
    ...(actor.permissions.includes("settings:manage")?{notes:row.notes}:{}),
    isActive:Boolean(row.is_active),recordVersion:Number(row.record_version),archivedAt:row.archived_at,archiveReason:row.archive_reason,
    createdAt:row.created_at,updatedAt:row.updated_at,
+   referenceCounts:{invoices:Number(invoiceReferences.total),quotations:Number(quotationReferences.total),payments:Number(paymentReferences.total)},
   }});
  }catch(error){return apiError(error)}
 }
