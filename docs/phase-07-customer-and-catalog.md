@@ -1,6 +1,6 @@
 # Phase 07 — Customer and Item/Service Catalog
 
-**Status:** Specification committed; implementation and verification are pending.
+**Status:** Phase 07 implementation is in progress on `main` (2026-10-16). The first CRUD and CSV slice is committed; do not mark the phase complete until the current MySQL/CI suite is green and the remaining acceptance evidence is captured.
 **Scope:** Reusable customer records and billable item/service records used by quotations and invoices.
 
 ## Goals
@@ -62,18 +62,20 @@ For a draft, the UI may refresh defaults from catalog records, but should make t
 
 ## Proposed API surface
 
-All endpoints below are planned, not yet implemented. Every operation must require authentication and server-side authorization.
+Implemented in the current Phase 07 slice: customer and catalog list/create/detail/update/archive plus customer/catalog CSV import/export. Import has a validation-only mode and a separate atomic commit mode; duplicate codes are validation errors, while possible duplicate names/contact details are surfaced as warnings without auto-merging. These operations require authentication and server-side authorization.
 
 - `GET /api/v1/customers?query=&status=&cursor=` — paginated search.
 - `POST /api/v1/customers` — create.
 - `GET /api/v1/customers/{id}` — read.
 - `PATCH /api/v1/customers/{id}` — update with optimistic concurrency/version checking.
 - `POST /api/v1/customers/{id}/archive` — archive with reference-aware safeguards.
+- `GET /api/v1/customers/export?status=` and `POST /api/v1/customers/import?mode=validate|commit` — bounded CSV export and row-report validation/atomic import.
 - `GET /api/v1/catalog/items?query=&status=&cursor=` — paginated item/service search.
 - `POST /api/v1/catalog/items` — create.
 - `GET /api/v1/catalog/items/{id}` — read.
 - `PATCH /api/v1/catalog/items/{id}` — update with optimistic concurrency/version checking.
 - `POST /api/v1/catalog/items/{id}/archive` — archive.
+- `GET /api/v1/catalog/items/export?status=` and `POST /api/v1/catalog/items/import?mode=validate|commit` — bounded CSV export and row-report validation/atomic import.
 
 Use consistent validation/error envelopes, bounded pagination, and no-store behavior for sensitive responses. Do not expose database driver messages or stack traces. Avoid returning internal descriptions/notes to roles that do not need them.
 
@@ -98,19 +100,27 @@ The server must enforce permissions regardless of whether a UI control is hidden
 
 ## Acceptance criteria
 
-- [ ] Schema migration includes customers, customer contacts/addresses or a justified normalized equivalent, and catalog items/services.
+- [x] Schema migration extends customer/catalog records and normalizes contacts and tax identifiers (migrations 011–012; current CI must pass before claiming verified).
 - [ ] Required-field, length, enum, identifier, email, currency and exact-decimal validation is covered by automated tests.
-- [ ] Duplicate warnings do not silently merge records.
-- [ ] Archive/reference rules prevent broken historical documents.
+- [x] Duplicate warnings do not silently merge records; duplicate codes are hard conflicts.
+- [x] Archive endpoints are soft archives, version checked, reasoned and audited; historical references are counted. Integration verification is required before marking accepted.
 - [ ] Permission-denied requests fail on the server and are tested.
 - [ ] Pagination and search are bounded and tested.
 - [ ] Changes to catalog/customer data do not alter a saved invoice snapshot.
-- [ ] Audit events are emitted for create, update and archive.
+- [x] Create/update/archive/import actions emit audit events with changed field names and without copying customer tax values into the audit payload.
 - [ ] UI works at desktop and mobile widths and has accessible validation/error states.
 - [ ] Migration is applied and tested against the configured MySQL version.
 - [ ] Clean-checkout lint, typecheck, build and relevant integration tests pass.
 
-## Decisions required before implementation
+## Current implementation decisions and remaining business decisions
+
+- Customer codes remain optional and unique when present. Duplicate customer/item codes block an import; possible matching names and contact data trigger warnings and do not auto-merge.
+- Master data remains globally shared in this slice, matching the current schema. Legal-entity/brand-scoped visibility remains a business decision; the server does not fabricate a scope.
+- Units are free-text, currency is a required three-letter uppercase code, and catalog prices remain exact decimal strings. No tax rates or allowed currency/unit lists are inferred.
+- Unknown customer payment terms are stored as `NULL`; an explicitly supplied `0` means due immediately. Item type, currency, price and unit are not silently prefilled with business defaults.
+- Access to customer tax identifiers and internal notes is currently restricted to `settings:manage`, while ordinary customer readers receive customer data without those fields. Confirm that this matches approved role policy before production.
+
+## Decisions still required before production
 
 - Whether customer codes are mandatory and how they are generated.
 - Whether customers/items are shared globally or scoped to a legal entity/brand.
@@ -118,4 +128,4 @@ The server must enforce permissions regardless of whether a UI control is hidden
 - Which tax identifiers and tax rules are required for the actual operating jurisdictions.
 - Which roles may view internal notes and sensitive identifiers.
 
-Do not invent these business/legal settings. Record approved decisions in configuration and tests.
+Do not invent these business/legal settings. Record approved decisions in configuration and tests. The remaining production decisions are the actual legal/tax jurisdiction rules, currency/unit allowlists if needed, and any legal-entity/brand visibility policy.
