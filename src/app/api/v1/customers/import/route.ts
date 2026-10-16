@@ -106,7 +106,7 @@ export async function POST(request:NextRequest){
        payment_terms_days,tax_identifier,notes,is_active,record_version,created_by,updated_by)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,TRUE,1,?,?)`,
      [id,customerCode,input.name,email,phone,input.billingAddress?JSON.stringify(input.billingAddress):null,
-      input.shippingAddress?JSON.stringify(input.shippingAddress):null,input.purchaseOrderReference?.trim()||null,input.paymentTermsDays??0,
+      input.shippingAddress?JSON.stringify(input.shippingAddress):null,input.purchaseOrderReference?.trim()||null,input.paymentTermsDays??null,
       taxIdentifier,input.notes??null,actor.userId,actor.userId]);
     for(const contact of input.contacts??[])await conn.execute(
      "INSERT INTO customer_contacts (id,customer_id,full_name,job_title,email,phone,is_primary) VALUES (?,?,?,?,?,?,?)",
