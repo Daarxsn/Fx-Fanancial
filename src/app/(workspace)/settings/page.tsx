@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent, type Dispatch, type SetStateAction, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type FormEvent, type Dispatch, type SetStateAction, type ReactNode, type CSSProperties } from "react";
 import { Breadcrumbs, Button, Card, EmptyState, InlineAlert, LoadingState, PageHeader, StatusBadge, TextField, TextAreaField, SelectField } from "@/components/ui";
 
 type Entity = {
@@ -57,6 +57,48 @@ function RecordCard({title,subtitle,meta,active,details,actions}:{title:string;s
  return <Card className="config-record-card"><div className="config-record-top"><div className="config-identity-mark"><span>{title.slice(0,1).toUpperCase()}</span></div><div className="config-record-name"><h3>{title}</h3><p>{subtitle}</p>{meta?<small>{meta}</small>:null}</div><StatusBadge tone={active?"success":"neutral"}>{active?"Active":"Inactive"}</StatusBadge></div><div className="config-record-details">{details}</div>{actions?<div className="config-record-bottom"><span/><div className="config-action-row">{actions}</div></div>:null}</Card>;
 }
 function Detail({label,children}:{label:string;children:ReactNode}){return <span><small>{label}</small>{children}</span>}
+function TemplatePreview({config,title,documentType,issuerName}:{config:Record<string,unknown>|null;title:string;documentType:string;issuerName:string}){
+ const accent=typeof config?.accentColor==="string"&&/^#[0-9A-Fa-f]{6}$/.test(config.accentColor)?config.accentColor:"#931314";
+ const pageSize=config?.pageSize==="A5"?"A5":config?.pageSize==="LETTER"?"LETTER":"A4";
+ const orientation=config?.orientation==="LANDSCAPE"?"LANDSCAPE":"PORTRAIT";
+ const showLogo=config?.showLogo!==false,showTax=config?.showTaxBreakdown!==false,showTerms=config?.showPaymentTerms!==false;
+ const showBank=config?.showBankDetails===true,showCustomerTax=config?.showCustomerTaxIdentifier===true,showFooter=config?.showFooter!==false;
+ const footer=typeof config?.footerText==="string"&&config.footerText.trim()?config.footerText:"Footer text configured for this template";
+ const issuer=issuerName.trim()||"Your legal business name";
+ const docLabel=({"INVOICE":"Invoice","CREDIT_NOTE":"Credit note","DEBIT_NOTE":"Debit note","QUOTATION":"Quotation"} as Record<string,string>)[documentType]??"Financial document";
+ return <section className="config-template-preview" aria-label="Live document template preview">
+  <div className="config-template-preview__heading">
+   <div><p className="eyebrow">LIVE PREVIEW</p><h3>{title.trim()||docLabel}</h3><p>Illustrative layout only. No invoice number, customer data, totals or payment instructions are created here.</p></div>
+   <span className="config-template-preview__format">{pageSize} · {orientation}</span>
+  </div>
+  {!config?<div className="config-template-preview__invalid" role="status">Enter valid JSON to preview the template configuration.</div>:
+   <article className={`config-template-paper config-template-paper--${orientation.toLowerCase()}`} style={{"--template-accent":accent} as CSSProperties} aria-label="Illustrative document page">
+    <div className="config-template-paper__accent"/>
+    <header className="config-template-paper__header">
+     {showLogo?<div className="config-template-paper__logo" aria-label="Logo placeholder">{issuer.slice(0,2).toUpperCase()}</div>:null}
+     <div className="config-template-paper__issuer"><strong>{issuer}</strong><span>Registered supplier · Contact and address</span></div>
+     <div className="config-template-paper__document"><small>DOCUMENT PREVIEW</small><h4>{docLabel}</h4><span>NOT ISSUED</span></div>
+    </header>
+    <div className="config-template-paper__identity">
+     <div><small>BILL TO</small><strong>Customer name</strong><span>Billing address and contact</span>{showCustomerTax?<span>Customer tax identifier</span>:null}</div>
+     <div><small>DOCUMENT DETAILS</small><span>Date: Not assigned</span><span>Number: Not allocated</span><span>Currency: As configured</span></div>
+    </div>
+    <table className="config-template-paper__table">
+     <thead><tr><th>Description</th><th>Qty</th><th>Unit price</th><th>Amount</th></tr></thead>
+     <tbody><tr><td>Line item description</td><td>—</td><td>—</td><td>—</td></tr></tbody>
+    </table>
+    <div className="config-template-paper__summary">
+     <div className="config-template-paper__options">
+      {showTerms?<p><strong>Payment terms</strong><span>Configured terms will appear here</span></p>:null}
+      {showBank?<p><strong>Payment instructions</strong><span>Approved payment details placeholder — no bank information is shown in this preview</span></p>:null}
+      {showTax?<p><strong>Tax breakdown</strong><span>Approved tax details are selected for the document date</span></p>:null}
+     </div>
+     <div className="config-template-paper__totals"><span>Subtotal</span><strong>Calculated on issue</strong><span>Tax</span><strong>Calculated on issue</strong><span className="config-template-paper__grand">Total</span><strong className="config-template-paper__grand">Calculated on issue</strong></div>
+    </div>
+    {showFooter?<footer className="config-template-paper__footer">{footer}</footer>:null}
+   </article>}
+ </section>;
+}
 function commaIds(value:string){return value.split(/[\s,]+/).map(v=>v.trim()).filter(Boolean)}
 function compactDate(value:string|null|undefined){return value?String(value).slice(0,10):"Open"}
 
@@ -193,6 +235,8 @@ export default function SettingsPage(){
   setTemplate(templateBlank());
  }
 
+ let templatePreviewConfig:Record<string,unknown>|null=null;
+ try{const parsed:unknown=JSON.parse(String(template.templateConfig));if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))templatePreviewConfig=parsed as Record<string,unknown>}catch{/* Invalid JSON should not be rendered as a document. */}
  const tabs:[Tab,string,string][]=[["company","Company & entities","Legal identities"],["brands","Brands","Commercial identities"],["units","Business units","Organization"],["tax","Tax","Registrations & rules"],["numbering","Numbering series","Fiscal-year rules"],["templates","Templates","Document layout"]];
  if(busy)return <div className="page"><Breadcrumbs items={[{label:"Configure"},{label:"Settings",href:"/settings"},{label:"Company & invoicing"}]}/><PageHeader eyebrow="SETTINGS" title="Company & invoice configuration" description="Legal identity, brand mapping, tax setup, numbering and document templates."/><LoadingState label="Loading configuration…"/></div>;
 
@@ -383,6 +427,7 @@ export default function SettingsPage(){
     </Grid><TextAreaField id="tplConfig" label="Validated template configuration (JSON)" value={String(template.templateConfig)} required onChange={e=>setValue(setTemplate,"templateConfig",e.target.value)} rows={12} hint="Supported keys: pageSize, orientation, layout, accentColor, showLogo, showTaxBreakdown, showBankDetails, showPaymentTerms, showCustomerTaxIdentifier, showFooter, footerText."/>
     <label className="config-checkbox"><input type="checkbox" checked={template.activate===true} onChange={e=>setValue(setTemplate,"activate",e.target.checked)}/><span>Activate now if there is no overlapping active template for this entity/brand/type</span></label>
     <TextField id="tplReason" label="Reason for change" required value={String(template.changeReason)} onChange={e=>setValue(setTemplate,"changeReason",e.target.value)}/><Button type="submit" disabled={saving}>Save template version</Button></form></Card>
+    <TemplatePreview config={templatePreviewConfig} title={String(template.displayName)} documentType={String(template.documentType)} issuerName={entity.displayName}/>
     {templates.filter(t=>t.legalEntityId===entityId).length===0?<EmptyState title="No templates yet" description="An active invoice template is required for readiness." icon="file"/>:<div className="config-record-list">{templates.filter(t=>t.legalEntityId===entityId).map(t=><RecordCard key={t.id} title={t.displayName} subtitle={t.templateKey+" · "+t.documentType} meta={"Version "+t.versionNumber+" · "+(t.brandId?accessibleBrands.find(b=>b.id===t.brandId)?.name??"Brand-specific":"Entity default")} active={t.isActive}
      details={<><Detail label="Page">{String(t.templateConfig.pageSize??"—")+" · "+String(t.templateConfig.orientation??"—")}</Detail><Detail label="Tax breakdown">{t.templateConfig.showTaxBreakdown?"Shown":"Hidden"}</Detail><Detail label="Effective">{compactDate(t.effectiveFrom)+" → "+compactDate(t.effectiveUntil)}</Detail></>}
      actions={<Button size="sm" variant={t.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/document-templates/"+t.id,t.isActive,t.displayName)}>{t.isActive?"Deactivate":"Activate"}</Button>}/>)}</div>}
