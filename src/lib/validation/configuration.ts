@@ -98,6 +98,9 @@ export const brandCreateSchema = z.object({
   changeReason: z.string().trim().min(3).max(1000),
 }).strict().superRefine((value, ctx) => {
   if (value.theme && JSON.stringify(value.theme).length > 32000) ctx.addIssue({ code: "custom", path: ["theme"], message: "Brand theme must be under 32 KB." });
+  if (value.theme?.accentColor !== undefined && (typeof value.theme.accentColor !== "string" || !approvedAccentColors.includes(value.theme.accentColor.toUpperCase() as (typeof approvedAccentColors)[number]))) {
+    ctx.addIssue({ code: "custom", path: ["theme", "accentColor"], message: "Accent must use an approved brand-guide colour." });
+  }
 });
 
 export const brandUpdateSchema = z.object({
@@ -111,6 +114,9 @@ export const brandUpdateSchema = z.object({
   changeReason: z.string().trim().min(3).max(1000),
 }).strict().superRefine((value, ctx) => {
   if (value.theme && JSON.stringify(value.theme).length > 32000) ctx.addIssue({ code: "custom", path: ["theme"], message: "Brand theme must be under 32 KB." });
+  if (value.theme?.accentColor !== undefined && (typeof value.theme.accentColor !== "string" || !approvedAccentColors.includes(value.theme.accentColor.toUpperCase() as (typeof approvedAccentColors)[number]))) {
+    ctx.addIssue({ code: "custom", path: ["theme", "accentColor"], message: "Accent must use an approved brand-guide colour." });
+  }
 });
 
 export const taxRuleCreateSchema = z.object({
@@ -157,7 +163,7 @@ export const documentTemplateConfigSchema = z.object({
   pageSize: z.enum(["A4", "A5", "LETTER"]),
   orientation: z.enum(["PORTRAIT", "LANDSCAPE"]),
   layout: z.enum(["COMPACT", "STANDARD", "DETAILED"]),
-  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  accentColor: z.enum(approvedAccentColors),
   showLogo: z.boolean(),
   showTaxBreakdown: z.boolean(),
   showBankDetails: z.boolean(),
