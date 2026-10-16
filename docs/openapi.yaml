@@ -1678,7 +1678,7 @@ components:
         billingAddress: { type: [object, "null"], additionalProperties: true }
         shippingAddress: { type: [object, "null"], additionalProperties: true }
         purchaseOrderReference: { type: string, maxLength: 160 }
-        paymentTermsDays: { type: integer, minimum: 0, maximum: 365 }
+        paymentTermsDays: { type: [integer, "null"], minimum: 0, maximum: 65535 }
         taxIdentifier: { type: string, maxLength: 100 }
         taxIdentifiers:
           type: array
@@ -1703,7 +1703,7 @@ components:
         billingAddress: { type: [object, "null"], additionalProperties: true }
         shippingAddress: { type: [object, "null"], additionalProperties: true }
         purchaseOrderReference: { type: string, maxLength: 160 }
-        paymentTermsDays: { type: integer, minimum: 0, maximum: 365 }
+        paymentTermsDays: { type: [integer, "null"], minimum: 0, maximum: 65535 }
         taxIdentifier: { type: string, maxLength: 100 }
         taxIdentifiers:
           type: array
@@ -1726,7 +1726,7 @@ components:
         billingAddress: { type: [object, "null"], additionalProperties: true }
         shippingAddress: { type: [object, "null"], additionalProperties: true }
         purchaseOrderReference: { type: [string, "null"] }
-        paymentTermsDays: { type: integer }
+        paymentTermsDays: { type: [integer, "null"] }
         taxIdentifier: { type: [string, "null"] }
         taxIdentifiers:
           type: array
