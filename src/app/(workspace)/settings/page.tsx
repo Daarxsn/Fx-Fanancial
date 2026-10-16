@@ -76,7 +76,7 @@ function TemplatePreview({config,title,documentType,issuerName}:{config:Record<s
    <article className={`config-template-paper config-template-paper--${orientation.toLowerCase()}`} style={{"--template-accent":accent} as CSSProperties} aria-label="Illustrative document page">
     <div className="config-template-paper__accent"/>
     <header className="config-template-paper__header">
-     {showLogo?<div className="config-template-paper__logo" aria-label="Illustrative brand logo"><Image className="config-template-paper__logo-image" src="/brand/falchion-xeniaa-logo.svg" alt="Falchion Xeniaa logo reference; configure the actual issuing brand before activation" width={330} height={165}/></div>:null}
+     {showLogo?<div className="config-template-paper__logo" aria-label="Illustrative brand logo"><Image className="config-template-paper__logo-image" src="/brand/falchion-xeniaa-logo.webp" alt="Falchion Xeniaa logo reference; configure the actual issuing brand before activation" width={300} height={150}/></div>:null}
      <div className="config-template-paper__issuer"><strong>{issuer}</strong><span>Registered supplier · Contact and address</span></div>
      <div className="config-template-paper__document"><small>DOCUMENT PREVIEW</small><h4>{docLabel}</h4><span>NOT ISSUED</span></div>
     </header>
@@ -416,26 +416,26 @@ export default function SettingsPage(){
   </div>:null}
 
   {tab==="templates"?<div className="config-main config-main--full">
-   <Heading label="DOCUMENT PRESENTATION" title="Invoice and document templates" description="Configure versioned document rules and compare them against the uploaded brand samples. A reference image is not an active template or an issued PDF."/>
+   <Heading label="DOCUMENT PRESENTATION" title="Invoice and document templates" description="Configure versioned document rules and compare them against sanitized invoice-layout reconstructions based on the supplied brand samples. Reference artwork is not an active template or an issued PDF."/>
    <section className="config-template-reference" aria-labelledby="config-template-reference-title">
     <div className="config-template-reference__heading">
-     <p className="eyebrow">UPLOADED BRAND ASSETS</p>
-     <h3 id="config-template-reference-title">Approved invoice sample references</h3>
+     <p className="eyebrow">BRAND &amp; TEMPLATE REFERENCES</p>
+     <h3 id="config-template-reference-title">Invoice layout reference reconstructions</h3>
      <p>These editable SVG reference layouts are visual reconstructions guided by your supplied MyFX POS, Digitech and Coworks sample pack. They are shown for design matching only; they are not pixel copies of the source sheets and do not create a configured template, store customer data, allocate a document number or issue an invoice.</p>
     </div>
     <div className="config-template-reference-grid">
      <article className="config-template-reference-card">
-      <div className="config-template-reference-card__brand"><Image src="/brand/myfx-pos.svg" alt="MyFX POS logo" width={820} height={330}/></div>
+      <div className="config-template-reference-card__brand config-template-reference-card__brand--myfx"><Image src="/brand/myfx-pos.webp" alt="MyFX POS logo from supplied brand pack" width={360} height={142}/></div>
       <Image className="config-template-reference-card__image" src="/brand/templates/myfx-pos-sample.svg" alt="MyFX POS invoice reference reconstruction, not issued" width={680} height={962}/>
       <div className="config-template-reference-card__body"><strong>MyFX POS</strong><span>POS invoice layout reconstructed for visual comparison.</span><span className="config-template-reference-card__status">Reference only · not active</span></div>
      </article>
      <article className="config-template-reference-card">
-      <div className="config-template-reference-card__brand"><Image src="/brand/fx-digitech.svg" alt="FX Digitech logo" width={820} height={220}/></div>
+      <div className="config-template-reference-card__brand"><Image src="/brand/fx-digitech.webp" alt="FX Digitech logo from supplied brand pack" width={360} height={94}/></div>
       <Image className="config-template-reference-card__image" src="/brand/templates/digitech-sample.svg" alt="Digitech invoice reference reconstruction, not issued" width={680} height={962}/>
       <div className="config-template-reference-card__body"><strong>Digitech</strong><span>Digital services invoice layout reconstructed for visual comparison.</span><span className="config-template-reference-card__status">Reference only · not active</span></div>
      </article>
      <article className="config-template-reference-card">
-      <div className="config-template-reference-card__brand"><Image src="/brand/fx-coworks.svg" alt="FX Coworks logo" width={640} height={520}/></div>
+      <div className="config-template-reference-card__brand"><Image src="/brand/fx-coworks.webp" alt="FX Coworks logo from supplied brand pack" width={226} height={180}/></div>
       <Image className="config-template-reference-card__image" src="/brand/templates/coworks-sample.svg" alt="Coworks invoice reference reconstruction, not issued" width={680} height={962}/>
       <div className="config-template-reference-card__body"><strong>Coworks</strong><span>Coworking invoice layout reconstructed for visual comparison.</span><span className="config-template-reference-card__status">Reference only · not active</span></div>
      </article>

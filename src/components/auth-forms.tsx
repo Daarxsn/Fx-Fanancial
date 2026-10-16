@@ -52,7 +52,9 @@ export function LoginForm() {
   return (
     <section className="auth-card" aria-labelledby="login-title">
       <div className="auth-card__brand">
-        <Image className="auth-card__logo" src="/brand/falchion-xeniaa-logo.svg" alt="Falchion Xeniaa" width={330} height={165} priority />
+        <span className="auth-card__logo-wrap">
+          <Image className="auth-card__logo" src="/brand/falchion-xeniaa-logo.webp" alt="Falchion Xeniaa" width={300} height={150} priority />
+        </span>
         <span className="auth-card__brand-caption">FINANCE WORKSPACE</span>
       </div>
       <StatusBadge tone="info" icon="lock">Private workspace</StatusBadge>
@@ -153,7 +155,9 @@ export function ActivateForm({ token }: { token: string }) {
   return (
     <section className="auth-card" aria-labelledby="activate-title">
       <div className="auth-card__brand">
-        <Image className="auth-card__logo" src="/brand/falchion-xeniaa-logo.svg" alt="Falchion Xeniaa brand mark reference" width={330} height={165} priority />
+        <span className="auth-card__logo-wrap">
+          <Image className="auth-card__logo" src="/brand/falchion-xeniaa-logo.webp" alt="Falchion Xeniaa brand mark reference" width={300} height={150} priority />
+        </span>
         <span className="auth-card__brand-caption">FINANCE WORKSPACE</span>
       </div>
       <StatusBadge tone="info" icon="shield">Invitation activation</StatusBadge>

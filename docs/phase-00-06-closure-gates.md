@@ -11,14 +11,19 @@ This is the pre-Phase-07 release checklist. Do not use this page to infer busine
 - [x] Administrator bootstrap succeeded and the developer signed in locally.
 - [x] Closure PR #4 merged to `main` as `7b7e591128facbb66beda6cbe4b781e42759d6ff`; post-merge CI and lockfile/bootstrap workflows passed.
 
-## Code/document work merged to main (PR #4)
+## Code/document work merged to main (PRs #4 and #5)
 
 - [x] Align global UI tokens to the uploaded brand guide's primary palette.
-- [x] Add a scalable SVG reconstruction informed by the supplied Falchion Xeniaa logo reference to shell/auth identity.
-- [x] Add scalable SVG reconstructions of MyFX POS, Digitech and Coworks marks and three invoice reference layouts guided by the uploaded assets.
-- [x] Display three SVG invoice-layout reconstructions in Settings as labelled reference-only designs, without auto-activating templates or implying PDF rendering.
-- [x] Replace stale repository audit text with a dated, evidence-bounded audit and document the actual remaining gates.
-- [x] Post-merge CI on `7b7e591128facbb66beda6cbe4b781e42759d6ff` passed: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38884363880) and [lockfile/bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38884364023).
+- [x] Add SVG logo/template reference reconstructions in PR #4; invoice-layout visuals remain reference-only and not active templates.
+- [x] Replace stale repository audit text with a dated, evidence-bounded audit and document remaining gates in PR #4/#5.
+- [x] Post-merge CI and lockfile/bootstrap on `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3` passed: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886347059) and [lockfile/bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886346994).
+
+## Proposed in PR #6 — CI passed on branch, not yet merged
+
+- [x] Use exact supplied WebP exports for Falchion Xeniaa, MyFX POS, FX Digitech and Coworks in the UI; test WebP signatures, paths and expected CSS classes.
+- [x] Keep three invoice-layout SVGs sanitized and reference-only rather than exposing raw sample sheets in `public/`.
+- [ ] Manually inspect desktop/tablet/mobile and light/dark logo sizing in a real browser.
+- [x] PR #6 current CI passed on head `51dced4626dc333158e594160b7e8264d8ddd186`: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38888043868). All four supplied logo WebPs are validated and used in the UI. PR #6 remains open until it is merged; manual browser review still remains.
 
 ## Must remain open until independently verified/approved
 
