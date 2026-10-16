@@ -116,7 +116,7 @@ paths:
       tags: [Customers]
       summary: Retrieve a customer
       operationId: getCustomer
-      x-implementation-status: planned
+      x-implementation-status: implemented
       responses:
         "200":
           description: Customer
@@ -130,7 +130,9 @@ paths:
       tags: [Customers]
       summary: Update an editable customer master record
       operationId: updateCustomer
-      x-implementation-status: planned
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
       requestBody:
         required: true
         content:
@@ -145,6 +147,34 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/customers/{customerId}/archive:
+    parameters:
+      - { $ref: "#/components/parameters/CustomerId" }
+    post:
+      tags: [Customers]
+      summary: Archive a customer without deleting historical references
+      operationId: archiveCustomer
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ArchiveInput" }
+      responses:
+        "200":
+          description: Customer archived and historical references preserved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ArchiveResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationError" }
   /api/v1/catalog/items:
     get:
@@ -197,7 +227,7 @@ paths:
       tags: [Catalog]
       summary: Retrieve a catalog item
       operationId: getCatalogItem
-      x-implementation-status: planned
+      x-implementation-status: implemented
       responses:
         "200":
           description: Catalog item
@@ -211,7 +241,9 @@ paths:
       tags: [Catalog]
       summary: Update catalog master data
       operationId: updateCatalogItem
-      x-implementation-status: planned
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
       requestBody:
         required: true
         content:
@@ -226,6 +258,34 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/catalog/items/{itemId}/archive:
+    parameters:
+      - { $ref: "#/components/parameters/ItemId" }
+    post:
+      tags: [Catalog]
+      summary: Archive an item/service without deleting historical references
+      operationId: archiveCatalogItem
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ArchiveInput" }
+      responses:
+        "200":
+          description: Catalog item archived and historical references preserved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ArchiveResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationError" }
   /api/v1/legal-entities:
     get:
@@ -1477,11 +1537,31 @@ components:
           properties:
             database: { type: string, enum: [ok, error] }
         checkedAt: { type: string, format: date-time }
+    CustomerContactInput:
+      type: object
+      additionalProperties: false
+      required: [fullName]
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 160 }
+        jobTitle: { type: string, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 320 }
+        phone: { type: string, maxLength: 50 }
+        isPrimary: { type: boolean }
+    CustomerTaxIdentifierInput:
+      type: object
+      additionalProperties: false
+      required: [identifierType, identifierValue]
+      properties:
+        identifierType: { type: string, minLength: 1, maxLength: 40 }
+        countryCode: { type: string, pattern: '^[A-Z]{2}$' }
+        jurisdiction: { type: string, maxLength: 120 }
+        identifierValue: { type: string, minLength: 1, maxLength: 160 }
     CustomerInput:
       type: object
       additionalProperties: false
       required: [name]
       properties:
+        customerCode: { type: string, maxLength: 80 }
         name: { type: string, minLength: 1, maxLength: 255 }
         email:
           oneOf:
@@ -1491,46 +1571,73 @@ components:
           oneOf:
             - { type: string, minLength: 1, maxLength: 50 }
             - { type: string, const: "" }
-        billingAddress: { type: object, minProperties: 1, additionalProperties: true }
-        taxIdentifier:
-          oneOf:
-            - { type: string, minLength: 1, maxLength: 100 }
-            - { type: string, const: "" }
+        billingAddress: { type: [object, "null"], additionalProperties: true }
+        shippingAddress: { type: [object, "null"], additionalProperties: true }
+        purchaseOrderReference: { type: string, maxLength: 160 }
+        paymentTermsDays: { type: integer, minimum: 0, maximum: 365 }
+        taxIdentifier: { type: string, maxLength: 100 }
+        taxIdentifiers:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/CustomerTaxIdentifierInput" }
+        contacts:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/CustomerContactInput" }
         notes: { type: string, maxLength: 5000 }
     CustomerUpdateInput:
       type: object
       additionalProperties: false
-      minProperties: 1
+      required: [expectedVersion]
+      minProperties: 2
       properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        customerCode: { type: [string, "null"], maxLength: 80 }
         name: { type: string, minLength: 1, maxLength: 255 }
-        email:
-          oneOf:
-            - { type: string, format: email, minLength: 1, maxLength: 320 }
-            - { type: string, const: "" }
-        phone:
-          oneOf:
-            - { type: string, minLength: 1, maxLength: 50 }
-            - { type: string, const: "" }
-        billingAddress: { type: object, minProperties: 1, additionalProperties: true }
-        taxIdentifier:
-          oneOf:
-            - { type: string, minLength: 1, maxLength: 100 }
-            - { type: string, const: "" }
+        email: { type: string, maxLength: 320 }
+        phone: { type: string, maxLength: 50 }
+        billingAddress: { type: [object, "null"], additionalProperties: true }
+        shippingAddress: { type: [object, "null"], additionalProperties: true }
+        purchaseOrderReference: { type: string, maxLength: 160 }
+        paymentTermsDays: { type: integer, minimum: 0, maximum: 365 }
+        taxIdentifier: { type: string, maxLength: 100 }
+        taxIdentifiers:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/CustomerTaxIdentifierInput" }
+        contacts:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/CustomerContactInput" }
         notes: { type: string, maxLength: 5000 }
     Customer:
       type: object
-      required: [id, name, isActive]
+      required: [id, name, isActive, recordVersion]
       properties:
         id: { $ref: "#/components/schemas/Uuid" }
+        customerCode: { type: [string, "null"] }
         name: { type: string, maxLength: 255 }
-        email: { type: [string, "null"], format: email }
+        email: { type: [string, "null"] }
         phone: { type: [string, "null"] }
         billingAddress: { type: [object, "null"], additionalProperties: true }
+        shippingAddress: { type: [object, "null"], additionalProperties: true }
+        purchaseOrderReference: { type: [string, "null"] }
+        paymentTermsDays: { type: integer }
         taxIdentifier: { type: [string, "null"] }
+        taxIdentifiers:
+          type: array
+          items: { $ref: "#/components/schemas/CustomerTaxIdentifierInput" }
+        contacts:
+          type: array
+          items: { $ref: "#/components/schemas/CustomerContactInput" }
         notes: { type: [string, "null"] }
         isActive: { type: boolean }
+        recordVersion: { type: integer, minimum: 1 }
+        archivedAt: { type: [string, "null"], format: date-time }
+        archiveReason: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+        referenceCounts: { type: object, additionalProperties: { type: integer, minimum: 0 } }
     CustomerResponse:
       type: object
       required: [data, meta]
@@ -1568,12 +1675,11 @@ components:
     CatalogItemUpdateInput:
       type: object
       additionalProperties: false
-      minProperties: 1
+      required: [expectedVersion]
+      minProperties: 2
       properties:
-        itemCode:
-          oneOf:
-            - { type: string, minLength: 1, maxLength: 80 }
-            - { type: string, const: "" }
+        expectedVersion: { type: integer, minimum: 1 }
+        itemCode: { type: string, maxLength: 80 }
         itemType: { type: string, enum: [PRODUCT, SERVICE] }
         name: { type: string, minLength: 1, maxLength: 255 }
         customerDescription: { type: string, minLength: 1, maxLength: 1000 }
@@ -1581,13 +1687,10 @@ components:
         unitCode: { type: string, minLength: 1, maxLength: 40 }
         defaultUnitPrice: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
-        defaultTaxCode:
-          oneOf:
-            - { type: string, minLength: 1, maxLength: 80 }
-            - { type: string, const: "" }
+        defaultTaxCode: { type: string, maxLength: 80 }
     CatalogItem:
       type: object
-      required: [id, itemType, name, customerDescription, unitCode, defaultUnitPrice, currency, isActive]
+      required: [id, itemType, name, customerDescription, unitCode, defaultUnitPrice, currency, isActive, recordVersion]
       properties:
         id: { $ref: "#/components/schemas/Uuid" }
         itemCode: { type: [string, "null"] }
@@ -1600,6 +1703,10 @@ components:
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         defaultTaxCode: { type: [string, "null"] }
         isActive: { type: boolean }
+        recordVersion: { type: integer, minimum: 1 }
+        archivedAt: { type: [string, "null"], format: date-time }
+        archiveReason: { type: [string, "null"] }
+        referenceCounts: { type: object, additionalProperties: { type: integer, minimum: 0 } }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     CatalogItemResponse:
@@ -1615,6 +1722,28 @@ components:
         data:
           type: array
           items: { $ref: "#/components/schemas/CatalogItem" }
+        meta: { $ref: "#/components/schemas/Meta" }
+    ArchiveInput:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion, reason]
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+    ArchiveResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [id, isActive, recordVersion, archivedAt, referenceCounts, message]
+          properties:
+            id: { $ref: "#/components/schemas/Uuid" }
+            isActive: { type: boolean, const: false }
+            recordVersion: { type: integer, minimum: 1 }
+            archivedAt: { type: string, format: date-time }
+            referenceCounts: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+            message: { type: string }
         meta: { $ref: "#/components/schemas/Meta" }
     LegalEntityAddress:
       type: object
