@@ -1,4 +1,4 @@
-> **Phase 01–06 closure pass (2026-10-16):** PR #4 merged to `main` as `7b7e591128facbb66beda6cbe4b781e42759d6ff`; post-merge CI and lockfile/bootstrap workflows passed ([CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38884363880), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38884364023)). Developer-provided evidence confirms development Aiven MySQL TLS/query, migrations 001–010, reference-seed idempotency and both health endpoints. See `docs/repository-audit-phase-00-06.md` for remaining sign-offs and pre-production gates. Do **not** mark the entire product or all phases signed off until the external Phase 02/production gates and documented remaining Phase 04/06 acceptance gates are completed.
+> **Phase 01–06 closure pass (2026-10-16):** PRs #4 and #5 are merged to `main` at `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3`; post-merge CI and lockfile/bootstrap passed ([CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886347059), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886346994)). PR #6 proposes exact corporate/MyFX/Digitech WebPs, corrected branding CSS and stronger UI validation; its CI passed on branch head `4697e05186c36a09e2874b17ac34ae776ca5bc7b` ([CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886989045)) but is not merged yet. Coworks remains reconstructed. Developer-provided evidence confirms development Aiven MySQL TLS/query, migrations 001–010, reference-seed idempotency and both health endpoints. See `docs/repository-audit-phase-00-06.md` for remaining sign-offs and pre-production gates. Do **not** mark all phases signed off until the external Phase 02/production and visual-acceptance gates are completed.
 
 # Phase 00–06 Implementation Tracker
 
@@ -105,7 +105,7 @@ Evidence:
 These are explicit runtime/production gates, not missing design deliverables. Phase 03's stated design completion gate is complete; this sign-off does not claim migration 003 has been applied to Aiven, legacy rows/grants have been reconciled, or planned endpoints are implemented.
 
 ## Phase 04 — Design system and application shell
-- [x] Closure branch integrates scalable SVG reconstructions guided by the uploaded primary Falchion Xeniaa logo, MyFX POS/Digitech/Coworks marks, the official Gold/Saffron Red/Charcoal/Platinum/White palette and three invoice-layout references into the UI/assets.
+- [x] PR #4 established the approved palette and SVG invoice-layout reference designs; PR #6 proposes exact supplied WebPs for Falchion Xeniaa, MyFX POS and FX Digitech with corrected logo sizing/styles. Coworks remains a reconstruction until the exact export is integrated.
 - [ ] Visual acceptance still requires a manual desktop/tablet/mobile browser review after this branch is deployed locally; font network delivery and the final logo contrast/size require that review.
 
 **Foundation completion gate: COMPLETE.** Shared visual language, responsive application shell, reusable UI states and code-level accessibility/responsiveness checks are committed and CI-validated.
@@ -201,7 +201,7 @@ Evidence:
 - Detailed scope and route matrix: `docs/phase-05b-authorization.md`.
 
 ## Phase 06A — Company, Legal Entity & Brand Configuration
-- [x] Closure branch integrates SVG logo variants and reconstructed invoice layout references into the UI without treating reference images as configured templates or assuming legal entity/brand relationships.
+- [x] PR #4 integrated SVG logo/reference layout artwork; PR #6 proposes exact supplied corporate/MyFX/Digitech WebP logos. Invoice reference layouts remain reconstructed/not active, and no brand-to-legal-entity mapping is assumed.
 - [ ] Actual business-approved legal entity values, brand mapping, fonts/hosting choice, active templates and private logo storage remain operator/business sign-offs; sample references are not live PDFs.
 
 - [x] Separate legal entities, commercial brands, and business units in the data model; brand/entity mappings are explicit.
@@ -212,7 +212,7 @@ Evidence:
 - [x] Record change reason and safe before/after state in audit events; append version snapshots on configuration edits.
 - [x] Preserve old brand/business-unit mappings as effective-dated history instead of deleting them.
 - [x] Add CI acceptance coverage for bank masking, finance-only bank changes, version/audit history, mapping-history retention and legal-entity scope isolation.
-- [x] Phase 6A main-branch CI passes after merge and follow-up state-transition/security regression coverage; current main validation: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38851520923 (commit `192afc13f4948c4c963f9f958da10eee183e196e`).
+- [x] Main-branch CI and lockfile/bootstrap passed after PR #5 merge at `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3`: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886347059), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886346994). PR #6's logo/CSS/UI-validator changes passed CI on branch head `4697e05186c36a09e2874b17ac34ae776ca5bc7b`: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886989045); still awaiting merge at this audit.
 - [ ] Business owner confirms actual legal identities, bank values, and brand/entity relationships; production setup must not use CI/sample fixtures.
 
 ## Phase 06B — Tax, Invoice Numbering & Document Configuration

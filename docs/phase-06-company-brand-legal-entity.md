@@ -1,6 +1,6 @@
 # Phase 06A — Company, Legal Entity and Brand Configuration
 
-**Status:** Phase 06A/06B is merged into `main` through PR #2 (merge commit `16d3694`). Follow-up correctness fixes and regression tests are also being committed to `main`; confirm the latest `main` CI result before treating the phase as complete. Business-owner sign-off remains required. Do not treat sample values or proposed records as real company/tax information.
+**Status:** Phase 06A/06B implementation and regression fixes are merged into `main`; the post-merge CI and lockfile/bootstrap workflows passed on `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3` (CI run `38886347059`, bootstrap run `38886346994`). PR #6 adds exact logo exports and fixes logo CSS; its CI passed on head `4697e05186c36a09e2874b17ac34ae776ca5bc7b`, but it is not yet merged at the time of this note. Business-owner sign-off remains required. Do not treat sample values or proposed records as real company/tax information.
 
 ## Core distinction
 
@@ -117,18 +117,17 @@ Real tax values, registration numbers, numbering decisions, finance/tax approval
 
 ## Brand asset integration audit (2026-10-16)
 
-The uploaded **FX Brand Guidelines** and image packs have now been converted into scalable SVG reconstructions under `public/brand/` on `main` in merge commit `7b7e591128facbb66beda6cbe4b781e42759d6ff` (PR #4):
+PR #4 added reconstructed SVG logo/template references to `main` at `7b7e591128facbb66beda6cbe4b781e42759d6ff`. PR #6 adds the exact supplied WebP exports for Falchion Xeniaa, MyFX POS and FX Digitech to the UI on branch `phase-01-06-visual-fidelity`; these exact exports are not yet on `main` until PR #6 merges:
 
-- `falchion-xeniaa-logo.svg` — primary application lockup.
-- `myfx-pos.svg`, `fx-digitech.svg`, `fx-coworks.svg` — product/brand logo variants from the supplied logo packs.
-- `templates/myfx-pos-sample.svg`, `templates/digitech-sample.svg`, `templates/coworks-sample.svg` — reconstructed invoice reference layouts guided by the uploaded sample sheets displayed in Settings for comparison.
+- `falchion-xeniaa-logo.webp`, `myfx-pos.webp`, `fx-digitech.webp` — exact supplied transparent logo exports proposed for live shell/auth/header use in PR #6.
+- `fx-coworks.svg` and the three SVG invoice layouts — reconstructed reference art; Coworks' exact export remains an open item.
 
-The shell, login/activation identity and illustrative Settings preview use an SVG reconstruction guided by the official company logo reference, not an exact raster/vector copy. The Templates tab presents the three uploaded samples as **reference artwork**, labeled not-active. Sample art is not an effective-dated template record, is not assumed to be mapped to any particular legal entity, and does not imply that PDF rendering, secure storage, downloading or email delivery has been implemented. A finance/business owner still needs to approve the entity/brand mapping and actual production template configuration.
+With PR #6, the shell, login/activation identity and illustrative Settings preview use the exact supplied corporate WebP export; MyFX POS and FX Digitech logo headers also use their exact supplied exports. Coworks remains reconstructed. The Templates tab presents sanitized SVG layout reconstructions as **reference artwork**, labelled not active. They are not effective-dated template records, are not assumed to map to any particular legal entity, and do not imply PDF rendering, secure storage, download or email delivery. A finance/business owner still needs to approve entity/brand mapping and actual production template configuration.
 
 The CSS design tokens use the official guide's Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5`, and White `#FFFFFF`. Sansation/Open Sans web fonts are requested from Google Fonts with local system fallbacks; the repository does not currently contain self-hosted font binaries.
 
 
-**Fidelity note:** the committed SVG mark/logo lockups and invoice reference layouts are reconstructions informed by the uploaded library files. The exact original logo/sample files have not been embedded as binary assets in this branch. Compare with the originals and replace with approved exact artwork if pixel-identical production branding is required. The templates remain reference-only; PDF rendering/storage/delivery is still a separate feature gate.
+**Fidelity note:** the exact supplied corporate, MyFX POS and Digitech logo WebP exports are proposed on PR #6; Coworks remains an SVG reconstruction. The invoice reference layouts are sanitized reconstructions, not pixel-identical copies of the original invoice sample sheets. The templates remain reference-only; PDF rendering/storage/delivery is still a separate feature gate.
 
 
 ### Supplied logo export fidelity follow-up (2026-10-16)
