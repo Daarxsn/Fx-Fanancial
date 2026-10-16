@@ -6,6 +6,10 @@ import { Button, InlineAlert, StatusBadge } from "@/components/ui";
 type Resource = "customers" | "catalog";
 type Row = Record<string, unknown> & { id: string; recordVersion?: number; isActive?: boolean };
 type Permissions = string[];
+type ContactDraft = { fullName: string; jobTitle: string; email: string; phone: string };
+type TaxDraft = { identifierType: string; countryCode: string; jurisdiction: string; identifierValue: string };
+const emptyContact = (): ContactDraft => ({fullName:"",jobTitle:"",email:"",phone:""});
+const emptyTax = (): TaxDraft => ({identifierType:"OTHER",countryCode:"",jurisdiction:"",identifierValue:""});
 type ApiPayload = { data?: unknown; error?: { code?: string; message?: string; fields?: Record<string,string> }; duplicateWarnings?: Array<{id:string;name:string;itemCode?:string|null;customerCode?:string|null;matchOn?:string[]}>; meta?: { pagination?: { limit:number; offset:number; total:number; hasMore:boolean } } };
 type FieldConfig = { key:string; label:string; type?:"text"|"email"|"number"|"textarea"; required?:boolean; placeholder?:string; help?:string };
 const customerFields: FieldConfig[] = [
@@ -28,8 +32,7 @@ const catalogFields: FieldConfig[] = [
 const emptyForm = (resource:Resource):Record<string,string> => resource==="customers"
   ? {customerCode:"",name:"",email:"",phone:"",purchaseOrderReference:"",paymentTermsDays:"0",taxIdentifier:"",
      billLine1:"",billLine2:"",billCity:"",billState:"",billPostalCode:"",billCountryCode:"",
-     shipLine1:"",shipLine2:"",shipCity:"",shipState:"",shipPostalCode:"",shipCountryCode:"",
-     contactName:"",contactTitle:"",contactEmail:"",contactPhone:"",taxType:"",taxCountryCode:"",taxJurisdiction:"",taxValue:""}
+     shipLine1:"",shipLine2:"",shipCity:"",shipState:"",shipPostalCode:"",shipCountryCode:"",notes:""}
   : {itemCode:"",itemType:"SERVICE",name:"",customerDescription:"",internalDescription:"",unitCode:"unit",
      defaultUnitPrice:"0.0000",currency:"INR",defaultTaxCode:""};
 function str(value:unknown):string { return typeof value==="string"||typeof value==="number" ? String(value) : ""; }
@@ -51,10 +54,7 @@ function recordToForm(resource:Resource,record:Row):Record<string,string>{
     for(const [from,to] of [["line1","Line1"],["line2","Line2"],["city","City"],["state","State"],["postalCode","PostalCode"],["countryCode","CountryCode"]] as const)
       form[prefix+to]=addressValue(record,key,from);
   }
-  const contact=Array.isArray(record.contacts)?obj(record.contacts.find(x=>Boolean(obj(x).isPrimary))??record.contacts[0]):{};
-  form.contactName=str(contact.fullName);form.contactTitle=str(contact.jobTitle);form.contactEmail=str(contact.email);form.contactPhone=str(contact.phone);
-  const tax=Array.isArray(record.taxIdentifiers)?obj(record.taxIdentifiers[0]):{};
-  form.taxType=str(tax.identifierType);form.taxCountryCode=str(tax.countryCode);form.taxJurisdiction=str(tax.jurisdiction);form.taxValue=str(tax.identifierValue);
+  form.notes=str(record.notes);
   return form;
 }
 function fieldControl(field:FieldConfig,value:string,onChange:(value:string)=>void){
@@ -77,6 +77,8 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
  const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [error,setError]=useState("");
  const [success,setSuccess]=useState("");const [warnings,setWarnings]=useState<ApiPayload["duplicateWarnings"]>([]);
  const [form,setForm]=useState<Record<string,string>>(emptyForm(resource));
+ const [contactDrafts,setContactDrafts]=useState<ContactDraft[]>([emptyContact()]);
+ const [taxDrafts,setTaxDrafts]=useState<TaxDraft[]>([emptyTax()]);
  const [editorOpen,setEditorOpen]=useState(false);const [editing,setEditing]=useState<Row|null>(null);
  const [detail,setDetail]=useState<Row|null>(null);const [detailLoading,setDetailLoading]=useState(false);
  const [archiveTarget,setArchiveTarget]=useState<Row|null>(null);const [archiveReason,setArchiveReason]=useState("");
@@ -108,7 +110,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
  },[basePath,deferredQuery,status,offset,request]);
  useEffect(()=>{Promise.resolve().then(()=>refresh());},[refresh]);
 
- const openCreate=()=>{setEditing(null);setForm(emptyForm(resource));setWarnings([]);setError("");setSuccess("");setDetail(null);setEditorOpen(true);};
+ const openCreate=()=>{setEditing(null);setForm(emptyForm(resource));setContactDrafts([emptyContact()]);setTaxDrafts([emptyTax()]);setWarnings([]);setError("");setSuccess("");setDetail(null);setEditorOpen(true);};
  const openDetails=async(id:string)=>{
   setDetailLoading(true);setError("");
   try{const r=await request(basePath+"/"+id);if(!r.response.ok)throw new Error(r.body.error?.message??"Could not load record.");setDetail(obj(r.body.data) as Row);}
@@ -118,7 +120,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
  const openEdit=async(row:Row)=>{
   setSaving(true);setError("");setWarnings([]);
   try{const r=await request(basePath+"/"+row.id);if(!r.response.ok)throw new Error(r.body.error?.message??"Could not load record to edit.");
-   const full=obj(r.body.data) as Row;setDetail(full);setEditing(full);setForm(recordToForm(resource,full));setEditorOpen(true);setSuccess("");
+   const full=obj(r.body.data) as Row;setDetail(full);setEditing(full);setForm(recordToForm(resource,full));\n   setContactDrafts(resource==="customers"&&Array.isArray(full.contacts)&&full.contacts.length?full.contacts.map(v=>({fullName:str(obj(v).fullName),jobTitle:str(obj(v).jobTitle),email:str(obj(v).email),phone:str(obj(v).phone)})):[emptyContact()]);\n   setTaxDrafts(resource==="customers"&&Array.isArray(full.taxIdentifiers)&&full.taxIdentifiers.length?full.taxIdentifiers.map(v=>({identifierType:str(obj(v).identifierType)||"OTHER",countryCode:str(obj(v).countryCode),jurisdiction:str(obj(v).jurisdiction),identifierValue:str(obj(v).identifierValue)})):[emptyTax()]);setEditorOpen(true);setSuccess("");
   }catch(e){setError(e instanceof Error?e.message:"Could not load record.");}
   finally{setSaving(false);}
  };
@@ -137,11 +139,12 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
   try{
    let payload:Record<string,unknown>;
    if(resource==="customers"){
-    const contacts=form.contactName.trim()?[{fullName:form.contactName.trim(),jobTitle:form.contactTitle.trim(),email:form.contactEmail.trim(),phone:form.contactPhone.trim(),isPrimary:true}]:[];
-    const taxIdentifiers=form.taxValue.trim()?[{identifierType:form.taxType.trim()||"OTHER",countryCode:form.taxCountryCode.trim().toUpperCase(),jurisdiction:form.taxJurisdiction.trim(),identifierValue:form.taxValue.trim()}]:[];
+    const contacts=contactDrafts.filter(v=>v.fullName.trim()).map((v,i)=>({fullName:v.fullName.trim(),jobTitle:v.jobTitle.trim(),email:v.email.trim(),phone:v.phone.trim(),isPrimary:i===0}));
+    const taxIdentifiers=taxDrafts.filter(v=>v.identifierValue.trim()).map(v=>({identifierType:v.identifierType.trim()||"OTHER",countryCode:v.countryCode.trim().toUpperCase(),jurisdiction:v.jurisdiction.trim(),identifierValue:v.identifierValue.trim()}));
     payload={customerCode:form.customerCode.trim(),name:form.name.trim(),email:form.email.trim(),phone:form.phone.trim(),
       purchaseOrderReference:form.purchaseOrderReference.trim(),paymentTermsDays:Number(form.paymentTermsDays||0),
       taxIdentifier:form.taxIdentifier.trim(),contacts,taxIdentifiers};
+    if(permissions.includes("settings:manage"))payload.notes=form.notes;
     const billingAddress=makeAddress(form,"bill");const shippingAddress=makeAddress(form,"ship");
     if(billingAddress)payload.billingAddress=billingAddress;else if(editing)payload.billingAddress=null;
     if(shippingAddress)payload.shippingAddress=shippingAddress;else if(editing)payload.shippingAddress=null;
@@ -230,12 +233,20 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
      <fieldset className="master-data-fieldset"><legend>Shipping / service address (optional)</legend><div className="master-data-form-grid">
       {([["shipLine1","Address line 1"],["shipLine2","Address line 2"],["shipCity","City"],["shipState","State / province"],["shipPostalCode","Postal code"],["shipCountryCode","Country code"]] as const).map(([key,label])=><div className="form-field" key={key}><label className="form-label" htmlFor={key}>{label}</label><input className="form-control" id={key} value={form[key]} onChange={e=>setForm(p=>({...p,[key]:e.target.value}))} maxLength={255}/></div>)}
      </div></fieldset>
-     <fieldset className="master-data-fieldset"><legend>Primary contact (optional)</legend><div className="master-data-form-grid">
-      {([["contactName","Full name"],["contactTitle","Job title"],["contactEmail","Email"],["contactPhone","Phone"]] as const).map(([key,label])=><div className="form-field" key={key}><label className="form-label" htmlFor={key}>{label}</label><input className="form-control" id={key} type={key==="contactEmail"?"email":"text"} value={form[key]} onChange={e=>setForm(p=>({...p,[key]:e.target.value}))} maxLength={320}/></div>)}
-     </div><p className="form-hint">Additional contacts and tax identifiers are supported by the protected API; this form currently edits one primary contact and one supplemental tax identifier at a time.</p></fieldset>
-     <fieldset className="master-data-fieldset"><legend>Additional tax identifier (optional)</legend><div className="master-data-form-grid">
-      {([["taxType","Identifier type"],["taxCountryCode","Country code"],["taxJurisdiction","Jurisdiction"],["taxValue","Identifier value"]] as const).map(([key,label])=><div className="form-field" key={key}><label className="form-label" htmlFor={key}>{label}</label><input className="form-control" id={key} value={form[key]} onChange={e=>setForm(p=>({...p,[key]:e.target.value}))}/></div>)}
-     </div></fieldset>
+     <fieldset className="master-data-fieldset"><legend>Contacts (optional)</legend>
+      {contactDrafts.map((contact,index)=><div className="master-data-child-editor" key={index}><div className="master-data-child-editor__heading"><strong>{index===0?"Primary contact":`Contact ${index+1}`}</strong>{contactDrafts.length>1?<Button size="sm" variant="ghost" type="button" onClick={()=>setContactDrafts(rows=>rows.filter((_,i)=>i!==index))}>Remove</Button>:null}</div><div className="master-data-form-grid">
+       {([["fullName","Full name"],["jobTitle","Job title"],["email","Email"],["phone","Phone"]] as const).map(([key,label])=><div className="form-field" key={key}><label className="form-label" htmlFor={`contact-${index}-${key}`}>{label}{key==="fullName"?" (required for contact)":""}</label><input className="form-control" id={`contact-${index}-${key}`} type={key==="email"?"email":"text"} value={contact[key]} onChange={e=>setContactDrafts(rows=>rows.map((row,i)=>i===index?{...row,[key]:e.target.value}:row))} maxLength={key==="fullName"?160:key==="email"?320:160}/></div>)}
+      </div></div>)}
+      <Button variant="secondary" size="sm" type="button" disabled={contactDrafts.length>=30} onClick={()=>setContactDrafts(rows=>[...rows,emptyContact()])}>+ Add contact</Button>
+     </fieldset>
+     <fieldset className="master-data-fieldset"><legend>Tax identifiers (optional)</legend>
+      {taxDrafts.map((tax,index)=><div className="master-data-child-editor" key={index}><div className="master-data-child-editor__heading"><strong>Tax identifier {index+1}</strong>{taxDrafts.length>1?<Button size="sm" variant="ghost" type="button" onClick={()=>setTaxDrafts(rows=>rows.filter((_,i)=>i!==index))}>Remove</Button>:null}</div><div className="master-data-form-grid">
+       {([["identifierType","Identifier type"],["countryCode","Country code"],["jurisdiction","Jurisdiction"],["identifierValue","Identifier value"]] as const).map(([key,label])=><div className="form-field" key={key}><label className="form-label" htmlFor={`tax-${index}-${key}`}>{label}</label><input className="form-control" id={`tax-${index}-${key}`} value={tax[key]} onChange={e=>setTaxDrafts(rows=>rows.map((row,i)=>i===index?{...row,[key]:e.target.value}:row))} maxLength={key==="identifierValue"?160:120} /></div>)}
+      </div></div>)}
+      <Button variant="secondary" size="sm" type="button" disabled={taxDrafts.length>=30} onClick={()=>setTaxDrafts(rows=>[...rows,emptyTax()])}>+ Add tax identifier</Button>
+      <p className="form-hint">Values are stored as supplied, with a normalized matching key. This does not verify legal registration or tax validity.</p>
+     </fieldset>
+     {permissions.includes("settings:manage")?<div className="form-field form-field--wide"><label className="form-label" htmlFor="customerNotes">Internal notes (restricted)</label><textarea id="customerNotes" className="form-control form-control--textarea" maxLength={5000} value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))}/><p className="form-hint">Finance/settings administrators only. Internal notes must not appear on customer-facing documents by default.</p></div>:null}
     </div>}
     <div className="master-data-form-actions"><Button variant="secondary" type="button" disabled={saving} onClick={()=>setEditorOpen(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving?"Saving…":editing?"Save changes":"Create record"}</Button></div>
    </form>
