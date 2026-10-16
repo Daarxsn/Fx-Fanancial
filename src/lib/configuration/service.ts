@@ -126,36 +126,64 @@ export async function assertEntityScope(actor: { legalEntityIds: string[] }, leg
   }
 }
 
+/** Calendar date for readiness checks, using the entity's configured IANA timezone.
+ * Unconfigured entities follow the product default, Asia/Kolkata. Invalid configured zones
+ * return null so readiness can fail closed rather than silently using the server's date.
+ */
+export function calendarDateInTimeZone(timeZone: string | null | undefined, now = new Date()): string | null {
+  const zone = timeZone?.trim() || "Asia/Kolkata";
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(now);
+    const read = (type: "year" | "month" | "day") => parts.find((part) => part.type === type)?.value ?? "";
+    const value = `${read("year")}-${read("month")}-${read("day")}`;
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function readinessForEntity(legalEntityId: string) {
   const entity = await loadEntityFromPool(legalEntityId);
   if (!entity) return { legalEntityId, ready: false, checks: [{ key: "entity", passed: false, message: "Legal entity was not found or is outside the available scope." }] };
+
+  const configuredBusinessDate = calendarDateInTimeZone(entity.time_zone);
+  const fallbackBusinessDate = calendarDateInTimeZone("Asia/Kolkata");
+  const effectiveDate = configuredBusinessDate ?? fallbackBusinessDate;
+  if (effectiveDate === null) {
+    return { legalEntityId, ready: false, checks: [{ key: "businessDate", passed: false, message: "The business date could not be calculated." }] };
+  }
+
   const address = jsonValue(entity.address_json);
   const checks: { key: string; passed: boolean; message: string }[] = [
     { key: "active", passed: Boolean(entity.is_active), message: "Legal entity must be active." },
     { key: "legalName", passed: Boolean(entity.legal_name.trim()), message: "Legal supplier name is required." },
     { key: "address", passed: Boolean(address.line1 && address.city && address.postalCode && address.countryCode && entity.country_code), message: "Registered address must include line 1, city, postal code, and country." },
     { key: "currency", passed: /^[A-Z]{3}$/.test(entity.currency), message: "An explicit document currency must be configured." },
+    { key: "businessDate", passed: configuredBusinessDate !== null, message: "The configured business timezone must be valid to evaluate effective-dated settings." },
     { key: "taxApproval", passed: entity.tax_setup_status !== "UNCONFIGURED" && Boolean(entity.tax_setup_approval_reference) && Boolean(entity.tax_setup_approved_by) && Boolean(entity.tax_setup_approved_at), message: "Tax setup must have a recorded finance approver, timestamp and approval reference, including an explicit not-applicable decision where appropriate." },
   ];
+
   const [versionRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     "SELECT COUNT(*) AS n FROM legal_entity_config_versions WHERE legal_entity_id = ?", [legalEntityId]);
   checks.push({ key: "configurationVersion", passed: Number(versionRows[0]?.n ?? 0) > 0, message: "An initial versioned configuration snapshot must be recorded before issuance." });
-  // A rule and a registration in unrelated jurisdictions do not form a usable tax setup.
-  // Readiness should agree with the line-level jurisdiction checks used during issuance.
+
+  // A rule and registration in unrelated jurisdictions do not form a usable tax setup.
   const [compatibleTaxRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     `SELECT COUNT(*) AS n
        FROM tax_rules r
       WHERE r.legal_entity_id = ? AND r.is_active = TRUE AND r.approved_at IS NOT NULL
-        AND r.approval_reference IS NOT NULL AND r.effective_from <= CURRENT_DATE()
-        AND (r.effective_until IS NULL OR r.effective_until >= CURRENT_DATE())
+        AND r.approval_reference IS NOT NULL AND r.effective_from <= ?
+        AND (r.effective_until IS NULL OR r.effective_until >= ?)
         AND EXISTS (
           SELECT 1 FROM legal_entity_tax_registrations tr
            WHERE tr.legal_entity_id = r.legal_entity_id
              AND LOWER(TRIM(tr.jurisdiction)) = LOWER(TRIM(r.jurisdiction))
              AND tr.is_active = TRUE AND tr.approved_at IS NOT NULL AND tr.approval_reference IS NOT NULL
-             AND tr.effective_from <= CURRENT_DATE()
-             AND (tr.effective_until IS NULL OR tr.effective_until >= CURRENT_DATE())
-        )`, [legalEntityId]);
+             AND tr.effective_from <= ?
+             AND (tr.effective_until IS NULL OR tr.effective_until >= ?)
+        )`, [legalEntityId, effectiveDate, effectiveDate, effectiveDate, effectiveDate]);
   const hasCompatibleTaxAndRegistration = Number(compatibleTaxRows[0]?.n ?? 0) > 0;
   checks.push({
     key: "taxRules",
@@ -163,36 +191,40 @@ export async function readinessForEntity(legalEntityId: string) {
       (entity.tax_setup_status === "APPROVED_CONFIGURED" && hasCompatibleTaxAndRegistration),
     message: "Approved tax setup requires an effective approved tax rule paired with an approved registration for the same jurisdiction, or an explicitly approved not-applicable decision.",
   });
+
   if (entity.default_tax_code && entity.tax_setup_status === "APPROVED_CONFIGURED") {
     const [defaultTaxRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
       `SELECT COUNT(*) AS n
          FROM tax_rules r
         WHERE r.legal_entity_id = ? AND r.tax_code = ? AND r.is_active = TRUE
           AND r.approved_at IS NOT NULL AND r.approval_reference IS NOT NULL
-          AND r.effective_from <= CURRENT_DATE()
-          AND (r.effective_until IS NULL OR r.effective_until >= CURRENT_DATE())
+          AND r.effective_from <= ?
+          AND (r.effective_until IS NULL OR r.effective_until >= ?)
           AND EXISTS (
             SELECT 1 FROM legal_entity_tax_registrations tr
              WHERE tr.legal_entity_id = r.legal_entity_id
                AND LOWER(TRIM(tr.jurisdiction)) = LOWER(TRIM(r.jurisdiction))
                AND tr.is_active = TRUE AND tr.approved_at IS NOT NULL AND tr.approval_reference IS NOT NULL
-               AND tr.effective_from <= CURRENT_DATE()
-               AND (tr.effective_until IS NULL OR tr.effective_until >= CURRENT_DATE())
-          )`, [legalEntityId, entity.default_tax_code]);
+               AND tr.effective_from <= ?
+               AND (tr.effective_until IS NULL OR tr.effective_until >= ?)
+          )`, [legalEntityId, entity.default_tax_code, effectiveDate, effectiveDate, effectiveDate, effectiveDate]);
     checks.push({ key: "defaultTaxCode", passed: Number(defaultTaxRows[0]?.n ?? 0) === 1,
-      message: "The configured default tax code must resolve to exactly one active, approved tax rule with a matching approved registration for the same jurisdiction." });
+      message: "The configured default tax code must resolve to exactly one active, approved, effective tax rule with a matching approved registration for the same jurisdiction." });
   }
+
   const [numberingRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     `SELECT COUNT(*) AS n FROM invoice_numbering_configs
-      WHERE legal_entity_id = ? AND document_type = 'INVOICE' AND is_active = TRUE AND effective_from <= CURRENT_DATE()
-        AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())
-        AND approval_reference IS NOT NULL`, [legalEntityId]);
+      WHERE legal_entity_id = ? AND document_type = 'INVOICE' AND is_active = TRUE AND effective_from <= ?
+        AND (effective_until IS NULL OR effective_until >= ?)
+        AND approval_reference IS NOT NULL`, [legalEntityId, effectiveDate, effectiveDate]);
   checks.push({ key: "numbering", passed: Number(numberingRows[0]?.n ?? 0) === 1, message: "Exactly one active, approved invoice numbering series must be effective." });
+
   const [templateRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     `SELECT COUNT(*) AS n FROM invoice_document_templates
       WHERE legal_entity_id = ? AND brand_id IS NULL AND document_type = 'INVOICE' AND is_active = TRUE
-        AND effective_from <= CURRENT_DATE() AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())`, [legalEntityId]);
+        AND effective_from <= ? AND (effective_until IS NULL OR effective_until >= ?)`, [legalEntityId, effectiveDate, effectiveDate]);
   checks.push({ key: "invoiceTemplate", passed: Number(templateRows[0]?.n ?? 0) === 1, message: "Exactly one active invoice template must be effective today." });
+
   return { legalEntityId, ready: checks.every((check) => check.passed), checks };
 }
 
