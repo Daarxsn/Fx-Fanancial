@@ -449,10 +449,16 @@ try {
     method: "POST",
     body: JSON.stringify({ name: "Phase 6A Test Brand " + suffix, code: brandCode,
       description: "CI-only commercial brand", logoReference: "asset://phase6a/brand",
-      theme: { accent: "#b51f32", style: "ci" }, defaultTemplateKey: "STANDARD",
+      theme: { accentColor: "#DCAF51", presentationStyle: "STANDARD" }, defaultTemplateKey: "STANDARD",
       legalEntityIds: [entityA.id], changeReason: "Phase 6A brand creation fixture" }),
   }, phase6aSession.jar);
   assert.equal(brandCreated.response.status, 201, "brand creation with explicit entity mapping should succeed: " + JSON.stringify(brandCreated.body?.error ?? null));
+  const invalidBrandAccent = await call("/api/v1/brands", {
+    method: "POST",
+    body: JSON.stringify({ name: "Invalid Accent Brand " + suffix, code: "BADACC-" + suffix.toUpperCase(),
+      theme: { accentColor: "#123456" }, legalEntityIds: [entityA.id], changeReason: "Reject an accent outside the approved palette" }),
+  }, phase6aSession.jar);
+  assert.equal(invalidBrandAccent.response.status, 422, "brand creation must reject unapproved brand-guide accent colours");
   const brandId = brandCreated.body.data.id;
   const brandMoved = await call("/api/v1/brands/" + brandId, {
     method: "PATCH",
