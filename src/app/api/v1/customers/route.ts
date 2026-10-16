@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     const [rows] = await pool.query<(RowDataPacket & {
       id:string;customer_code:string|null;name:string;email:string|null;phone:string|null;
       billing_address_json:unknown;shipping_address_json:unknown;purchase_order_reference:string|null;
-      payment_terms_days:number;tax_identifier:string|null;is_active:number;record_version:number;
+      payment_terms_days:number|null;tax_identifier:string|null;is_active:number;record_version:number;
       archived_at:Date|null;created_at:Date;updated_at:Date;
     })[]>(
       `SELECT c.id,c.customer_code,c.name,c.email,c.phone,c.billing_address_json,c.shipping_address_json,
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       data: rows.map(row => ({
         id:row.id,customerCode:row.customer_code,name:row.name,email:row.email,phone:row.phone,
         billingAddress:parseJson(row.billing_address_json),shippingAddress:parseJson(row.shipping_address_json),
-        purchaseOrderReference:row.purchase_order_reference,paymentTermsDays:Number(row.payment_terms_days),
+        purchaseOrderReference:row.purchase_order_reference,paymentTermsDays:row.payment_terms_days===null?null:Number(row.payment_terms_days),
         ...(canReadSensitive ? { taxIdentifier:row.tax_identifier } : {}),isActive:Boolean(row.is_active),recordVersion:Number(row.record_version),
         archivedAt:row.archived_at,createdAt:row.created_at,updatedAt:row.updated_at,
       })),
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     } finally { connection.release(); }
     return jsonNoStore({data:{
       id,customerCode,name:parsed.name,email,phone,billingAddress:parsed.billingAddress??null,shippingAddress:parsed.shippingAddress??null,
-      purchaseOrderReference:parsed.purchaseOrderReference?.trim()||null,paymentTermsDays:parsed.paymentTermsDays??0,
+      purchaseOrderReference:parsed.purchaseOrderReference?.trim()||null,paymentTermsDays:parsed.paymentTermsDays??null,
       taxIdentifier,contacts:(parsed.contacts??[]).map(c=>({...c,email:c.email?.trim().toLowerCase()||null})),
       taxIdentifiers:(parsed.taxIdentifiers??[]).map(t=>({...t,normalizedIdentifier:normalizeIdentifier(t.identifierValue)})),
       isActive:true,recordVersion:1,
