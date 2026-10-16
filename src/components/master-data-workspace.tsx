@@ -21,7 +21,7 @@ const customerFields: FieldConfig[] = [
   {key:"email",label:"Billing email",type:"email"},
   {key:"phone",label:"Phone"},
   {key:"purchaseOrderReference",label:"Default PO / reference"},
-  {key:"paymentTermsDays",label:"Payment terms (days)",type:"number",help:"A default for new drafts, not a payment guarantee."},
+  {key:"paymentTermsDays",label:"Payment terms (days)",type:"number",help:"Leave blank until approved terms are configured; 0 means due immediately."},
   {key:"taxIdentifier",label:"Primary tax identifier",help:"Legacy primary identifier; registration validity is not inferred."},
 ];
 const catalogFields: FieldConfig[] = [
@@ -29,15 +29,15 @@ const catalogFields: FieldConfig[] = [
   {key:"name",label:"Item / service name",required:true},
   {key:"unitCode",label:"Unit of measure",required:true,placeholder:"unit, hour, month…"},
   {key:"defaultUnitPrice",label:"Default unit price",required:true,help:"Exact decimal, up to four fractional digits."},
-  {key:"currency",label:"Currency (ISO 4217)",required:true,placeholder:"INR"},
+  {key:"currency",label:"Currency (ISO 4217)",required:true,placeholder:"Approved currency code"},
   {key:"defaultTaxCode",label:"Default tax code",help:"A code from approved configuration only; no rate is inferred."},
 ];
 const emptyForm = (resource:Resource):Record<string,string> => resource==="customers"
-  ? {customerCode:"",name:"",email:"",phone:"",purchaseOrderReference:"",paymentTermsDays:"0",taxIdentifier:"",
+  ? {customerCode:"",name:"",email:"",phone:"",purchaseOrderReference:"",paymentTermsDays:"",taxIdentifier:"",
      billLine1:"",billLine2:"",billCity:"",billState:"",billPostalCode:"",billCountryCode:"",
      shipLine1:"",shipLine2:"",shipCity:"",shipState:"",shipPostalCode:"",shipCountryCode:"",notes:""}
-  : {itemCode:"",itemType:"SERVICE",name:"",customerDescription:"",internalDescription:"",unitCode:"unit",
-     defaultUnitPrice:"0.0000",currency:"INR",defaultTaxCode:""};
+  : {itemCode:"",itemType:"",name:"",customerDescription:"",internalDescription:"",unitCode:"",
+     defaultUnitPrice:"",currency:"",defaultTaxCode:""};
 function str(value:unknown):string { return typeof value==="string"||typeof value==="number" ? String(value) : ""; }
 function obj(value:unknown):Record<string,unknown> { return value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{}; }
 function rowData(payload:ApiPayload):Row[] { return Array.isArray(payload.data)?payload.data.filter((v):v is Row=>Boolean(v)&&typeof v==="object"&&"id" in v) as Row[]:[]; }
@@ -62,7 +62,7 @@ function recordToForm(resource:Resource,record:Row):Record<string,string>{
 }
 function fieldControl(field:FieldConfig,value:string,onChange:(value:string)=>void){
   if(field.type==="textarea")return <textarea className="form-control form-control--textarea" id={field.key} value={value} onChange={e=>onChange(e.target.value)} required={field.required}/>;
-  return <input className="form-control" id={field.key} type={field.type==="number"?"number":field.type??"text"} min={field.type==="number"?0:undefined} max={field.type==="number"?365:undefined} step={field.type==="number"?1:undefined} value={value} onChange={e=>onChange(e.target.value)} required={field.required} placeholder={field.placeholder}/>;
+  return <input className="form-control" id={field.key} type={field.type==="number"?"number":field.type??"text"} min={field.type==="number"?0:undefined} max={field.type==="number"?65535:undefined} step={field.type==="number"?1:undefined} value={value} onChange={e=>onChange(e.target.value)} required={field.required} placeholder={field.placeholder}/>;
 }
 function fieldValue(form:Record<string,string>,key:string){return form[key]??"";}
 function makeAddress(form:Record<string,string>,prefix:"bill"|"ship"){
@@ -149,8 +149,9 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
     const contacts=contactDrafts.filter(v=>v.fullName.trim()).map((v,i)=>({fullName:v.fullName.trim(),jobTitle:v.jobTitle.trim(),email:v.email.trim(),phone:v.phone.trim(),isPrimary:i===0}));
     const taxIdentifiers=taxDrafts.filter(v=>v.identifierValue.trim()).map(v=>({identifierType:v.identifierType.trim()||"OTHER",countryCode:v.countryCode.trim().toUpperCase(),jurisdiction:v.jurisdiction.trim(),identifierValue:v.identifierValue.trim()}));
     payload={customerCode:form.customerCode.trim(),name:form.name.trim(),email:form.email.trim(),phone:form.phone.trim(),
-      purchaseOrderReference:form.purchaseOrderReference.trim(),paymentTermsDays:Number(form.paymentTermsDays||0),
+      purchaseOrderReference:form.purchaseOrderReference.trim(),
       taxIdentifier:form.taxIdentifier.trim(),contacts,taxIdentifiers};
+    if(form.paymentTermsDays.trim())payload.paymentTermsDays=Number(form.paymentTermsDays);else if(editing)payload.paymentTermsDays=null;
     if(permissions.includes("settings:manage"))payload.notes=form.notes;
     const billingAddress=makeAddress(form,"bill");const shippingAddress=makeAddress(form,"ship");
     if(billingAddress)payload.billingAddress=billingAddress;else if(editing)payload.billingAddress=null;
@@ -214,7 +215,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
  const displayName=(row:Row)=>valueOf(row,"name")||"Unnamed record";
  const tableColumns=useMemo(()=>resource==="customers"?[
   {key:"customerCode",label:"Code"},{key:"name",label:"Customer"},{key:"email",label:"Email"},{key:"phone",label:"Phone"},
-  {key:"paymentTermsDays",label:"Terms",render:(r:Row)=>`${valueOf(r,"paymentTermsDays")||"0"} days`},
+  {key:"paymentTermsDays",label:"Terms",render:(r:Row)=>valueOf(r,"paymentTermsDays")?`${valueOf(r,"paymentTermsDays")} days`:"Not configured"},
  ]:[
   {key:"itemCode",label:"Code"},{key:"name",label:"Item / service"},{key:"itemType",label:"Type"},
   {key:"unitCode",label:"Unit"},{key:"defaultUnitPrice",label:"Default price",render:(r:Row)=>`${valueOf(r,"currency")} ${valueOf(r,"defaultUnitPrice")}`},
@@ -279,7 +280,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
    <div className="master-data-panel__heading"><div><p className="page-eyebrow">{editing?"EDIT MASTER DATA":"NEW MASTER DATA"}</p><h2 id="master-data-form-title">{editing?"Edit "+title.slice(0,-1):"Create "+(resource==="customers"?"customer":"item / service")}</h2><p>Only approved information belongs in this record. Fields marked * are required.</p></div><Button variant="ghost" onClick={()=>setEditorOpen(false)}>Close</Button></div>
    <form onSubmit={save}>
     {resource==="catalog"?<div className="master-data-form-grid">
-     <div className="form-field"><label className="form-label" htmlFor="itemType">Record type *</label><select className="form-control" id="itemType" required value={form.itemType} onChange={e=>setForm(p=>({...p,itemType:e.target.value}))}><option value="PRODUCT">Product</option><option value="SERVICE">Service</option></select></div>
+     <div className="form-field"><label className="form-label" htmlFor="itemType">Record type *</label><select className="form-control" id="itemType" required value={form.itemType} onChange={e=>setForm(p=>({...p,itemType:e.target.value}))}><option value="" disabled>Select type</option><option value="PRODUCT">Product</option><option value="SERVICE">Service</option></select></div>
      {catalogFields.map(f=><div className="form-field" key={f.key}><label className="form-label" htmlFor={f.key}>{f.label}{f.required?<span className="form-required"> *</span>:null}</label>{fieldControl(f,fieldValue(form,f.key),v=>setForm(p=>({...p,[f.key]:v})))}{f.help?<p className="form-hint">{f.help}</p>:null}</div>)}
      <div className="form-field form-field--wide"><label className="form-label" htmlFor="customerDescription">Customer-facing description *</label><textarea id="customerDescription" className="form-control form-control--textarea" required value={form.customerDescription} onChange={e=>setForm(p=>({...p,customerDescription:e.target.value}))} maxLength={1000}/></div>
      <div className="form-field form-field--wide"><label className="form-label" htmlFor="internalDescription">Internal description</label><textarea id="internalDescription" className="form-control form-control--textarea" value={form.internalDescription} onChange={e=>setForm(p=>({...p,internalDescription:e.target.value}))} maxLength={1000}/><p className="form-hint">Internal description is not included on customer-facing documents by default.</p></div>
@@ -315,7 +316,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
    <div className="master-data-detail__grid">
     {resource==="customers"?<>
      <div><span>Customer code</span><strong>{valueOf(detail,"customerCode")||"Not assigned"}</strong></div><div><span>Email</span><strong>{valueOf(detail,"email")||"Not supplied"}</strong></div>
-     <div><span>Phone</span><strong>{valueOf(detail,"phone")||"Not supplied"}</strong></div><div><span>Payment terms</span><strong>{valueOf(detail,"paymentTermsDays")||"0"} days</strong></div>
+     <div><span>Phone</span><strong>{valueOf(detail,"phone")||"Not supplied"}</strong></div><div><span>Payment terms</span><strong>{valueOf(detail,"paymentTermsDays")?valueOf(detail,"paymentTermsDays")+" days":"Not configured"}</strong></div>
      <div><span>Billing address</span><strong>{Object.values(obj(detail.billingAddress)).map(str).filter(Boolean).join(", ")||"Not supplied"}</strong></div>
      <div><span>Shipping / service address</span><strong>{Object.values(obj(detail.shippingAddress)).map(str).filter(Boolean).join(", ")||"Same / not supplied"}</strong></div>
      <div><span>Legacy primary tax identifier</span><strong>{valueOf(detail,"taxIdentifier")||"Not supplied"}</strong></div>
