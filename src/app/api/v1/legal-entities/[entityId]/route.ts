@@ -43,6 +43,7 @@ export async function PATCH(request:NextRequest,context:Context){
       "SELECT id FROM legal_entities WHERE id=? FOR UPDATE",[entityId]);
     if(!entityLocks.length){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Legal entity not found"}},404);}
     const current=await loadEntity(conn,entityId);
+    if(!current){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Legal entity not found"}},404);}
     if(patch.isActive===false && Boolean(current.is_active)){
       const [activeBrands]=await conn.execute<(RowDataPacket & {id:string})[]>(
         `SELECT b.id FROM brands b
