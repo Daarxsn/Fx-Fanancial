@@ -513,6 +513,33 @@ try {
   },phase6aSession.jar);
   assert.equal(regResult.response.status,201,"approved test registration can be created: "+JSON.stringify(regResult.body?.error??null));
   const phase6bRegistrationId=regResult.body.data.id;
+  const phase6bRegistrationKey="P6B_REG_"+phase6bSuffix;
+
+  // Regression test: mysql2 may decode DATE columns into JavaScript Date objects.
+  // A second version must close an open-ended prior version at the day before the new start.
+  const [registrationRevisionDates]=await db.execute(
+    "SELECT DATE_FORMAT(CURRENT_DATE(),'%Y-%m-%d') AS today, DATE_FORMAT(DATE_ADD(CURRENT_DATE(),INTERVAL 1 DAY),'%Y-%m-%d') AS nextDay",
+  );
+  const registrationRevision=await call("/api/v1/legal-entities/"+entityA.id+"/tax-registrations",{
+    method:"POST",
+    body:JSON.stringify({registrationKey:phase6bRegistrationKey,registrationType:"OTHER",
+      jurisdiction:"CI-JURISDICTION",registrationNumber:"CI-REG-REVISION-"+phase6bSuffix,
+      displayLabel:"Synthetic next-day registration revision",isPrimary:true,effectiveFrom:registrationRevisionDates[0].nextDay,effectiveUntil:"",
+      approvalReference:"CI-REG-REVISION-APPROVAL-"+phase6bSuffix,changeReason:"Phase 6B regression: open-ended registration revision"}),
+  },phase6aSession.jar);
+  assert.equal(registrationRevision.response.status,201,"registration revision must compare MySQL DATE values correctly: "+JSON.stringify(registrationRevision.body?.error??null));
+  assert.equal(registrationRevision.body.data.versionNumber,2,"registration version number increments");
+  const [registrationHistory]=await db.execute(
+    "SELECT version_number,DATE_FORMAT(effective_from,'%Y-%m-%d') AS effective_from_date,DATE_FORMAT(effective_until,'%Y-%m-%d') AS effective_until_date FROM legal_entity_tax_registrations WHERE legal_entity_id=? AND registration_key=? ORDER BY version_number",
+    [entityA.id,phase6bRegistrationKey],
+  );
+  assert.equal(registrationHistory.length,2,"both tax registration versions must be preserved");
+  assert.equal(registrationHistory[0].effective_from_date,"2020-01-01");
+  assert.equal(registrationHistory[0].effective_until_date,registrationRevisionDates[0].today,
+    "previous version ends on the calendar day before the new version starts");
+  assert.equal(registrationHistory[1].effective_from_date,registrationRevisionDates[0].nextDay);
+  assert.equal(registrationHistory[1].effective_until_date,null,"new version remains open-ended");
+  console.log("PASS: tax registration version dates preserve the old effective period and create the next version.");
 
   const taxRuleResult=await call("/api/v1/tax-rules",{
     method:"POST",
