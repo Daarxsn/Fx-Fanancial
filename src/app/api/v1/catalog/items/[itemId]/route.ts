@@ -82,6 +82,7 @@ export async function PATCH(request:NextRequest,context:Context){
    isActive:true,recordVersion:expectedVersion+1},
    duplicateWarnings:similar.map(s=>({id:s.id,name:s.name,itemCode:s.item_code,itemType:s.item_type,matchOn:["name","itemType"]}))});
  }catch(error){
+  if(conn) await conn.rollback().catch(()=>undefined);
   if(duplicateEntry(error))return jsonNoStore({error:{code:"DUPLICATE_RECORD",message:"This item/service code is already in use."}},409);
   return apiError(error);
  }finally{conn?.release()}
