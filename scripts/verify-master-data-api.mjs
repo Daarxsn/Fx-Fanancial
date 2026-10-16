@@ -1008,7 +1008,7 @@ try {
   const customerCsv = [
     "customerCode,name,email,phone,billingAddressJson,shippingAddressJson,purchaseOrderReference,paymentTermsDays,taxIdentifier",
     [csvCustomerCode, "CSV Import Customer " + suffix, "csv-" + suffix + "@example.invalid", "+91-9222222222",
-      JSON.stringify({line1:"CSV Address",city:"Pune",countryCode:"IN"}), "", "CSV-PO-" + suffix, "15", ""].map(v => JSON.stringify(v).replaceAll('\\\"','"')).join(","),
+      JSON.stringify({line1:"CSV Address",city:"Pune",countryCode:"IN"}), "", "CSV-PO-" + suffix, "15", ""].map(csvCell).join(","),
   ].join("\r\n");
   const csvPreview = await call("/api/v1/customers/import?mode=validate", {
     method: "POST", headers: { "Content-Type": "text/csv" }, body: customerCsv,
