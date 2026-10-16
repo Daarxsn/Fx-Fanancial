@@ -120,7 +120,9 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
  const openEdit=async(row:Row)=>{
   setSaving(true);setError("");setWarnings([]);
   try{const r=await request(basePath+"/"+row.id);if(!r.response.ok)throw new Error(r.body.error?.message??"Could not load record to edit.");
-   const full=obj(r.body.data) as Row;setDetail(full);setEditing(full);setForm(recordToForm(resource,full));\n   setContactDrafts(resource==="customers"&&Array.isArray(full.contacts)&&full.contacts.length?full.contacts.map(v=>({fullName:str(obj(v).fullName),jobTitle:str(obj(v).jobTitle),email:str(obj(v).email),phone:str(obj(v).phone)})):[emptyContact()]);\n   setTaxDrafts(resource==="customers"&&Array.isArray(full.taxIdentifiers)&&full.taxIdentifiers.length?full.taxIdentifiers.map(v=>({identifierType:str(obj(v).identifierType)||"OTHER",countryCode:str(obj(v).countryCode),jurisdiction:str(obj(v).jurisdiction),identifierValue:str(obj(v).identifierValue)})):[emptyTax()]);setEditorOpen(true);setSuccess("");
+   const full=obj(r.body.data) as Row;setDetail(full);setEditing(full);setForm(recordToForm(resource,full));
+   setContactDrafts(resource==="customers"&&Array.isArray(full.contacts)&&full.contacts.length?full.contacts.map(v=>({fullName:str(obj(v).fullName),jobTitle:str(obj(v).jobTitle),email:str(obj(v).email),phone:str(obj(v).phone)})):[emptyContact()]);
+   setTaxDrafts(resource==="customers"&&Array.isArray(full.taxIdentifiers)&&full.taxIdentifiers.length?full.taxIdentifiers.map(v=>({identifierType:str(obj(v).identifierType)||"OTHER",countryCode:str(obj(v).countryCode),jurisdiction:str(obj(v).jurisdiction),identifierValue:str(obj(v).identifierValue)})):[emptyTax()]);setEditorOpen(true);setSuccess("");
   }catch(e){setError(e instanceof Error?e.message:"Could not load record.");}
   finally{setSaving(false);}
  };
