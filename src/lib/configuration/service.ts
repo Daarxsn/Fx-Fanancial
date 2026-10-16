@@ -165,11 +165,22 @@ export async function readinessForEntity(legalEntityId: string) {
   });
   if (entity.default_tax_code && entity.tax_setup_status === "APPROVED_CONFIGURED") {
     const [defaultTaxRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
-      `SELECT COUNT(*) AS n FROM tax_rules WHERE legal_entity_id = ? AND tax_code = ? AND is_active = TRUE
-        AND approved_at IS NOT NULL AND approval_reference IS NOT NULL AND effective_from <= CURRENT_DATE()
-        AND (effective_until IS NULL OR effective_until >= CURRENT_DATE())`, [legalEntityId, entity.default_tax_code]);
+      `SELECT COUNT(*) AS n
+         FROM tax_rules r
+        WHERE r.legal_entity_id = ? AND r.tax_code = ? AND r.is_active = TRUE
+          AND r.approved_at IS NOT NULL AND r.approval_reference IS NOT NULL
+          AND r.effective_from <= CURRENT_DATE()
+          AND (r.effective_until IS NULL OR r.effective_until >= CURRENT_DATE())
+          AND EXISTS (
+            SELECT 1 FROM legal_entity_tax_registrations tr
+             WHERE tr.legal_entity_id = r.legal_entity_id
+               AND LOWER(TRIM(tr.jurisdiction)) = LOWER(TRIM(r.jurisdiction))
+               AND tr.is_active = TRUE AND tr.approved_at IS NOT NULL AND tr.approval_reference IS NOT NULL
+               AND tr.effective_from <= CURRENT_DATE()
+               AND (tr.effective_until IS NULL OR tr.effective_until >= CURRENT_DATE())
+          )`, [legalEntityId, entity.default_tax_code]);
     checks.push({ key: "defaultTaxCode", passed: Number(defaultTaxRows[0]?.n ?? 0) === 1,
-      message: "The configured default tax code must resolve to exactly one active, approved, effective tax rule." });
+      message: "The configured default tax code must resolve to exactly one active, approved tax rule with a matching approved registration for the same jurisdiction." });
   }
   const [numberingRows] = await pool.execute<(RowDataPacket & { n: number })[]>(
     `SELECT COUNT(*) AS n FROM invoice_numbering_configs
