@@ -59,7 +59,7 @@ export async function POST(request:NextRequest){
    const contacts=parseCell(row,"contactsJson",errors,true);
    const taxIdentifiers=parseCell(row,"taxIdentifiersJson",errors,true);
    const terms=csvValue(row,"paymentTermsDays");
-   if(terms&&!/^(0|[1-9]\d{0,2})$/.test(terms))errors.push({rowNumber:row.rowNumber,field:"paymentTermsDays",message:"Must be an integer from 0 to 365."});
+   if(terms&&(!/^(0|[1-9]\d{0,4})$/.test(terms)||Number(terms)>65535))errors.push({rowNumber:row.rowNumber,field:"paymentTermsDays",message:"Must be an integer from 0 to 65535."});
    if(csvValue(row,"internalNotes")&&!actor.permissions.includes("settings:manage"))
     errors.push({rowNumber:row.rowNumber,field:"internalNotes",message:"This column requires elevated settings permission."});
    const candidate={
