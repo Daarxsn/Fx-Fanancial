@@ -23,7 +23,7 @@ This is the pre-Phase-07 release checklist. Do not use this page to infer busine
 - [x] Use exact supplied WebP exports for Falchion Xeniaa, MyFX POS, FX Digitech and Coworks in the UI; test WebP signatures, paths and expected CSS classes.
 - [x] Keep three invoice-layout SVGs sanitized and reference-only rather than exposing raw sample sheets in `public/`.
 - [ ] Manually inspect desktop/tablet/mobile and light/dark logo sizing in a real browser.
-- [x] PR #6 CI passed on head `4697e05186c36a09e2874b17ac34ae776ca5bc7b`: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886989045). Further WebP/source-of-truth changes are being validated on the updated head before merge.
+- [x] PR #6 current CI passed on head `51dced4626dc333158e594160b7e8264d8ddd186`: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38888043868). All four supplied logo WebPs are validated and used in the UI. PR #6 remains open until it is merged; manual browser review still remains.
 
 ## Must remain open until independently verified/approved
 

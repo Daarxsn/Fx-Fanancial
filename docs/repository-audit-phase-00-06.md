@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-10-16  
 **Audited baseline:** `main` at `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3` (PR #5 merge)  
-**Merged closure work:** PR #4 and PR #5 are merged to `main`. PR #6 is an open UI fidelity follow-up; it adds exact supplied WebP assets for the corporate logo plus MyFX POS, Digitech and Coworks. The latest PR#6 head has additional source/doc updates waiting for CI.  
+**Merged closure work:** PR #4 and PR #5 are merged to `main`. PR #6 is an open UI fidelity follow-up; its current head `51dced4626dc333158e594160b7e8264d8ddd186` passed CI (run `38888043868`) and uses exact supplied WebP assets for the corporate logo, MyFX POS, Digitech and Coworks. It is not merged yet.  
 **Scope:** tracked repository tree, SQL migrations, Next.js route handlers and screens, validation, auth/RBAC helpers, OpenAPI, CI workflows, implementation tracker, and uploaded brand/logo/template assets. This is not a production penetration test or an approval of company/tax facts.
 
 ## Executive result
@@ -11,7 +11,7 @@ The earlier 2026-10-09 audit was stale and incorrectly described several now-imp
 
 - Latest main CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886347059
 - Latest main lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886346994
-- PR #6 UI CI (branch only): https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38886989045
+- PR #6 latest UI CI (branch only, passed): https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38888043868
 
 The developer separately confirmed against the intended Aiven development database that `npm run db:verify` passed with an active TLS cipher and `rejectUnauthorized=true`; migrations 001–010 applied and safely reran; the role/reference seed safely reran; and both health endpoints returned HTTP 200. These are useful development evidence, not production recovery/backup evidence.
 
@@ -60,7 +60,7 @@ The Library contains `FX Brand Guidelines(2).pdf`, `myfx pos logo.zip`, `FX Digi
 
 ## Required sequence to close the pre-Phase-7 gate
 
-1. [x] Merge PR #4 and #5 and confirm main CI/bootstrap pass. [ ] Merge PR #6 only after its CI passes and review Coworks asset fidelity; then run the merged app locally and visually inspect login, shell, Settings, logo sizing and the three sanitized reference layouts.
+1. [x] Merge PR #4 and #5 and confirm main CI/bootstrap pass. [x] PR #6 passed its own CI at `51dced4626dc333158e594160b7e8264d8ddd186`. [ ] Merge PR #6, then run the merged app locally and visually inspect login, shell, Settings, all four exact logo assets, logo sizing and the three sanitized reference layouts.
 2. Complete the Phase 02 sign-off packet with authorized people and actual evidence, or explicitly record decisions as blocked/not applicable with owner and rationale.
 3. Verify the Aiven plan's backup policy and complete the provider-level recovery drill; review DB grants and production deployment secrets/origin/proxy settings.
 4. Populate actual, approved legal entity/brand/tax/numbering/template configuration in the intended environment and re-check readiness; do not use CI/sample placeholders as actual values.

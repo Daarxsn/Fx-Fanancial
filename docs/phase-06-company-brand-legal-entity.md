@@ -1,6 +1,6 @@
 # Phase 06A — Company, Legal Entity and Brand Configuration
 
-**Status:** Phase 06A/06B implementation and regression fixes are merged into `main`; the post-merge CI and lockfile/bootstrap workflows passed on `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3` (CI run `38886347059`, bootstrap run `38886346994`). PR #6 adds exact logo exports and fixes logo CSS; its CI passed on head `4697e05186c36a09e2874b17ac34ae776ca5bc7b`, but it is not yet merged at the time of this note. Business-owner sign-off remains required. Do not treat sample values or proposed records as real company/tax information.
+**Status:** Phase 06A/06B implementation and regression fixes are merged into `main`; the post-merge CI and lockfile/bootstrap workflows passed on `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3` (CI run `38886347059`, bootstrap run `38886346994`). PR #6 adds the exact supplied WebP exports for the corporate logo, MyFX POS, Digitech and Coworks, corrects logo CSS and strengthens UI asset validation. CI passed on head `51dced4626dc333158e594160b7e8264d8ddd186` (run `38888043868`); PR #6 is green but not yet merged at the time of this note. Business-owner sign-off remains required. Do not treat sample values or proposed records as real company/tax information.
 
 ## Core distinction
 
