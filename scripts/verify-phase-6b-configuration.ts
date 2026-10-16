@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
 import {
-  canonicalJson, captureDocumentConfigurationSnapshot, captureLegalEntityConfigVersion,
+  calendarDateInTimeZone, canonicalJson, captureDocumentConfigurationSnapshot, captureLegalEntityConfigVersion,
   loadEntity, readinessForEntity, reserveDocumentNumber, sha256,
 } from "@/lib/configuration/service";
 import { ConfigurationConflictError, ConfigurationNotReadyError } from "@/lib/configuration/errors";
@@ -14,6 +14,15 @@ import {
 type SnapshotRow = RowDataPacket & { id:string; configuration_snapshot:unknown; configuration_sha256:string };
 
 function verifyConfigurationDateValidation() {
+  const boundaryInstant = new Date("2026-10-15T20:00:00.000Z");
+  assert.equal(calendarDateInTimeZone("Asia/Kolkata", boundaryInstant), "2026-10-16",
+    "India business date advances at UTC 18:30, not at UTC midnight");
+  assert.equal(calendarDateInTimeZone("UTC", boundaryInstant), "2026-10-15",
+    "UTC effective-date evaluation stays on the UTC calendar date");
+  assert.equal(calendarDateInTimeZone(null, boundaryInstant), "2026-10-16",
+    "entities without a timezone use the Asia/Kolkata product default");
+  assert.equal(calendarDateInTimeZone("Invalid/Timezone", boundaryInstant), null,
+    "invalid configured timezones fail closed");
   const legalEntityId = randomUUID();
   const taxRule = {
     legalEntityId, taxCode: "CI_DATE_TEST", displayName: "CI date test",
