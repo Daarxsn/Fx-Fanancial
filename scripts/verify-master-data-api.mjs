@@ -1003,12 +1003,13 @@ try {
   console.log("PASS: Phase 7 customer/catalog tests cover CRUD, contact/tax details, duplicate warnings, exact-decimal edits, optimistic concurrency, permissioned soft archive, historical references and audit redaction.");
 
   // Phase 7 CSV import/export: dry run never writes; commit is explicit and atomic; exports are permission-aware.
+  const csvCell = (value) => `"${String(value).replaceAll('"','""')}"`;
   const csvCustomerCode = "CSV-" + suffix.toUpperCase();
   const customerCsv = [
     "customerCode,name,email,phone,billingAddressJson,shippingAddressJson,purchaseOrderReference,paymentTermsDays,taxIdentifier",
     [csvCustomerCode, "CSV Import Customer " + suffix, "csv-" + suffix + "@example.invalid", "+91-9222222222",
       JSON.stringify({line1:"CSV Address",city:"Pune",countryCode:"IN"}), "", "CSV-PO-" + suffix, "15", ""].map(v => JSON.stringify(v).replaceAll('\\\"','"')).join(","),
-  ].join("\\r\\n");
+  ].join("\r\n");
   const csvPreview = await call("/api/v1/customers/import?mode=validate", {
     method: "POST", headers: { "Content-Type": "text/csv" }, body: customerCsv,
   }, financeSession.jar);
@@ -1023,7 +1024,7 @@ try {
   assert.equal(csvCommitted.body.data.createdCount, 1);
   const invalidCsvPreview = await call("/api/v1/customers/import?mode=validate", {
     method: "POST", headers: { "Content-Type": "text/csv" },
-    body: "customerCode,name,paymentTermsDays\\r\\nBAD-ROW,Invalid Terms,900",
+    body: "customerCode,name,paymentTermsDays\r\nBAD-ROW,Invalid Terms,900",
   }, financeSession.jar);
   assert.equal(invalidCsvPreview.response.status, 422, "invalid CSV rows produce row-level validation reports");
   assert.equal(invalidCsvPreview.body.report.errors[0].rowNumber, 2);
@@ -1031,7 +1032,7 @@ try {
     headers: { Cookie: cookieHeader(financeSession.jar) }, cache: "no-store",
   });
   assert.equal(customerExport.status, 200, "authorized finance admin can export customer CSV");
-  assert.match(customerExport.headers.get("content-type") ?? "", /text\\/csv/i);
+  assert.match(customerExport.headers.get("content-type") ?? "", /text\/csv/i);
   const customerExportText = await customerExport.text();
   assert.ok(customerExportText.includes("customerCode,name,email"));
   assert.ok(customerExportText.includes(csvCustomerCode));
@@ -1040,15 +1041,15 @@ try {
   });
   assert.equal(ordinaryExport.status, 200);
   const ordinaryExportText = await ordinaryExport.text();
-  assert.doesNotMatch(ordinaryExportText.split("\\r\\n")[0], /internalNotes|taxIdentifier|contactsJson|taxIdentifiersJson/,
+  assert.doesNotMatch(ordinaryExportText.split("\r\n")[0], /internalNotes|taxIdentifier|contactsJson|taxIdentifiersJson/,
     "customer CSV does not include privileged notes or tax identifier columns for ordinary customer readers");
 
   const csvItemCode = "CSV-ITEM-" + suffix.toUpperCase();
   const catalogCsv = [
     "itemCode,itemType,name,customerDescription,internalDescription,unitCode,defaultUnitPrice,currency,defaultTaxCode",
     [csvItemCode, "SERVICE", "CSV Catalog Service " + suffix, "CSV-only service description", "Internal CSV note",
-      "hour", "7.2500", "INR", ""].map(v => JSON.stringify(v)).join(","),
-  ].join("\\r\\n");
+      "hour", "7.2500", "INR", ""].map(csvCell).join(","),
+  ].join("\r\n");
   const catalogPreview = await call("/api/v1/catalog/items/import?mode=validate", {
     method: "POST", headers: { "Content-Type": "text/csv" }, body: catalogCsv,
   }, financeSession.jar);
