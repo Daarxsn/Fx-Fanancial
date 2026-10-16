@@ -205,7 +205,7 @@ Evidence:
 - [x] Record change reason and safe before/after state in audit events; append version snapshots on configuration edits.
 - [x] Preserve old brand/business-unit mappings as effective-dated history instead of deleting them.
 - [x] Add CI acceptance coverage for bank masking, finance-only bank changes, version/audit history, mapping-history retention and legal-entity scope isolation.
-- [ ] Phase 6A CI passes on the pull request (do not treat source changes alone as evidence).
+- [x] Phase 6A main-branch CI passes after merge and follow-up state-transition/security regression coverage; current main validation: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38851520923 (commit `192afc13f4948c4c963f9f958da10eee183e196e`).
 - [ ] Business owner confirms actual legal identities, bank values, and brand/entity relationships; production setup must not use CI/sample fixtures.
 
 ## Phase 06B — Tax, Invoice Numbering & Document Configuration
@@ -220,6 +220,7 @@ Evidence:
 - [x] End-to-end API tests issue synthetic invoice and debit-note documents, verify their snapshot IDs/hashes and selected tax/template/numbering references, checks same-key replay and rejects a conflicting key.
 - [x] Full CI acceptance passed on `f0b56ce5416ff89eb053b34615339d65a0ff47b0`, including the ten-migration MySQL run, logical dump/restore, security/API contracts, Phase 6B integration suite, OpenAPI, UI validation, lint, TypeScript and production build.
 - [x] Lockfile/bootstrap workflow passed for the same commit.
+- [x] Follow-up Phase 6A/6B regression coverage passed on `main` at commit `192afc13f4948c4c963f9f958da10eee183e196e`: tax-registration effective-period revisions, jurisdiction-scoped primary registration, brand/business-unit/legal-entity activation dependencies, jurisdiction-matched tax/default-code readiness, unsupported-currency issuance denial, timezone-aware readiness defaults, and safe template preview. Full CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38851520923. Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38851520745.
 - [ ] Finance/tax owners approve actual registration details, rates, numbering policy, templates and legal-entity/brand relationships before production issuance.
 
 Evidence:
