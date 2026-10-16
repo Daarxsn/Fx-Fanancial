@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
@@ -40,7 +41,7 @@ export async function GET(request:NextRequest){
   return new Response(csv,{status:200,headers:{
    "Content-Type":"text/csv; charset=utf-8",
    "Content-Disposition":'attachment; filename="falchion-catalog.csv"',
-   "Cache-Control":"no-store","X-Content-Type-Options":"nosniff","X-Request-Id":crypto.randomUUID(),
+   "Cache-Control":"no-store","X-Content-Type-Options":"nosniff","X-Request-Id":randomUUID(),
   }});
  }catch(error){return apiError(error)}
 }
