@@ -149,10 +149,13 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
     const contacts=contactDrafts.filter(v=>v.fullName.trim()).map((v,i)=>({fullName:v.fullName.trim(),jobTitle:v.jobTitle.trim(),email:v.email.trim(),phone:v.phone.trim(),isPrimary:i===0}));
     const taxIdentifiers=taxDrafts.filter(v=>v.identifierValue.trim()).map(v=>({identifierType:v.identifierType.trim()||"OTHER",countryCode:v.countryCode.trim().toUpperCase(),jurisdiction:v.jurisdiction.trim(),identifierValue:v.identifierValue.trim()}));
     payload={customerCode:form.customerCode.trim(),name:form.name.trim(),email:form.email.trim(),phone:form.phone.trim(),
-      purchaseOrderReference:form.purchaseOrderReference.trim(),
-      taxIdentifier:form.taxIdentifier.trim(),contacts,taxIdentifiers};
+      purchaseOrderReference:form.purchaseOrderReference.trim(),contacts};
     if(form.paymentTermsDays.trim())payload.paymentTermsDays=Number(form.paymentTermsDays);else if(editing)payload.paymentTermsDays=null;
-    if(permissions.includes("settings:manage"))payload.notes=form.notes;
+    if(permissions.includes("settings:manage")){
+      payload.taxIdentifier=form.taxIdentifier.trim();
+      payload.taxIdentifiers=taxIdentifiers;
+      payload.notes=form.notes;
+    }
     const billingAddress=makeAddress(form,"bill");const shippingAddress=makeAddress(form,"ship");
     if(billingAddress)payload.billingAddress=billingAddress;else if(editing)payload.billingAddress=null;
     if(shippingAddress)payload.shippingAddress=shippingAddress;else if(editing)payload.shippingAddress=null;
@@ -285,7 +288,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
      <div className="form-field form-field--wide"><label className="form-label" htmlFor="customerDescription">Customer-facing description *</label><textarea id="customerDescription" className="form-control form-control--textarea" required value={form.customerDescription} onChange={e=>setForm(p=>({...p,customerDescription:e.target.value}))} maxLength={1000}/></div>
      <div className="form-field form-field--wide"><label className="form-label" htmlFor="internalDescription">Internal description</label><textarea id="internalDescription" className="form-control form-control--textarea" value={form.internalDescription} onChange={e=>setForm(p=>({...p,internalDescription:e.target.value}))} maxLength={1000}/><p className="form-hint">Internal description is not included on customer-facing documents by default.</p></div>
     </div>:<div className="master-data-form-grid">
-     {customerFields.map(f=><div className="form-field" key={f.key}><label className="form-label" htmlFor={f.key}>{f.label}{f.required?<span className="form-required"> *</span>:null}</label>{fieldControl(f,fieldValue(form,f.key),v=>setForm(p=>({...p,[f.key]:v})))}{f.help?<p className="form-hint">{f.help}</p>:null}</div>)}
+     {customerFields.filter(f=>f.key!=="taxIdentifier"||permissions.includes("settings:manage")).map(f=><div className="form-field" key={f.key}><label className="form-label" htmlFor={f.key}>{f.label}{f.required?<span className="form-required"> *</span>:null}</label>{fieldControl(f,fieldValue(form,f.key),v=>setForm(p=>({...p,[f.key]:v})))}{f.help?<p className="form-hint">{f.help}</p>:null}</div>)}
      <fieldset className="master-data-fieldset"><legend>Billing address</legend><div className="master-data-form-grid">
       {([["billLine1","Address line 1"],["billLine2","Address line 2"],["billCity","City"],["billState","State / province"],["billPostalCode","Postal code"],["billCountryCode","Country code"]] as const).map(([key,label])=><div className="form-field" key={key}><label className="form-label" htmlFor={key}>{label}</label><input className="form-control" id={key} value={form[key]} onChange={e=>setForm(p=>({...p,[key]:e.target.value}))} maxLength={255}/></div>)}
      </div></fieldset>
@@ -298,13 +301,13 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
       </div></div>)}
       <Button variant="secondary" size="sm" type="button" disabled={contactDrafts.length>=30} onClick={()=>setContactDrafts(rows=>[...rows,emptyContact()])}>+ Add contact</Button>
      </fieldset>
-     <fieldset className="master-data-fieldset"><legend>Tax identifiers (optional)</legend>
+     {permissions.includes("settings:manage")?<fieldset className="master-data-fieldset"><legend>Tax identifiers (optional)</legend>
       {taxDrafts.map((tax,index)=><div className="master-data-child-editor" key={index}><div className="master-data-child-editor__heading"><strong>Tax identifier {index+1}</strong>{taxDrafts.length>1?<Button size="sm" variant="ghost" type="button" onClick={()=>setTaxDrafts(rows=>rows.filter((_,i)=>i!==index))}>Remove</Button>:null}</div><div className="master-data-form-grid">
        {([["identifierType","Identifier type"],["countryCode","Country code"],["jurisdiction","Jurisdiction"],["identifierValue","Identifier value"]] as const).map(([key,label])=><div className="form-field" key={key}><label className="form-label" htmlFor={`tax-${index}-${key}`}>{label}</label><input className="form-control" id={`tax-${index}-${key}`} value={tax[key]} onChange={e=>setTaxDrafts(rows=>rows.map((row,i)=>i===index?{...row,[key]:e.target.value}:row))} maxLength={key==="identifierValue"?160:120} /></div>)}
       </div></div>)}
       <Button variant="secondary" size="sm" type="button" disabled={taxDrafts.length>=30} onClick={()=>setTaxDrafts(rows=>[...rows,emptyTax()])}>+ Add tax identifier</Button>
       <p className="form-hint">Values are stored as supplied, with a normalized matching key. This does not verify legal registration or tax validity.</p>
-     </fieldset>
+     </fieldset>:null}
      {permissions.includes("settings:manage")?<div className="form-field form-field--wide"><label className="form-label" htmlFor="customerNotes">Internal notes (restricted)</label><textarea id="customerNotes" className="form-control form-control--textarea" maxLength={5000} value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))}/><p className="form-hint">Finance/settings administrators only. Internal notes must not appear on customer-facing documents by default.</p></div>:null}
     </div>}
     <div className="master-data-form-actions"><Button variant="secondary" type="button" disabled={saving} onClick={()=>setEditorOpen(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving?"Saving…":editing?"Save changes":"Create record"}</Button></div>
@@ -319,9 +322,9 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
      <div><span>Phone</span><strong>{valueOf(detail,"phone")||"Not supplied"}</strong></div><div><span>Payment terms</span><strong>{valueOf(detail,"paymentTermsDays")?valueOf(detail,"paymentTermsDays")+" days":"Not configured"}</strong></div>
      <div><span>Billing address</span><strong>{Object.values(obj(detail.billingAddress)).map(str).filter(Boolean).join(", ")||"Not supplied"}</strong></div>
      <div><span>Shipping / service address</span><strong>{Object.values(obj(detail.shippingAddress)).map(str).filter(Boolean).join(", ")||"Same / not supplied"}</strong></div>
-     <div><span>Legacy primary tax identifier</span><strong>{valueOf(detail,"taxIdentifier")||"Not supplied"}</strong></div>
+     {permissions.includes("settings:manage")?<div><span>Legacy primary tax identifier</span><strong>{valueOf(detail,"taxIdentifier")||"Not supplied"}</strong></div>:null}
      <div><span>Primary contact</span><strong>{Array.isArray(detail.contacts)?str(obj(detail.contacts.find(x=>Boolean(obj(x).isPrimary))??detail.contacts[0]).fullName)||"Not supplied":"Not supplied"}</strong></div>
-     {Array.isArray(detail.taxIdentifiers)&&detail.taxIdentifiers.length?<div className="master-data-detail__wide"><span>Tax identifiers</span><strong>{detail.taxIdentifiers.map(t=>{const x=obj(t);return [str(x.identifierType),str(x.countryCode),str(x.jurisdiction),str(x.identifierValue)].filter(Boolean).join(" · ")}).join("; ")}</strong></div>:null}
+     {permissions.includes("settings:manage")&&Array.isArray(detail.taxIdentifiers)&&detail.taxIdentifiers.length?<div className="master-data-detail__wide"><span>Tax identifiers</span><strong>{detail.taxIdentifiers.map(t=>{const x=obj(t);return [str(x.identifierType),str(x.countryCode),str(x.jurisdiction),str(x.identifierValue)].filter(Boolean).join(" · ")}).join("; ")}</strong></div>:null}
      {detail.referenceCounts?<div className="master-data-detail__wide"><span>Historical references</span><strong>Invoices: {str(obj(detail.referenceCounts).invoices) || "0"} · Quotations: {str(obj(detail.referenceCounts).quotations)||"0"} · Payments: {str(obj(detail.referenceCounts).payments)||"0"}</strong></div>:null}
     </>:<>
      <div><span>Code</span><strong>{valueOf(detail,"itemCode")||"Not assigned"}</strong></div><div><span>Type</span><strong>{valueOf(detail,"itemType")}</strong></div>
