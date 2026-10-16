@@ -1024,7 +1024,7 @@ try {
   assert.equal(csvCommitted.body.data.createdCount, 1);
   const invalidCsvPreview = await call("/api/v1/customers/import?mode=validate", {
     method: "POST", headers: { "Content-Type": "text/csv" },
-    body: "customerCode,name,paymentTermsDays\r\nBAD-ROW,Invalid Terms,900",
+    body: "customerCode,name,paymentTermsDays\r\nBAD-ROW,Invalid Terms,70000",
   }, financeSession.jar);
   assert.equal(invalidCsvPreview.response.status, 422, "invalid CSV rows produce row-level validation reports");
   assert.equal(invalidCsvPreview.body.report.errors[0].rowNumber, 2);
