@@ -148,8 +148,12 @@ async function main() {
     const mismatchedReadiness=await readinessForEntity(entityId);
     assert.equal(mismatchedReadiness.checks.find(check=>check.key==="taxRules")?.passed,false,
       "tax readiness must require a registered matching jurisdiction, not merely one rule and one registration");
+    assert.equal(mismatchedReadiness.checks.find(check=>check.key==="defaultTaxCode")?.passed,false,
+      "default tax-code readiness must reject a rule whose jurisdiction has no approved registration");
     await pool.execute("UPDATE tax_rules SET jurisdiction='CI-JURISDICTION' WHERE id=?",[taxRuleId]);
     const restoredReadiness=await readinessForEntity(entityId);
+    assert.equal(restoredReadiness.checks.find(check=>check.key==="defaultTaxCode")?.passed,true,
+      "the default tax code must become ready again when its matching approved registration is restored");
     assert.equal(restoredReadiness.ready,true,"restoring the matching jurisdiction restores readiness");
 
     // An approved not-applicable decision is independent of a stale historical default tax-code field.
