@@ -1,145 +1,70 @@
 # Repository Audit — Phases 00–06
 
-**Audit date:** 2026-10-09
-**Audited ref:** `main` at `b6d17f29127e67e663334f96030d29428002a255`
-**Scope:** GitHub repository tree and tracked source/configuration/documentation, plus the latest visible GitHub Actions result. This is not an audit of the developer's local working tree or production accounts.
+**Audit date:** 2026-10-16  
+**Audited baseline:** `main` at `c735e771bf923494070700055f43c3ab255d5a9d`  
+**Closure work:** isolated on branch `phase-01-06-closure`; this report is updated for that branch's proposed state.  
+**Scope:** tracked repository tree, SQL migrations, Next.js route handlers and screens, validation, auth/RBAC helpers, OpenAPI, CI workflows, implementation tracker, and uploaded brand/logo/template assets. This is not a production penetration test or an approval of company/tax facts.
 
 ## Executive result
 
-**Phases 00–06 are not complete. Do not mark them signed off.** The repository contains a Next.js scaffold, early database infrastructure, a starter SQL schema, health endpoints, CI, and design/specification documents. It does not yet contain a working invoice-management application with authentication, complete domain services, full UI, or production-tested infrastructure.
+The earlier 2026-10-09 audit was stale and incorrectly described several now-implemented systems as missing. Since then, the repository gained a lockfile, ten migrations, database verification/migration tooling, local-password authentication, session and CSRF protections, role/permission templates and integration checks, effective-dated legal entity/brand/tax/numbering/template configuration, and transactional invoice issuance with immutable configuration snapshots. Latest observed GitHub Actions runs on the audited baseline passed:
 
-Latest observed CI run for this audited ref: GitHub Actions run 12 completed successfully. The workflow currently installs with `npm install --no-audit`; it does not use a committed lockfile because none is present. A green scaffold build is not evidence that MySQL connectivity, migrations, authorization, or invoice workflows work.
+- CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38851740024
+- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38851740089
 
-## Phase-by-phase findings
+The developer separately confirmed against the intended Aiven development database that `npm run db:verify` passed with an active TLS cipher and `rejectUnauthorized=true`; migrations 001–010 applied and safely reran; the role/reference seed safely reran; and both health endpoints returned HTTP 200. These are useful development evidence, not production recovery/backup evidence.
 
-### Phase 00 — Foundation
+**Conclusion: core foundations are implemented and tested, but Phases 01–06 cannot honestly be declared 100% closed yet.** Phase 02 requires company-owner and finance/tax sign-off that cannot be inferred from code; production backup/recovery and deployment-specific security checks also require operator action. Phase 04 needs manual cross-device visual sign-off. Phase 06 configuration can be saved and issue-time validation is implemented, but uploaded design references are not a PDF-rendering/storage/email pipeline, and real entity/tax/numbering/template values are not approved in this repo.
 
-**Present**
-- Public repository and a basic Next.js App Router/React/TypeScript scaffold.
-- `.gitignore`, safe `.env.example`, README, architecture/development notes.
-- CI workflow for lint, typecheck and production build.
+## Phase-by-phase status
 
-**Outstanding**
-- Commit a generated `package-lock.json` and switch CI to deterministic `npm ci`.
-- Reconcile and inspect the developer's actual local working tree and remote history. This audit environment cannot inspect `/Users/Purvesh/Projects/falchion-invoice`.
-- Verify no secrets were committed using a secret scanner and history-aware review; a safe-looking current tree alone cannot prove history is clean.
-- Confirm clean-checkout build and documented local/staging/production environment conventions.
-- Add contribution/security reporting guidance if required by the team's operating model.
+### Phase 00 — Repository foundation
+**Verified:** Next.js 16/React/TypeScript application; committed package lockfile; `npm ci`, lint, typecheck and production build pass locally at the audited baseline; CI includes secret scanning, MySQL tests and deterministic install.
 
-**Gate:** not passed.
+**Still required:** merge the closure branch after CI review; reconcile the developer's own working tree after merge; review any secret-scanner findings in full history; perform browser-level visual sign-off.
 
 ### Phase 01 — Database and infrastructure
+**Verified:** `npm run db:verify` was run by the developer against Aiven, with TLS certificate verification enabled; ten migrations and role-template seeding are applied to the dedicated development/test database; migration and seed rerun were idempotent; health APIs returned database-ready HTTP 200. CI covers disposable MySQL migration/seed repeatability, safe failure responses and logical dump/restore.
 
-**Present**
-- Server-only `mysql2/promise` pool with required environment validation and bounded pool settings.
-- TLS option uses certificate verification when `DATABASE_SSL=true`.
-- Health helper pings the database and suppresses raw driver errors.
-- Two health route handlers and one initial SQL migration.
+**Still required for production:** confirm the actual Aiven plan's backup retention, perform a provider-level restoration drill into an isolated target, set approved business RPO/RTO and spend ceilings, and review runtime DB grants. A GitHub CI restore proves the test mechanism works; it is not an Aiven managed-backup restore drill.
 
-**Outstanding**
-- Execute a real query against Aiven using the real connection configuration and verify TLS/certificate validation without printing secrets.
-- Test invalid credentials, timeout, unreachable host, pool exhaustion and health response behavior.
-- Add versioned migration tooling with migration history, failure behavior, repeatability policy, and tested recovery/rollback strategy.
-- Add safe, repeatable seed tooling for non-production fixtures. Do not seed invented company/tax values into production.
-- Define and test backups, retention, access policy, restore procedure and recovery objectives.
-- Compare actual hosting, database, private object storage, email and job-service costs before provider commitment.
-- Confirm health endpoints expose only the intended readiness signal and have an explicit public/internal deployment policy.
+### Phase 02 — Business rules
+**Verified:** `docs/phase-02-business-rules.md`, feature traceability and sign-off packet describe lifecycle, money/tax, numbering, payments/correction, roles and template requirements. Proposed defaults are distinguished from approved policies.
 
-**Gate:** not passed. A SQL file in Git is not proof it has been applied.
+**Blocking sign-off:** business owner and finance/accounting owner approvals are still explicitly PENDING in `docs/phase-02-signoff-packet.md`; applicable tax/legal decisions are also pending. No real tax rate, registration, payment term, rounding policy, statutory applicability or brand-to-legal-entity mapping should be fabricated to make this gate appear green.
 
-### Phase 02 — Product requirements and business rules
+### Phase 03 — Architecture/data model
+**Verified:** MySQL schema/migration history, foreign keys/indexes/constraints, OpenAPI contract and CI structural validation; ten migrations cover authentication, legal entities, mapping history, effective-dated tax registrations/rules, numbering, templates, issue-time snapshots and snapshot immutability controls.
 
-**Present**
-- `docs/phase-02-business-rules.md` documents lifecycle separation, snapshot immutability, server-side money calculation, idempotency, audit and key open business decisions.
-- The initial schema reflects a subset of the documented concepts.
+**Still required:** review least-privilege production runtime grants (including snapshot immutability at the database account level), document actual production restore/backfill/cutover decisions, and build/test later-phase domain APIs as they enter scope. OpenAPI entries marked planned must not be described as implemented.
 
-**Outstanding**
-- Business owner must approve legal billing entities, numbering/financial-year policy, tax and rounding, currency, payment terms, cancellation/credit-note policy, roles, approval thresholds, overpayments/refunds and PDF rules.
-- Turn the requirements into a traceable feature/acceptance checklist and link every requirement to code/tests.
-- Implement and test the actual transitions and invariants.
+### Phase 04 — Design system and application shell
+**Verified:** responsive app shell, semantic nav, theme switching, reusable form/table/loading/empty/error/dialog/toast primitives and static UI/accessibility validation. The closure branch replaces the synthetic `FX` mark with an SVG reconstruction guided by the supplied Falchion Xeniaa logo, aligns tokens to Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5` and White `#FFFFFF`, and uses Sansation/Open Sans font families with system fallbacks. Settings shows SVG invoice-layout reconstructions guided by the supplied MyFX POS, Digitech and Coworks sample sheets as reference-only visuals.
 
-**Gate:** not passed until unresolved business/legal choices are approved and traced.
+**Still required:** manual desktop/tablet/mobile and dark/light browser review. The web-font request uses Google Fonts; production owners should approve that external dependency or provide licensed, self-hosted fonts. Static images are sample references, not interactive or issued documents.
 
-### Phase 03 — Schema and API
+### Phase 05 — Authentication and RBAC
+**Verified:** password hashing, invited-account activation, one-time admin bootstrap, database-backed revocable sessions, idle/absolute expiry, same-origin + CSRF checks, rate limits, security-event records, server-side role/permission checks and session invalidation after account/role/scope change. CI exercises role-grant matrix and negative auth/permission/CSRF cases. The developer successfully created the first local system-admin account and signed into the workspace.
 
-**Present**
-- Initial SQL schema for legal entities, brands, customers, invoice sequences, invoices, invoice lines, payments, allocations and audit events.
-- Architecture notes, OpenAPI document and health routes.
+**Still required for production:** configure exact public HTTPS `APP_ORIGIN`, high-entropy deployment `SESSION_SECRET`, trusted proxy settings only behind verified ingress, mail/invitation delivery if required, and any company-mandated SSO/MFA/password-recovery controls.
 
-**Outstanding**
-- Missing first-class schema for users, roles/permissions, catalog items/services, quotations, approvals, reminders, email/outbox jobs, file/PDF metadata and configuration history.
-- Review foreign-key integrity, cross-entity/brand scoping, uniqueness and indexes against confirmed requirements.
-- Add migration history/tooling and schema integration tests against the target MySQL version.
-- Implement API handlers/services and runtime validation; OpenAPI routes are mostly planned contracts, not implemented endpoints.
-- Add contract tests and keep OpenAPI synchronized with implementation.
-- Ensure issued document snapshots are protected from mutation through service permissions and tests, not just JSON columns or documentation.
+### Phase 06 — Company, brand, tax, numbering and template configuration
+**Verified:** permission/scope-checked configuration APIs, audit reasons/version history, masking of bank details, effective-dated registration/rule/series/template checks, tax-jurisdiction readiness checks, currency consistency guard, server-side numbering and an invoice issue transaction with configuration snapshot/hash, idempotency and snapshot immutability integration coverage. The actual sample/logo assets are integrated in the closure branch and are visible on the Settings template page.
 
-**Gate:** not passed.
+**Still required:** finance/business approval of real legal entity data, brand mappings, tax registrations/rules, number formats, templates and statutory scope; configure the actual legal entity in the database before any document can issue. Uploaded sample sheets are not registered as active template configs. A working PDF render/download/private object-storage/email delivery pipeline is not evidenced by the current source and must not be claimed as complete.
 
-### Phase 04 — UI foundation
+## Brand assets found and disposition
 
-**Present**
-- Basic app layout, landing page and global stylesheet.
-- UI design specification.
+The Library contains `FX Brand Guidelines(2).pdf`, `myfx pos logo.zip`, `FX Digitech.zip`, `FX Co works Logo.zip`, and `final size for invoice.zip`. Scalable SVG reconstructions are added on the closure branch under `public/brand/`. The app uses the reconstructed company mark in shell/auth screens and displays three reconstructed template layouts in Settings. The committed SVGs are not pixel-exact copies of the original uploaded binary assets. It does not copy sensitive company/tax/bank values from sample pages into the database, and it does not assume the three commercial brands correspond to three separate legal issuers.
 
-**Outstanding**
-- Implement reusable app shell/navigation, responsive page layouts, accessible components and real loading/empty/error/success/confirmation states.
-- Build customer/catalog/invoice/payment/settings screens using implemented APIs.
-- Add keyboard/accessibility and viewport testing.
-- Do not display fabricated metrics or actions that are not functional.
+## Required sequence to close the pre-Phase-7 gate
 
-**Gate:** not passed.
-
-### Phase 05 — Authentication and authorization
-
-**Present**
-- Security requirements, proposed roles, permission identifiers and threat/test matrix.
-
-**Outstanding**
-- Select and approve an identity provider/authentication strategy.
-- Implement login/logout, secure sessions/cookies, account deactivation/revocation, rate limiting, CSRF protections as applicable, and security-event audit.
-- Enforce default-deny authorization in server-side route/service boundaries and scope queries/downloads by permitted legal entity.
-- Add negative authorization, cross-entity access, revoked-account, CSRF/session and download/export tests.
-- Configure production secrets and provider settings outside the repository.
-
-**Gate:** not passed. Do not expose financial functionality publicly before this gate passes.
-
-### Phase 06 — Company, brand and legal entity configuration
-
-**Present**
-- Detailed specification distinguishes platform operator, commercial brands and legal billing entities.
-- Initial migration has minimal `legal_entities` and `brands` tables.
-
-**Outstanding**
-- Confirm real business mappings and legal/tax/bank information with authorized business owners; do not invent these values.
-- Implement complete schema and version/effective-date history for invoice-affecting configuration.
-- Build permission-protected create/edit/deactivate UI and server validation.
-- Implement configuration readiness checks and block issuance for inactive or incomplete legal entities.
-- Add audit, permissions and cross-entity leakage tests.
-- Verify existing issued snapshots remain unchanged after configuration edits.
-
-**Gate:** not passed.
-
-## Repository-level issues to resolve first
-
-1. **No lockfile:** generate and commit a real lockfile from the chosen Node/npm environment; then use `npm ci` in CI.
-2. **No local-state verification:** the local project directory is not mounted in this audit environment. Do not claim local diff is clean or that local changes have been pushed.
-3. **No real database verification:** CI uses placeholder environment values and does not connect to Aiven.
-4. **Spec vs implementation:** phases 02–06 are predominantly requirements documents; endpoint names in OpenAPI do not mean routes exist.
-5. **Schema is only a starting point:** it lacks several domain tables and has not been verified through an actual migration run against MySQL.
-6. **Security gate is open:** there is no working authentication/authorization layer in the tracked source.
-7. **No production readiness evidence:** no restore drill, private file storage, configured email provider, or deployment verification has been demonstrated.
-
-## Required order of work
-
-1. Reconcile local and remote source safely; generate the lockfile; run clean-checkout lint/typecheck/build and a secret scan.
-2. Implement migration tooling, complete schema incrementally, seed non-production fixtures, and verify Aiven TLS with an actual query.
-3. Get the remaining business decisions approved and link requirements to tests.
-4. Select and implement authentication/RBAC before building protected business routes.
-5. Implement legal-entity/brand configuration and customer/catalog services with migrations, audit and authorization.
-6. Build the application shell and screens against working APIs.
-7. Add transactional invoice/payment services, PDFs, email/jobs, backups/restore, and end-to-end tests before production sign-off.
+1. Review/merge the closure branch after GitHub Actions pass; run it locally and visually inspect login, shell, Settings and the three reference samples.
+2. Complete the Phase 02 sign-off packet with authorized people and actual evidence, or explicitly record decisions as blocked/not applicable with owner and rationale.
+3. Verify the Aiven plan's backup policy and complete the provider-level recovery drill; review DB grants and production deployment secrets/origin/proxy settings.
+4. Populate actual, approved legal entity/brand/tax/numbering/template configuration in the intended environment and re-check readiness; do not use CI/sample placeholders as actual values.
+5. Keep later-phase functionality honestly labeled until it has its own protected API, persistence, tests and UI. Phase 07 remains **not started**; customer/catalog CRUD/import/export implementation must not be mixed into this closure branch.
 
 ## Sign-off rule
 
-Do not mark any phase complete because its specification is committed or the current scaffold builds. Mark it complete only when its listed acceptance gates have evidence: code, automated tests, real infrastructure verification where applicable, and owner approval for business/legal decisions.
+No phase is marked complete solely because its specification or a route exists. A full sign-off requires committed code, automated test evidence, real-environment evidence where applicable, and business/finance/tax authorization for business facts. The closure branch intentionally records the remaining operator and owner gates instead of fabricating completion.

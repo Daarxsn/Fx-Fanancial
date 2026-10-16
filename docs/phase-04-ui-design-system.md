@@ -4,18 +4,18 @@
 
 ## 1. Visual language
 
-The workspace uses a restrained finance-operations visual system: warm-neutral canvas, white/surface cards, dark navy shell accents, brand red for primary actions, readable muted secondary text, thin dividers and small, deliberate status indicators.
+The workspace follows the uploaded FX Brand Guidelines: Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5` and White `#FFFFFF`. Gold and saffron red are the brand accents; charcoal and platinum/white define light/dark surfaces. Sansation is the display/heading typeface and Open Sans is the UI/body typeface. Uploaded official/logo-pack assets and the three supplied invoice sample sheets are committed under `public/brand/` and surfaced in Settings as reference material.
 
 ### Implemented tokens
 
 Defined centrally in `src/app/globals.css`:
 
-- **Brand:** red primary action and accent (`--red`, `--red-hover`, `--red-tint`), deep navy (`--navy`, `--navy-soft`).
+- **Brand:** Saffron Red `#931314` and Gold `#DCAF51` are the approved accents (`--red`, `--gold` and tint/hover variants); Charcoal `#111111` replaces navy as the shell foundation.
 - **Surfaces:** canvas, surface, subtle surface, raised surface and hover surface; all have light/dark equivalents.
 - **Text:** strong, default, muted and muted-strong text tokens.
 - **State colors:** semantic success, warning, danger and info pairs, always shown with text/icons as well as color.
 - **Controls:** line/strong line, focus color, consistent small/medium/large radii and subtle/card shadows.
-- **Typography:** Geist Sans/Mono via Next font variables; a compact heading/body/metadata scale with tabular/financial content kept readable.
+- **Typography:** Sansation headings and Open Sans supporting UI, loaded as CSS web-fonts with system fallbacks; existing Geist font variables remain fallbacks for offline/blocked font requests.
 - **Layout rhythm:** 4px spacing base and consistent component spacing; desktop content uses a maximum width while mobile pages preserve horizontal breathing room.
 - **Theme:** light by default; user can toggle dark/light mode from the shared header. The choice is saved in local storage as `fx-theme`. A storage restriction does not prevent switching theme for the current session.
 
@@ -102,7 +102,15 @@ Implemented styles and markup cover:
 
 The static UI validation is a guardrail for code-level invariants; it does not replace manual visual review across actual browsers/devices or end-to-end testing of implemented business flows. A manual browser/device review has not been performed in this pass; the code-level breakpoint and accessibility checks are automated.
 
-## 6. Completion gate
+## 6. Brand asset integration and remaining visual QA
+
+- The application shell and authentication card use the uploaded Falchion Xeniaa logo instead of the synthetic red `FX` tile and text-only wordmark.
+- Light/dark tokens use the official palette. In dark mode Gold is the high-contrast active/action accent; the official saffron red remains the light-theme primary accent.
+- Settings > Document templates displays the three uploaded invoice samples (MyFX POS, Digitech, Coworks) alongside their corresponding logo assets as **reference-only** images. They are not silently registered as an active legal-entity template and are not rendered as issued PDFs.
+- The uploaded brand PDF did not include a separately distributable font asset in the repository. Sansation/Open Sans are web-loaded with fallback stacks; production owners should approve this external font delivery choice or provide licensed self-hosted font assets.
+- Manual browser/device screenshot review is still required after the asset update; static CI checks do not replace it.
+
+## 7. Completion gate
 
 - [x] Visual language, typography, palette, spacing, icon set and shared component conventions implemented.
 - [x] Responsive application shell, navigation, top bar, breadcrumbs and page layouts implemented.
@@ -129,3 +137,8 @@ Evidence:
 - [ ] Connect user identity/menu, notifications, global search and permissions once authentication and those capabilities are approved and implemented.
 
 **Completion gate for Phase 04: PASSED.** The consistent, responsive UI foundation and automated code-level accessibility checks are implemented and CI-validated. Business workflows and production visual QA remain separate gates.
+
+
+### Closure follow-up: brand references are reconstructive
+
+The primary shell/auth SVG and three line-of-business/ invoice SVG references are scalable reconstructions informed by the uploaded PDF/ZIP references. They avoid external binary dependencies in the repository, but are not exact reproductions of the source art. The Settings gallery calls out that the invoice visuals are reference-only. Before production sign-off, compare these SVGs with the uploaded originals and replace the reconstructions with approved exact logo assets if the original visual fidelity is required. The source guide's Sansation/Open Sans families currently load as CSS web fonts with local fallbacks; approve the external request or provide licensed self-hosted font assets.

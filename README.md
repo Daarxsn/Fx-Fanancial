@@ -4,7 +4,7 @@ Internal invoice management platform built with Next.js App Router, React, TypeS
 
 ## Current status
 
-The repository contains the application scaffold, database pool/health checks, initial and expansion migrations, a migration runner, API validation/authorization primitives, early customer/catalog APIs, and CI. The full invoice workflow is not yet production-ready. See the [Phase 00–06 implementation tracker](docs/phase-00-06-implementation-tracker.md) and [repository audit](docs/repository-audit-phase-00-06.md) for open acceptance gates.
+The repository contains ten forward-only MySQL migrations, database verification and repeatable reference seeding, local-password authentication/session security with RBAC, company/brand/legal-entity/tax/numbering/template configuration, and a transactionally guarded invoice-issue endpoint with immutable configuration snapshots. The developer has verified the dedicated Aiven development database and can sign in locally. This is not yet production sign-off: Phase 02 business/finance/tax approvals and provider/deployment readiness gates remain open, and PDF rendering/private delivery plus later-phase workflows are not claimed as complete. See the [Phase 00–06 implementation tracker](docs/phase-00-06-implementation-tracker.md), [current repository audit](docs/repository-audit-phase-00-06.md), and [closure gates](docs/phase-00-06-closure-gates.md).
 
 ## Architecture
 
@@ -46,3 +46,10 @@ Only run migrations against a database you are authorized to change. The referen
 ## Security and contribution
 
 Never commit credentials, `.env.local`, database dumps, customer financial data, issued invoices or production exports. Read [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), [environment conventions](docs/environments.md), and [development rules](docs/development.md) before contributing.
+
+
+## Closure status — Phases 01–06
+
+The `phase-01-06-closure` branch contains an audit and proposed brand/UI refinements before Phase 07 begins. It replaces the generic logo treatment with a scalable SVG reconstruction informed by the uploaded brand reference, aligns CSS tokens to Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5` and White `#FFFFFF`, and shows reconstructed POS/Digitech/Coworks invoice layouts as reference-only designs in Settings. These SVGs are **not pixel copies** of the original library files.
+
+Phase 07 customer/catalog work has not started. The complete Phase 01–06 closure gates are tracked in [docs/phase-00-06-closure-gates.md](docs/phase-00-06-closure-gates.md). External business/finance/tax sign-off, a provider-level Aiven restore drill, approved production values, and manual visual QA remain open until independently completed.

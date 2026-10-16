@@ -112,3 +112,19 @@ The passing CI suite includes concurrent numbering, financial-year boundary, dat
 - Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38542227977
 
 Real tax values, registration numbers, numbering decisions, finance/tax approval, and production activation still require approved values and a controlled deployment migration.
+
+
+## Brand asset integration audit (2026-10-16)
+
+The uploaded **FX Brand Guidelines** and image packs have now been converted into scalable SVG reconstructions under `public/brand/` on the Phase 01–06 closure branch:
+
+- `falchion-xeniaa-logo.svg` — primary application lockup.
+- `myfx-pos.svg`, `fx-digitech.svg`, `fx-coworks.svg` — product/brand logo variants from the supplied logo packs.
+- `templates/myfx-pos-sample.svg`, `templates/digitech-sample.svg`, `templates/coworks-sample.svg` — reconstructed invoice reference layouts guided by the uploaded sample sheets displayed in Settings for comparison.
+
+The shell, login/activation identity and illustrative Settings preview use an SVG reconstruction guided by the official company logo reference, not an exact raster/vector copy. The Templates tab presents the three uploaded samples as **reference artwork**, labeled not-active. Sample art is not an effective-dated template record, is not assumed to be mapped to any particular legal entity, and does not imply that PDF rendering, secure storage, downloading or email delivery has been implemented. A finance/business owner still needs to approve the entity/brand mapping and actual production template configuration.
+
+The CSS design tokens use the official guide's Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5`, and White `#FFFFFF`. Sansation/Open Sans web fonts are requested from Google Fonts with local system fallbacks; the repository does not currently contain self-hosted font binaries.
+
+
+**Fidelity note:** the committed SVG mark/logo lockups and invoice reference layouts are reconstructions informed by the uploaded library files. The exact original logo/sample files have not been embedded as binary assets in this branch. Compare with the originals and replace with approved exact artwork if pixel-identical production branding is required. The templates remain reference-only; PDF rendering/storage/delivery is still a separate feature gate.

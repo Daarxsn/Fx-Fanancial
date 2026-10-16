@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState, type FormEvent, type Dispatch, type SetStateAction, type ReactNode, type CSSProperties } from "react";
 import { Breadcrumbs, Button, Card, EmptyState, InlineAlert, LoadingState, PageHeader, StatusBadge, TextField, TextAreaField, SelectField } from "@/components/ui";
 
@@ -28,13 +29,13 @@ const today=(timeZone="Asia/Kolkata")=>{
  return `${part("year")}-${part("month")}-${part("day")}`;
 };
 const companyBlank=():Draft=>({legalName:"",displayName:"",registrationNumber:"",taxIdentifier:"",countryCode:"",currency:"INR",line1:"",line2:"",city:"",state:"",postalCode:"",billingLine1:"",billingLine2:"",billingCity:"",billingState:"",billingPostalCode:"",billingCountryCode:"",invoiceEmail:"",invoicePhone:"",website:"",locale:"en-IN",timeZone:"Asia/Kolkata",logoReference:"",invoiceTerms:"",invoiceFooter:"",defaultTaxCode:"",taxSetupStatus:"UNCONFIGURED",taxSetupApprovalReference:"",bankAccountName:"",bankName:"",bankAccountNumber:"",bankIfsc:"",bankSwift:"",replaceBank:false,changeReason:"Initial legal entity configuration"});
-const brandBlank=():Draft=>({name:"",code:"",description:"",logoReference:"",defaultTemplateKey:"",themeAccent:"#B51F32",themeStyle:"STANDARD",legalEntityIds:"",changeReason:"Initial brand configuration"});
+const brandBlank=():Draft=>({name:"",code:"",description:"",logoReference:"",defaultTemplateKey:"",themeAccent:"#931314",themeStyle:"STANDARD",legalEntityIds:"",changeReason:"Initial brand configuration"});
 const unitBlank=():Draft=>({code:"",name:"",description:"",legalEntityIds:"",brandIds:"",changeReason:"Initial business unit configuration"});
 const registrationBlank=():Draft=>({registrationKey:"",registrationType:"GSTIN",jurisdiction:"",registrationNumber:"",displayLabel:"",isPrimary:true,effectiveFrom:today(),effectiveUntil:"",approvalReference:"",changeReason:"Approved tax registration configuration"});
 const taxBlank=():Draft=>({taxCode:"",displayName:"",jurisdiction:"",ratePercent:"",calculationMode:"EXCLUSIVE",effectiveFrom:today(),effectiveUntil:"",approvalReference:"",changeReason:"Approved tax rule configuration"});
 const numberingBlank=():Draft=>({documentType:"INVOICE",seriesCode:"INV",prefix:"",suffix:"",sequenceWidth:"5",includeFinancialYear:true,financialYearStartMonth:"4",financialYearStartDay:"1",timeZone:"Asia/Kolkata",effectiveFrom:today(),effectiveUntil:"",approvalReference:"",activate:false,changeReason:"Numbering configuration"});
 const templateBlank=():Draft=>({brandId:"",documentType:"INVOICE",templateKey:"STANDARD",displayName:"Standard invoice",
- templateConfig:JSON.stringify({pageSize:"A4",orientation:"PORTRAIT",layout:"STANDARD",accentColor:"#B51F32",showLogo:true,showTaxBreakdown:true,showBankDetails:false,showPaymentTerms:true,showCustomerTaxIdentifier:false,showFooter:true,footerText:""},null,2),
+ templateConfig:JSON.stringify({pageSize:"A4",orientation:"PORTRAIT",layout:"STANDARD",accentColor:"#931314",showLogo:true,showTaxBreakdown:true,showBankDetails:false,showPaymentTerms:true,showCustomerTaxIdentifier:false,showFooter:true,footerText:""},null,2),
  effectiveFrom:today(),effectiveUntil:"",activate:false,changeReason:"Document template configuration"});
 async function api<T>(path:string,method="GET",body?:unknown):Promise<T>{
  let csrf="";
@@ -75,7 +76,7 @@ function TemplatePreview({config,title,documentType,issuerName}:{config:Record<s
    <article className={`config-template-paper config-template-paper--${orientation.toLowerCase()}`} style={{"--template-accent":accent} as CSSProperties} aria-label="Illustrative document page">
     <div className="config-template-paper__accent"/>
     <header className="config-template-paper__header">
-     {showLogo?<div className="config-template-paper__logo" aria-label="Logo placeholder">{issuer.slice(0,2).toUpperCase()}</div>:null}
+     {showLogo?<div className="config-template-paper__logo" aria-label="Illustrative brand logo"><Image className="config-template-paper__logo-image" src="/brand/falchion-xeniaa-logo.svg" alt="Falchion Xeniaa logo reference; configure the actual issuing brand before activation" width={330} height={165}/></div>:null}
      <div className="config-template-paper__issuer"><strong>{issuer}</strong><span>Registered supplier · Contact and address</span></div>
      <div className="config-template-paper__document"><small>DOCUMENT PREVIEW</small><h4>{docLabel}</h4><span>NOT ISSUED</span></div>
     </header>
@@ -330,7 +331,7 @@ export default function SettingsPage(){
    <div className="config-form-actions"><Button type="submit" disabled={saving}>{saving?"Saving…":brandEdit?"Save brand version":"Create brand"}</Button>{brandEdit?<Button variant="ghost" onClick={()=>{setBrandEdit("");setBrand(brandBlank())}}>Cancel</Button>:null}</div></form></Card>
    {brands.length===0?<EmptyState title="No mapped brands" description="Create a brand and select the legal entities it is explicitly permitted to represent." icon="box"/>:<div className="config-record-list">{brands.map(b=><RecordCard key={b.id} title={b.name} subtitle={b.code} meta={b.description??"Brand identity"} active={b.isActive}
     details={<><Detail label="Entity mappings">{b.legalEntityMappings.length}</Detail><Detail label="Logo">{b.logoReference||"Not set"}</Detail><Detail label="Preferred template">{b.defaultTemplateKey||"None"}</Detail></>}
-    actions={<><Button size="sm" variant="secondary" onClick={()=>{setBrandEdit(b.id);setBrand({name:b.name,code:b.code,description:b.description??"",logoReference:b.logoReference??"",defaultTemplateKey:b.defaultTemplateKey??"",themeAccent:typeof b.theme?.accentColor==="string"?b.theme.accentColor:"#B51F32",themeStyle:typeof b.theme?.presentationStyle==="string"?b.theme.presentationStyle:"STANDARD",legalEntityIds:b.legalEntityMappings.map(m=>m.legalEntityId).join(", "),changeReason:"Update brand configuration"})}}>Edit</Button><Button size="sm" variant={b.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/brands/"+b.id,b.isActive,b.name)}>{b.isActive?"Deactivate":"Reactivate"}</Button></>}/>)}</div>}
+    actions={<><Button size="sm" variant="secondary" onClick={()=>{setBrandEdit(b.id);setBrand({name:b.name,code:b.code,description:b.description??"",logoReference:b.logoReference??"",defaultTemplateKey:b.defaultTemplateKey??"",themeAccent:typeof b.theme?.accentColor==="string"?b.theme.accentColor:"#931314",themeStyle:typeof b.theme?.presentationStyle==="string"?b.theme.presentationStyle:"STANDARD",legalEntityIds:b.legalEntityMappings.map(m=>m.legalEntityId).join(", "),changeReason:"Update brand configuration"})}}>Edit</Button><Button size="sm" variant={b.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/brands/"+b.id,b.isActive,b.name)}>{b.isActive?"Deactivate":"Reactivate"}</Button></>}/>)}</div>}
   </div>:null}
 
   {tab==="units"?<div className="config-main config-main--full">
@@ -415,7 +416,31 @@ export default function SettingsPage(){
   </div>:null}
 
   {tab==="templates"?<div className="config-main config-main--full">
-   <Heading label="DOCUMENT PRESENTATION" title="Invoice and document templates" description="Templates are typed, versioned configuration. Actual PDF rendering/storage remains a separate issuance and delivery workflow."/>
+   <Heading label="DOCUMENT PRESENTATION" title="Invoice and document templates" description="Configure versioned document rules and compare them against the uploaded brand samples. A reference image is not an active template or an issued PDF."/>
+   <section className="config-template-reference" aria-labelledby="config-template-reference-title">
+    <div className="config-template-reference__heading">
+     <p className="eyebrow">UPLOADED BRAND ASSETS</p>
+     <h3 id="config-template-reference-title">Approved invoice sample references</h3>
+     <p>These editable SVG reference layouts are visual reconstructions guided by your supplied MyFX POS, Digitech and Coworks sample pack. They are shown for design matching only; they are not pixel copies of the source sheets and do not create a configured template, store customer data, allocate a document number or issue an invoice.</p>
+    </div>
+    <div className="config-template-reference-grid">
+     <article className="config-template-reference-card">
+      <div className="config-template-reference-card__brand"><Image src="/brand/myfx-pos.svg" alt="MyFX POS logo" width={820} height={330}/></div>
+      <Image className="config-template-reference-card__image" src="/brand/templates/myfx-pos-sample.svg" alt="MyFX POS invoice reference reconstruction, not issued" width={680} height={962}/>
+      <div className="config-template-reference-card__body"><strong>MyFX POS</strong><span>POS invoice layout reconstructed for visual comparison.</span><span className="config-template-reference-card__status">Reference only · not active</span></div>
+     </article>
+     <article className="config-template-reference-card">
+      <div className="config-template-reference-card__brand"><Image src="/brand/fx-digitech.svg" alt="FX Digitech logo" width={820} height={220}/></div>
+      <Image className="config-template-reference-card__image" src="/brand/templates/digitech-sample.svg" alt="Digitech invoice reference reconstruction, not issued" width={680} height={962}/>
+      <div className="config-template-reference-card__body"><strong>Digitech</strong><span>Digital services invoice layout reconstructed for visual comparison.</span><span className="config-template-reference-card__status">Reference only · not active</span></div>
+     </article>
+     <article className="config-template-reference-card">
+      <div className="config-template-reference-card__brand"><Image src="/brand/fx-coworks.svg" alt="FX Coworks logo" width={640} height={520}/></div>
+      <Image className="config-template-reference-card__image" src="/brand/templates/coworks-sample.svg" alt="Coworks invoice reference reconstruction, not issued" width={680} height={962}/>
+      <div className="config-template-reference-card__body"><strong>Coworks</strong><span>Coworking invoice layout reconstructed for visual comparison.</span><span className="config-template-reference-card__status">Reference only · not active</span></div>
+     </article>
+    </div>
+   </section>
    {!entity?<EmptyState title="Select a legal entity" description="Every template is owned by one legal entity." icon="building"/>:<>
     <Card className="config-form-card"><form className="config-form" onSubmit={e=>void mutate(e,saveTemplate,"Document template saved.")}><Grid>
      <Select id="tplType" label="Document type" value={String(template.documentType)} required onChange={s=>setValue(setTemplate,"documentType",s)} options={[{value:"INVOICE",label:"Invoice"},{value:"CREDIT_NOTE",label:"Credit note"},{value:"DEBIT_NOTE",label:"Debit note"},{value:"QUOTATION",label:"Quotation"}]}/>
