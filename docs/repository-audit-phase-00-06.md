@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-10-16  
 **Audited baseline:** `main` at `d1db93ef40a3a6301853fe5d3f5eda292b6db6f3` (PR #5 merge)  
-**Merged closure work:** PR #4 and PR #5 are merged to `main`. PR #6 is an open UI fidelity follow-up with passing CI on branch head `4697e05186c36a09e2874b17ac34ae776ca5bc7b`; the exact corporate/MyFX/Digitech WebP assets are still proposed, while Coworks remains reconstructed.  
+**Merged closure work:** PR #4 and PR #5 are merged to `main`. PR #6 is an open UI fidelity follow-up; it adds exact supplied WebP assets for the corporate logo plus MyFX POS, Digitech and Coworks. The latest PR#6 head has additional source/doc updates waiting for CI.  
 **Scope:** tracked repository tree, SQL migrations, Next.js route handlers and screens, validation, auth/RBAC helpers, OpenAPI, CI workflows, implementation tracker, and uploaded brand/logo/template assets. This is not a production penetration test or an approval of company/tax facts.
 
 ## Executive result
@@ -40,7 +40,7 @@ The developer separately confirmed against the intended Aiven development databa
 **Still required:** review least-privilege production runtime grants (including snapshot immutability at the database account level), document actual production restore/backfill/cutover decisions, and build/test later-phase domain APIs as they enter scope. OpenAPI entries marked planned must not be described as implemented.
 
 ### Phase 04 — Design system and application shell
-**Verified:** responsive app shell, semantic nav, theme switching, reusable form/table/loading/empty/error/dialog/toast primitives and static UI/accessibility validation. Merged PR #4 aligned tokens to Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5` and White `#FFFFFF`, and uses Sansation/Open Sans font families with system fallbacks. Proposed PR #6 replaces the synthetic mark with the exact supplied corporate WebP and uses exact MyFX POS/Digitech WebPs; Coworks remains reconstructed. Settings shows sanitized SVG invoice-layout reconstructions as reference-only visuals.
+**Verified:** responsive app shell, semantic nav, theme switching, reusable form/table/loading/empty/error/dialog/toast primitives and static UI/accessibility validation. Merged PR #4 aligned tokens to Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5` and White `#FFFFFF`, and uses Sansation/Open Sans font families with system fallbacks. Proposed PR #6 replaces the synthetic mark with exact supplied WebP exports for the corporate logo, MyFX POS, Digitech and Coworks. Settings shows sanitized SVG invoice-layout reconstructions as reference-only visuals.
 
 **Still required:** manual desktop/tablet/mobile and dark/light browser review. The web-font request uses Google Fonts; production owners should approve that external dependency or provide licensed, self-hosted fonts. Static images are sample references, not interactive or issued documents.
 
@@ -50,13 +50,13 @@ The developer separately confirmed against the intended Aiven development databa
 **Still required for production:** configure exact public HTTPS `APP_ORIGIN`, high-entropy deployment `SESSION_SECRET`, trusted proxy settings only behind verified ingress, mail/invitation delivery if required, and any company-mandated SSO/MFA/password-recovery controls.
 
 ### Phase 06 — Company, brand, tax, numbering and template configuration
-**Verified:** permission/scope-checked configuration APIs, audit reasons/version history, masking of bank details, effective-dated registration/rule/series/template checks, tax-jurisdiction readiness checks, currency consistency guard, server-side numbering and invoice issue transaction with configuration snapshot/hash, idempotency and snapshot immutability integration coverage. Exact corporate/MyFX/Digitech WebP logo exports are proposed in PR #6 (CI passing but not yet merged); Coworks remains reconstructed. Sanitized invoice layout references remain visible on Settings.
+**Verified:** permission/scope-checked configuration APIs, audit reasons/version history, masking of bank details, effective-dated registration/rule/series/template checks, tax-jurisdiction readiness checks, currency consistency guard, server-side numbering and invoice issue transaction with configuration snapshot/hash, idempotency and snapshot immutability integration coverage. Exact corporate/MyFX/Digitech/Coworks WebP logo exports are proposed in PR #6 (current revision awaits CI). Sanitized invoice layout references remain visible on Settings.
 
 **Still required:** finance/business approval of real legal entity data, brand mappings, tax registrations/rules, number formats, templates and statutory scope; configure the actual legal entity in the database before any document can issue. Uploaded sample sheets are not registered as active template configs. A working PDF render/download/private object-storage/email delivery pipeline is not evidenced by the current source and must not be claimed as complete.
 
 ## Brand assets found and disposition
 
-The Library contains `FX Brand Guidelines(2).pdf`, `myfx pos logo.zip`, `FX Digitech.zip`, `FX Co works Logo.zip`, and `final size for invoice.zip`. PR #4 committed SVG reconstructions for logo/template references. PR #6 proposes exact WebP corporate, MyFX POS and FX Digitech logo exports; Coworks remains reconstructed. The three invoice layout SVGs are not pixel-exact copies of the uploaded sample sheets. Raw invoice samples are not copied into `public/`; no sensitive company/tax/bank values are populated from sample art, and the repo does not assume the three commercial brands correspond to three separate legal issuers.
+The Library contains `FX Brand Guidelines(2).pdf`, `myfx pos logo.zip`, `FX Digitech.zip`, `FX Co works Logo.zip`, and `final size for invoice.zip`. PR #4 committed SVG reconstructions for logo/template references. PR #6 proposes exact WebP corporate, MyFX POS, FX Digitech and Coworks logo exports. The three invoice layout SVGs are not pixel-exact copies of the uploaded sample sheets. Raw invoice samples are not copied into `public/`; no sensitive company/tax/bank values are populated from sample art, and the repo does not assume the three commercial brands correspond to three separate legal issuers.
 
 ## Required sequence to close the pre-Phase-7 gate
 
@@ -73,4 +73,4 @@ No phase is marked complete solely because its specification or a route exists. 
 
 ### Exact logo exports follow-up
 
-The merged visual-fidelity branch uses the supplied exact transparent WebP exports for the main Falchion Xeniaa logo, MyFX POS and FX Digitech logos. The Coworks logo is still a reconstruction and is called out as such. The three invoice layout SVGs remain sanitized reconstructions; no raw invoice samples with sample financial/business data are copied into the public assets. PR #6 CI validation is the evidence gate for the logo header changes.
+The visual-fidelity branch uses supplied exact transparent WebP exports for the main Falchion Xeniaa logo and all three product brands, MyFX POS, FX Digitech and FX Coworks. The three invoice layout SVGs remain sanitized reconstructions; no raw invoice samples with sample financial/business data are copied into the public assets. The updated PR #6 CI validation remains the gate before merge.

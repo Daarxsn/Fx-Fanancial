@@ -435,7 +435,7 @@ export default function SettingsPage(){
       <div className="config-template-reference-card__body"><strong>Digitech</strong><span>Digital services invoice layout reconstructed for visual comparison.</span><span className="config-template-reference-card__status">Reference only · not active</span></div>
      </article>
      <article className="config-template-reference-card">
-      <div className="config-template-reference-card__brand"><Image src="/brand/fx-coworks.svg" alt="FX Coworks logo" width={640} height={520}/></div>
+      <div className="config-template-reference-card__brand"><Image src="/brand/fx-coworks.webp" alt="FX Coworks logo from supplied brand pack" width={226} height={180}/></div>
       <Image className="config-template-reference-card__image" src="/brand/templates/coworks-sample.svg" alt="Coworks invoice reference reconstruction, not issued" width={680} height={962}/>
       <div className="config-template-reference-card__body"><strong>Coworks</strong><span>Coworking invoice layout reconstructed for visual comparison.</span><span className="config-template-reference-card__status">Reference only · not active</span></div>
      </article>

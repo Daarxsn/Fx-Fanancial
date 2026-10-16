@@ -4,7 +4,7 @@
 
 ## 1. Visual language
 
-The workspace follows the uploaded FX Brand Guidelines: Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5` and White `#FFFFFF`. Gold and saffron red are the brand accents; charcoal and platinum/white define light/dark surfaces. Sansation is the display/heading typeface and Open Sans is the UI/body typeface. The exact supplied Falchion Xeniaa, MyFX POS and FX Digitech logo exports are added in PR #6; Coworks remains a reconstruction. Settings uses sanitized, reconstructed invoice layouts as reference material, not the raw uploaded sample sheets.
+The workspace follows the uploaded FX Brand Guidelines: Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5` and White `#FFFFFF`. Gold and saffron red are the brand accents; charcoal and platinum/white define light/dark surfaces. Sansation is the display/heading typeface and Open Sans is the UI/body typeface. PR #6 adds the exact supplied corporate, MyFX POS, Digitech and Coworks logo exports. Settings uses sanitized, reconstructed invoice layouts as reference material, not the raw uploaded sample sheets.
 
 ### Implemented tokens
 
@@ -106,7 +106,7 @@ The static UI validation is a guardrail for code-level invariants; it does not r
 
 - The proposed PR #6 shell and authentication card use the exact supplied Falchion Xeniaa WebP logo export instead of the synthetic red `FX` tile and text-only wordmark.
 - Light/dark tokens use the official palette. In dark mode Gold is the high-contrast active/action accent; the official saffron red remains the light-theme primary accent.
-- Settings > Document templates displays three sanitized invoice-layout reconstructions alongside the available logo assets as **reference-only** visuals. They are not the raw uploaded invoice samples, are not silently registered as an active legal-entity template, and are not rendered as issued PDFs. The Coworks mark remains reconstructed until its exact export is added.
+- Settings > Document templates displays three sanitized invoice-layout reconstructions alongside the exact logo exports as **reference-only** visuals. They are not the raw uploaded invoice samples, are not silently registered as an active legal-entity template, and are not rendered as issued PDFs.
 - The uploaded brand PDF did not include a separately distributable font asset in the repository. Sansation/Open Sans are web-loaded with fallback stacks; production owners should approve this external font delivery choice or provide licensed self-hosted font assets.
 - Manual browser/device screenshot review is still required after the asset update; static CI checks do not replace it.
 
@@ -141,9 +141,9 @@ Evidence:
 
 ### Closure follow-up: brand references are reconstructive
 
-The logo implementation is mixed by design: the proposed PR #6 uses the exact supplied WebP exports for Falchion Xeniaa, MyFX POS and FX Digitech; Coworks remains an SVG reconstruction and is an open fidelity item. The three invoice-layout SVGs are sanitized reconstructions guided by the source references, not pixel-identical copies and not issued documents. Raw sample sheets are not placed in `public/`. The source guide's Sansation/Open Sans families load as CSS web fonts with local fallbacks; approve the external request or provide licensed self-hosted font assets.
+PR #6 uses exact supplied WebP exports for the Falchion Xeniaa corporate logo and all three line-of-business logos: MyFX POS, Digitech and Coworks. The three invoice-layout SVGs are sanitized reconstructions guided by source references, not pixel-identical copies and not issued documents. Raw sample sheets are not placed in `public/`. The source guide's Sansation/Open Sans families load as CSS web fonts with local fallbacks; approve the external request or provide licensed self-hosted font assets.
 
 
 ### Visual fidelity follow-up (PR #6)
 
-PR #6 uses the exact supplied transparent WebP exports for Falchion Xeniaa, MyFX POS and FX Digitech. Gold-on-transparent logo marks have charcoal backplates for contrast on light and dark themes. Coworks remains an SVG reconstruction and must be replaced by the exact approved export before all four brand logo packs can claim pixel fidelity. Invoice cards show sanitized SVG reference reconstructions, not raw invoice samples or issued documents.
+PR #6 uses the exact supplied transparent WebP exports for Falchion Xeniaa, MyFX POS, FX Digitech and FX Coworks. Gold-on-transparent logo marks have charcoal backplates for contrast on light and dark themes. Invoice cards show sanitized SVG reference reconstructions, not raw invoice samples or issued documents.

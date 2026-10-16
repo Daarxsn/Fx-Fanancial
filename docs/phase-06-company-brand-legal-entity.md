@@ -117,19 +117,19 @@ Real tax values, registration numbers, numbering decisions, finance/tax approval
 
 ## Brand asset integration audit (2026-10-16)
 
-PR #4 added reconstructed SVG logo/template references to `main` at `7b7e591128facbb66beda6cbe4b781e42759d6ff`. PR #6 adds the exact supplied WebP exports for Falchion Xeniaa, MyFX POS and FX Digitech to the UI on branch `phase-01-06-visual-fidelity`; these exact exports are not yet on `main` until PR #6 merges:
+PR #4 added reconstructed SVG logo/template references to `main` at `7b7e591128facbb66beda6cbe4b781e42759d6ff`. PR #6 adds the exact supplied WebP exports for Falchion Xeniaa, MyFX POS, FX Digitech and FX Coworks to the UI on branch `phase-01-06-visual-fidelity`; these exact exports are not yet on `main` until PR #6 merges:
 
-- `falchion-xeniaa-logo.webp`, `myfx-pos.webp`, `fx-digitech.webp` — exact supplied transparent logo exports proposed for live shell/auth/header use in PR #6.
-- `fx-coworks.svg` and the three SVG invoice layouts — reconstructed reference art; Coworks' exact export remains an open item.
+- `falchion-xeniaa-logo.webp`, `myfx-pos.webp`, `fx-digitech.webp`, `fx-coworks.webp` — exact supplied transparent logo exports proposed for live shell/auth/header use in PR #6.
+- The four `.svg` logo variants and three SVG invoice layouts — reconstructed reference art retained for design/dev reference.
 
-With PR #6, the shell, login/activation identity and illustrative Settings preview use the exact supplied corporate WebP export; MyFX POS and FX Digitech logo headers also use their exact supplied exports. Coworks remains reconstructed. The Templates tab presents sanitized SVG layout reconstructions as **reference artwork**, labelled not active. They are not effective-dated template records, are not assumed to map to any particular legal entity, and do not imply PDF rendering, secure storage, download or email delivery. A finance/business owner still needs to approve entity/brand mapping and actual production template configuration.
+With PR #6, the shell, login/activation identity and illustrative Settings preview use the exact supplied corporate WebP export; MyFX POS, FX Digitech and Coworks headers also use their exact supplied exports. The Templates tab presents sanitized SVG layout reconstructions as **reference artwork**, labelled not active. They are not effective-dated template records, are not assumed to map to any particular legal entity, and do not imply PDF rendering, secure storage, download or email delivery. A finance/business owner still needs to approve entity/brand mapping and actual production template configuration.
 
 The CSS design tokens use the official guide's Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5`, and White `#FFFFFF`. Sansation/Open Sans web fonts are requested from Google Fonts with local system fallbacks; the repository does not currently contain self-hosted font binaries.
 
 
-**Fidelity note:** the exact supplied corporate, MyFX POS and Digitech logo WebP exports are proposed on PR #6; Coworks remains an SVG reconstruction. The invoice reference layouts are sanitized reconstructions, not pixel-identical copies of the original invoice sample sheets. The templates remain reference-only; PDF rendering/storage/delivery is still a separate feature gate.
+**Fidelity note:** the exact supplied corporate, MyFX POS, Digitech and Coworks logo WebP exports are proposed on PR #6. The invoice reference layouts are sanitized reconstructions, not pixel-identical copies of the original invoice sample sheets. The templates remain reference-only; PDF rendering/storage/delivery is still a separate feature gate.
 
 
 ### Supplied logo export fidelity follow-up (2026-10-16)
 
-PR #6 integrates the exact supplied transparent WebP exports for Falchion Xeniaa, MyFX POS and FX Digitech into the live shell/authentication/template-header UI, with contrast-safe charcoal surfaces for gold marks. The Coworks header/gallery mark remains a reconstruction and is explicitly noted in `public/brand/README.md`; its exact approved export is still needed to close the final brand-fidelity item. The original invoice samples are not committed to the public folder because they contain example financial/business details; Settings continues to display sanitized vector layout reconstructions that are not active templates.
+PR #6 integrates the exact supplied transparent WebP exports for Falchion Xeniaa, MyFX POS, FX Digitech and Coworks into the live shell/authentication/template-header UI, with contrast-safe charcoal surfaces for gold marks where needed. The original invoice samples are not committed to the public folder because they contain example financial/business details; Settings continues to display sanitized vector layout reconstructions that are not active templates.
