@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "@/components/icon";
@@ -225,8 +226,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <aside className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`} id="primary-navigation" aria-label="Primary navigation">
         <Link className="sidebar-brand" href="/" aria-label="Falchion Xeniaa Finance home">
-          <span className="brand-mark">FX</span>
-          <span className="sidebar-brand__text"><strong>falchion<span>.</span></strong><small>FINANCE WORKSPACE</small></span>
+          <Image className="sidebar-brand__logo" src="/brand/falchion-xeniaa-logo.svg" alt="Falchion Xeniaa" width={330} height={165} priority />
+          <span className="sidebar-brand__caption">FINANCE WORKSPACE</span>
         </Link>
 
         <div className="workspace-switcher">

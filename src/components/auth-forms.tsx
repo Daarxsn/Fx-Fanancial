@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { Button, InlineAlert, TextField, StatusBadge } from "@/components/ui";
@@ -51,8 +52,8 @@ export function LoginForm() {
   return (
     <section className="auth-card" aria-labelledby="login-title">
       <div className="auth-card__brand">
-        <span className="brand-mark">FX</span>
-        <span><strong>falchion<span>.</span></strong><small>FINANCE WORKSPACE</small></span>
+        <Image className="auth-card__logo" src="/brand/falchion-xeniaa-logo.svg" alt="Falchion Xeniaa" width={330} height={165} priority />
+        <span className="auth-card__brand-caption">FINANCE WORKSPACE</span>
       </div>
       <StatusBadge tone="info" icon="lock">Private workspace</StatusBadge>
       <h1 id="login-title">Welcome back.</h1>

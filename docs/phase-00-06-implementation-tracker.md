@@ -1,3 +1,5 @@
+> **Phase 01–06 closure pass (2026-10-16):** latest audited remote `main` was `c735e771bf923494070700055f43c3ab255d5a9d`. Live developer evidence confirms the Aiven MySQL query/TLS check, migrations 001–010, reference-seed idempotency and both health endpoints. Latest CI and lockfile/bootstrap workflows passed on that main SHA. Closure work is isolated on `phase-01-06-closure`; see `docs/repository-audit-phase-00-06.md` for the current, scope-limited audit. Do **not** mark the entire product or all phases signed off until the external Phase 02/production gates and documented remaining Phase 04/06 release gates are completed.
+
 # Phase 00–06 Implementation Tracker
 
 This tracker records verified implementation evidence. Do not mark infrastructure or application behavior complete solely because documentation or source files exist.
@@ -103,6 +105,8 @@ Evidence:
 These are explicit runtime/production gates, not missing design deliverables. Phase 03's stated design completion gate is complete; this sign-off does not claim migration 003 has been applied to Aiven, legacy rows/grants have been reconciled, or planned endpoints are implemented.
 
 ## Phase 04 — Design system and application shell
+- [x] Closure branch integrates scalable SVG reconstructions guided by the uploaded primary Falchion Xeniaa logo, MyFX POS/Digitech/Coworks marks, the official Gold/Saffron Red/Charcoal/Platinum/White palette and three invoice-layout references into the UI/assets.
+- [ ] Visual acceptance still requires a manual desktop/tablet/mobile browser review after this branch is deployed locally; font network delivery and the final logo contrast/size require that review.
 
 **Foundation completion gate: COMPLETE.** Shared visual language, responsive application shell, reusable UI states and code-level accessibility/responsiveness checks are committed and CI-validated.
 
@@ -196,6 +200,8 @@ Evidence:
 - Detailed scope and route matrix: `docs/phase-05b-authorization.md`.
 
 ## Phase 06A — Company, Legal Entity & Brand Configuration
+- [x] Closure branch integrates SVG logo variants and reconstructed invoice layout references into the UI without treating reference images as configured templates or assuming legal entity/brand relationships.
+- [ ] Actual business-approved legal entity values, brand mapping, fonts/hosting choice, active templates and private logo storage remain operator/business sign-offs; sample references are not live PDFs.
 
 - [x] Separate legal entities, commercial brands, and business units in the data model; brand/entity mappings are explicit.
 - [x] Add registered and separate billing addresses plus company identity, invoice contacts, locale, currency, timezone, logo reference, terms, and footer fields.
