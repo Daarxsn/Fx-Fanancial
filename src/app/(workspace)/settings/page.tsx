@@ -93,9 +93,9 @@ function TemplatePreview({config,title,documentType,issuerName,logoSource,logoAl
      <div className="config-template-paper__options">
       {showTerms?<p><strong>Payment terms</strong><span>Configured terms will appear here</span></p>:null}
       {showBank?<p><strong>Payment instructions</strong><span>Approved payment details placeholder — no bank information is shown in this preview</span></p>:null}
-      {showTax?<p><strong>Tax breakdown</strong><span>Approved tax details are selected for the document date</span></p>
+      {showTax?<p><strong>Tax breakdown</strong><span>Approved tax details are selected for the document date</span></p>:null}
       <p className="config-template-paper__amount-words"><strong>Amount in words</strong><span>Generated from the verified total</span></p>
-      <p className="config-template-paper__signoff-note">Looking forward to doing business with you.</p>:null}
+      <p className="config-template-paper__signoff-note">Looking forward to doing business with you.</p>
      </div>
      <div className="config-template-paper__totals"><span>Subtotal</span><strong>Calculated on issue</strong><span>Tax</span><strong>Calculated on issue</strong><span className="config-template-paper__grand">Total</span><strong className="config-template-paper__grand">Calculated on issue</strong></div>
     </div>
