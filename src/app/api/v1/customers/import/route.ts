@@ -96,7 +96,7 @@ export async function POST(request:NextRequest){
    if(!code)continue;
    if(duplicateCodes.has(code)){errors.push({rowNumber,field:"customerCode",message:"This customer code appears more than once in the import."});continue}
    duplicateCodes.add(code);
-   const [existing]=await pool.execute<(RowDataPacket & {id:string})[]>("SELECT id FROM customers WHERE LOWER(customer_code)=LOWER(?) LIMIT 1",[input.customerCode?.trim()]);
+   const [existing]=await pool.execute<(RowDataPacket & {id:string})[]>("SELECT id FROM customers WHERE LOWER(customer_code)=LOWER(?) LIMIT 1",[input.customerCode.trim()]);
    if(existing.length)errors.push({rowNumber,field:"customerCode",message:"This customer code is already in use. Choose a different code before importing."});
   }
   if(errors.length)return jsonNoStore({error:{code:"CSV_VALIDATION_ERROR",message:"Resolve the reported row conflicts before importing."},report:{rowCount:parsed.rows.length,validRows:prepared.length,errors:errors.slice(0,1000)}},422);
