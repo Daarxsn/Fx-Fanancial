@@ -37,15 +37,19 @@ export async function PATCH(request:NextRequest,context:Context){
     if(!Object.keys(patch).length)return jsonNoStore({error:{code:"VALIDATION_ERROR",message:"At least one configuration field is required"}},400);
     conn=await pool.getConnection();
     await conn.beginTransaction();
+    // Serialize entity configuration changes and relationship changes against this parent row.
+    // Mapping endpoints also lock their target entity before writing a new relationship.
+    const [entityLocks]=await conn.execute<(RowDataPacket & {id:string})[]>(
+      "SELECT id FROM legal_entities WHERE id=? FOR UPDATE",[entityId]);
+    if(!entityLocks.length){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Legal entity not found"}},404);}
     const current=await loadEntity(conn,entityId);
-    if(!current){await conn.rollback();return jsonNoStore({error:{code:"NOT_FOUND",message:"Legal entity not found"}},404);}
     if(patch.isActive===false && Boolean(current.is_active)){
       const [activeBrands]=await conn.execute<(RowDataPacket & {id:string})[]>(
         `SELECT b.id FROM brands b
           JOIN brand_legal_entities m ON m.brand_id=b.id
          WHERE m.legal_entity_id=? AND b.is_active=TRUE
            AND m.effective_from<=NOW(3) AND (m.effective_until IS NULL OR m.effective_until>NOW(3))
-         LIMIT 1 FOR UPDATE`,[entityId]);
+         LIMIT 1`,[entityId]);
       const [activeUnits]=await conn.execute<(RowDataPacket & {id:string})[]>(
         `SELECT u.id FROM business_units u
           JOIN business_unit_legal_entities m ON m.business_unit_id=u.id
