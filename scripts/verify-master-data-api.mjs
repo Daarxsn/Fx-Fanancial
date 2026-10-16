@@ -541,6 +541,28 @@ try {
   assert.equal(registrationHistory[1].effective_until_date,null,"new version remains open-ended");
   console.log("PASS: tax registration version dates preserve the old effective period and create the next version.");
 
+  // One primary registration per type and jurisdiction is allowed; two primaries for the
+  // same type and jurisdiction may not have overlapping effective periods.
+  const otherJurisdictionPrimary=await call("/api/v1/legal-entities/"+entityA.id+"/tax-registrations",{
+    method:"POST",
+    body:JSON.stringify({registrationKey:"P6B_OTHER_PRIMARY_"+phase6bSuffix,registrationType:"OTHER",
+      jurisdiction:"CI-OTHER-JURISDICTION",registrationNumber:"CI-OTHER-PRIMARY-"+phase6bSuffix,
+      displayLabel:"Synthetic primary registration in a second jurisdiction",isPrimary:true,effectiveFrom:"2020-01-01",effectiveUntil:"",
+      approvalReference:"CI-OTHER-PRIMARY-APPROVAL-"+phase6bSuffix,changeReason:"Phase 6B primary registration jurisdiction isolation"}),
+  },phase6aSession.jar);
+  assert.equal(otherJurisdictionPrimary.response.status,201,
+    "a primary registration for the same type in another jurisdiction must be allowed: "+JSON.stringify(otherJurisdictionPrimary.body?.error??null));
+  const duplicatePrimary=await call("/api/v1/legal-entities/"+entityA.id+"/tax-registrations",{
+    method:"POST",
+    body:JSON.stringify({registrationKey:"P6B_DUP_PRIMARY_"+phase6bSuffix,registrationType:"OTHER",
+      jurisdiction:"CI-JURISDICTION",registrationNumber:"CI-DUP-PRIMARY-"+phase6bSuffix,
+      displayLabel:"Synthetic overlapping primary registration",isPrimary:true,effectiveFrom:"2020-01-01",effectiveUntil:"",
+      approvalReference:"CI-DUP-PRIMARY-APPROVAL-"+phase6bSuffix,changeReason:"Phase 6B reject duplicate primary registration"}),
+  },phase6aSession.jar);
+  assert.equal(duplicatePrimary.response.status,409,"overlapping primary registrations in the same jurisdiction must be rejected");
+  assert.equal(duplicatePrimary.body.error.code,"CONFIGURATION_CONFLICT");
+  console.log("PASS: primary tax registration uniqueness is scoped by registration type and jurisdiction.");
+
   const taxRuleResult=await call("/api/v1/tax-rules",{
     method:"POST",
     body:JSON.stringify({legalEntityId:entityA.id,taxCode:phase6bTaxCode,displayName:"Synthetic CI tax rule",
