@@ -94,7 +94,7 @@ export function parseJsonCell(value: string | undefined, field: string, rowNumbe
   if (!value?.trim()) return {};
   try {
     const parsed: unknown = JSON.parse(value);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    if (!parsed || typeof parsed !== "object") {
       return { error: { rowNumber, field, message: "Must be a JSON object or array matching the import template." } };
     }
     return { value: parsed };
