@@ -176,6 +176,58 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/customers/export:
+    get:
+      tags: [Customers]
+      summary: Export a bounded customer CSV using caller-authorized fields
+      operationId: exportCustomersCsv
+      x-implementation-status: implemented
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [active, archived, all], default: active }
+      responses:
+        "200":
+          description: UTF-8 CSV attachment
+          content:
+            text/csv:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/Conflict" }
+  /api/v1/customers/import:
+    post:
+      tags: [Customers]
+      summary: Validate or atomically commit a bounded customer CSV
+      operationId: importCustomersCsv
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
+        - in: query
+          name: mode
+          schema: { type: string, enum: [validate, commit], default: validate }
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema: { type: string, maxLength: 1000000 }
+      responses:
+        "200":
+          description: CSV validated without writes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessMeta" }
+        "201":
+          description: Validated CSV committed atomically
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessMeta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
   /api/v1/catalog/items:
     get:
       tags: [Catalog]
@@ -286,6 +338,58 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/catalog/items/export:
+    get:
+      tags: [Catalog]
+      summary: Export a bounded item/service CSV using caller-authorized fields
+      operationId: exportCatalogItemsCsv
+      x-implementation-status: implemented
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [active, archived, all], default: active }
+      responses:
+        "200":
+          description: UTF-8 CSV attachment
+          content:
+            text/csv:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/Conflict" }
+  /api/v1/catalog/items/import:
+    post:
+      tags: [Catalog]
+      summary: Validate or atomically commit a bounded item/service CSV
+      operationId: importCatalogItemsCsv
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
+        - in: query
+          name: mode
+          schema: { type: string, enum: [validate, commit], default: validate }
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema: { type: string, maxLength: 1000000 }
+      responses:
+        "200":
+          description: CSV validated without writes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessMeta" }
+        "201":
+          description: Validated CSV committed atomically
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessMeta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationError" }
   /api/v1/legal-entities:
     get:
