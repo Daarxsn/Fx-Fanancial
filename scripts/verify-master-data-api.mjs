@@ -888,6 +888,120 @@ try {
   }, financeSession.jar);
   assert.equal(item.response.status, 201);
   assert.equal(item.body.data.defaultUnitPrice, "12.3400");
+
+  // Phase 7: customer CRUD, duplicate warnings, optimistic concurrency, child records and safe archive.
+  const phase7CustomerName = "Phase 07 Customer " + suffix;
+  const phase7CustomerCode = "P7-" + suffix.toUpperCase();
+  const phase7Customer = await call("/api/v1/customers", {
+    method: "POST",
+    body: JSON.stringify({
+      customerCode: phase7CustomerCode, name: phase7CustomerName,
+      email: "phase7-" + suffix + "@example.invalid", phone: "+91-900000" + suffix.slice(0, 6),
+      billingAddress: { line1: "12 CI Lane", city: "Pune", state: "Maharashtra", postalCode: "411001", countryCode: "IN" },
+      shippingAddress: { line1: "Delivery Bay 2", city: "Pune", postalCode: "411002", countryCode: "IN" },
+      purchaseOrderReference: "CI-PO-" + suffix, paymentTermsDays: 30,
+      contacts: [{ fullName: "Phase 7 Contact", jobTitle: "Accounts", email: "contact-" + suffix + "@example.invalid", phone: "+91-9111111111", isPrimary: true }],
+      taxIdentifiers: [{ identifierType: "OTHER", countryCode: "IN", jurisdiction: "CI only", identifierValue: "TAX-" + suffix }],
+    }),
+  }, financeSession.jar);
+  assert.equal(phase7Customer.response.status, 201, "customer CRUD accepts customer billing, shipping, contact and tax identifier details");
+  assert.equal(phase7Customer.body.data.recordVersion, 1);
+  const phase7CustomerId = phase7Customer.body.data.id;
+  const duplicateCustomer = await call("/api/v1/customers", {
+    method: "POST",
+    body: JSON.stringify({ name: phase7CustomerName, email: "phase7-" + suffix + "@example.invalid" }),
+  }, financeSession.jar);
+  assert.equal(duplicateCustomer.response.status, 201, "potential duplicates are warnings and do not silently merge or prevent deliberate creation");
+  assert.ok(duplicateCustomer.body.duplicateWarnings?.some((warning) => warning.id === phase7CustomerId),
+    "customer create returns duplicate candidates for an explicit user decision");
+
+  const phase7Detail = await call("/api/v1/customers/" + phase7CustomerId, {}, financeSession.jar);
+  assert.equal(phase7Detail.response.status, 200);
+  assert.equal(phase7Detail.body.data.contacts[0].fullName, "Phase 7 Contact");
+  assert.equal(phase7Detail.body.data.taxIdentifiers[0].identifierValue, "TAX-" + suffix);
+  assert.equal(phase7Detail.body.data.billingAddress.city, "Pune");
+  assert.equal(phase7Detail.body.data.shippingAddress.postalCode, "411002");
+  assert.equal(phase7Detail.body.data.recordVersion, 1);
+
+  const updatedCustomer = await call("/api/v1/customers/" + phase7CustomerId, {
+    method: "PATCH",
+    body: JSON.stringify({
+      expectedVersion: 1, name: phase7CustomerName + " Updated",
+      billingAddress: null, purchaseOrderReference: "CI-PO-UPDATED-" + suffix,
+      contacts: [{ fullName: "Updated CI Contact", email: "updated-" + suffix + "@example.invalid", isPrimary: true }],
+      taxIdentifiers: [{ identifierType: "OTHER", countryCode: "IN", jurisdiction: "CI only", identifierValue: "TAX-UPDATED-" + suffix }],
+    }),
+  }, financeSession.jar);
+  assert.equal(updatedCustomer.response.status, 200, "customer PATCH supports versioned updates and child record replacement");
+  assert.equal(updatedCustomer.body.data.recordVersion, 2);
+  assert.equal(updatedCustomer.body.data.name, phase7CustomerName + " Updated");
+  assert.ok(updatedCustomer.body.duplicateWarnings);
+  const staleCustomerUpdate = await call("/api/v1/customers/" + phase7CustomerId, {
+    method: "PATCH", body: JSON.stringify({ expectedVersion: 1, name: "Stale customer overwrite" }),
+  }, financeSession.jar);
+  assert.equal(staleCustomerUpdate.response.status, 409, "stale customer edit is rejected rather than overwriting newer data");
+
+  // Link a receipt so archive has to preserve and report a historical relationship.
+  await db.execute(
+    "INSERT INTO payments (id,customer_id,amount,currency,payment_date,method,status,recorded_by) VALUES (?,?,?, ?,CURDATE(),'OTHER','RECORDED',?)",
+    [randomUUID(), phase7CustomerId, "10.0000", "INR", financeAdmin.userId],
+  );
+  const archivedCustomer = await call("/api/v1/customers/" + phase7CustomerId + "/archive", {
+    method: "POST", body: JSON.stringify({ expectedVersion: 2, reason: "Phase 7 CI archive acceptance" }),
+  }, financeSession.jar);
+  assert.equal(archivedCustomer.response.status, 200, "archive is a soft archive and preserves linked historic records");
+  assert.equal(archivedCustomer.body.data.isActive, false);
+  assert.equal(archivedCustomer.body.data.referenceCounts.payments, 1);
+  const archivedCustomerDetail = await call("/api/v1/customers/" + phase7CustomerId, {}, financeSession.jar);
+  assert.equal(archivedCustomerDetail.response.status, 200, "archived customers remain accessible for historic references");
+  assert.equal(archivedCustomerDetail.body.data.isActive, false);
+  const archivedCustomerList = await call("/api/v1/customers?query=" + encodeURIComponent(phase7CustomerName + " Updated") + "&status=archived", {}, financeSession.jar);
+  assert.equal(archivedCustomerList.response.status, 200);
+  assert.ok(archivedCustomerList.body.data.some((row) => row.id === phase7CustomerId));
+  const archivedCustomerUpdate = await call("/api/v1/customers/" + phase7CustomerId, {
+    method: "PATCH", body: JSON.stringify({ expectedVersion: 3, name: "Cannot edit archived customer" }),
+  }, financeSession.jar);
+  assert.equal(archivedCustomerUpdate.response.status, 409, "archived customer cannot be edited as active master data");
+
+  // Phase 7: catalog detail/update/soft archive, exact decimal serialization and duplicate code rejection.
+  const itemDetail = await call("/api/v1/catalog/items/" + item.body.data.id, {}, financeSession.jar);
+  assert.equal(itemDetail.response.status, 200);
+  assert.equal(itemDetail.body.data.recordVersion, 1);
+  const itemUpdated = await call("/api/v1/catalog/items/" + item.body.data.id, {
+    method: "PATCH", body: JSON.stringify({ expectedVersion: 1, name: "Phase 07 Updated Service " + suffix, defaultUnitPrice: "12.3401" }),
+  }, financeSession.jar);
+  assert.equal(itemUpdated.response.status, 200);
+  assert.equal(itemUpdated.body.data.recordVersion, 2);
+  assert.equal(itemUpdated.body.data.defaultUnitPrice, "12.3401");
+  const staleItemUpdate = await call("/api/v1/catalog/items/" + item.body.data.id, {
+    method: "PATCH", body: JSON.stringify({ expectedVersion: 1, name: "Stale item overwrite" }),
+  }, financeSession.jar);
+  assert.equal(staleItemUpdate.response.status, 409, "stale catalog edit is rejected");
+  const duplicateItemCode = await call("/api/v1/catalog/items", {
+    method: "POST", body: JSON.stringify({
+      itemCode, itemType: "SERVICE", name: "Conflicting SKU", customerDescription: "Duplicate code test",
+      unitCode: "unit", defaultUnitPrice: "1.0000", currency: "INR",
+    }),
+  }, financeSession.jar);
+  assert.equal(duplicateItemCode.response.status, 409, "duplicate item/SKU codes are rejected by the server");
+  const archivedItem = await call("/api/v1/catalog/items/" + item.body.data.id + "/archive", {
+    method: "POST", body: JSON.stringify({ expectedVersion: 2, reason: "Phase 7 CI archive acceptance" }),
+  }, financeSession.jar);
+  assert.equal(archivedItem.response.status, 200);
+  assert.equal(archivedItem.body.data.isActive, false);
+  const archivedItemDetail = await call("/api/v1/catalog/items/" + item.body.data.id, {}, financeSession.jar);
+  assert.equal(archivedItemDetail.response.status, 200, "archived catalog items stay readable for history");
+  assert.equal(archivedItemDetail.body.data.isActive, false);
+  const [customerAuditRows] = await db.execute(
+    "SELECT action,after_json FROM audit_events WHERE entity_type='customer' AND entity_id=? ORDER BY created_at",
+    [phase7CustomerId],
+  );
+  assert.ok(customerAuditRows.some((entry) => entry.action === "customer.updated"));
+  assert.ok(customerAuditRows.some((entry) => entry.action === "customer.archived"));
+  assert.equal(JSON.stringify(customerAuditRows).includes("TAX-UPDATED-" + suffix), false,
+    "customer audit metadata logs changed field names, not tax identifier values");
+  console.log("PASS: Phase 7 customer/catalog tests cover CRUD, contact/tax details, duplicate warnings, exact-decimal edits, optimistic concurrency, permissioned soft archive, historical references and audit redaction.");
+
   const invalid = await call("/api/v1/customers", {
     method: "POST", body: JSON.stringify({ name: "   ", unexpected: "rejected" }),
   }, staffSession.jar);
