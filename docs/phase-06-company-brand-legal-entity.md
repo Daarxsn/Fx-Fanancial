@@ -129,3 +129,8 @@ The CSS design tokens use the official guide's Gold `#DCAF51`, Saffron Red `#931
 
 
 **Fidelity note:** the committed SVG mark/logo lockups and invoice reference layouts are reconstructions informed by the uploaded library files. The exact original logo/sample files have not been embedded as binary assets in this branch. Compare with the originals and replace with approved exact artwork if pixel-identical production branding is required. The templates remain reference-only; PDF rendering/storage/delivery is still a separate feature gate.
+
+
+### Supplied logo export fidelity follow-up (2026-10-16)
+
+PR #6 integrates the exact supplied transparent WebP exports for Falchion Xeniaa, MyFX POS and FX Digitech into the live shell/authentication/template-header UI, with contrast-safe charcoal surfaces for gold marks. The Coworks header/gallery mark remains a reconstruction and is explicitly noted in `public/brand/README.md`; its exact approved export is still needed to close the final brand-fidelity item. The original invoice samples are not committed to the public folder because they contain example financial/business details; Settings continues to display sanitized vector layout reconstructions that are not active templates.

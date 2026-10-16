@@ -76,7 +76,7 @@ function TemplatePreview({config,title,documentType,issuerName}:{config:Record<s
    <article className={`config-template-paper config-template-paper--${orientation.toLowerCase()}`} style={{"--template-accent":accent} as CSSProperties} aria-label="Illustrative document page">
     <div className="config-template-paper__accent"/>
     <header className="config-template-paper__header">
-     {showLogo?<div className="config-template-paper__logo" aria-label="Illustrative brand logo"><Image className="config-template-paper__logo-image" src="/brand/falchion-xeniaa-logo.svg" alt="Falchion Xeniaa logo reference; configure the actual issuing brand before activation" width={330} height={165}/></div>:null}
+     {showLogo?<div className="config-template-paper__logo" aria-label="Illustrative brand logo"><Image className="config-template-paper__logo-image" src="/brand/falchion-xeniaa-logo.webp" alt="Falchion Xeniaa logo reference; configure the actual issuing brand before activation" width={300} height={150}/></div>:null}
      <div className="config-template-paper__issuer"><strong>{issuer}</strong><span>Registered supplier · Contact and address</span></div>
      <div className="config-template-paper__document"><small>DOCUMENT PREVIEW</small><h4>{docLabel}</h4><span>NOT ISSUED</span></div>
     </header>
@@ -425,12 +425,12 @@ export default function SettingsPage(){
     </div>
     <div className="config-template-reference-grid">
      <article className="config-template-reference-card">
-      <div className="config-template-reference-card__brand"><Image src="/brand/myfx-pos.svg" alt="MyFX POS logo" width={820} height={330}/></div>
+      <div className="config-template-reference-card__brand config-template-reference-card__brand--myfx"><Image src="/brand/myfx-pos.webp" alt="MyFX POS logo from supplied brand pack" width={360} height={142}/></div>
       <Image className="config-template-reference-card__image" src="/brand/templates/myfx-pos-sample.svg" alt="MyFX POS invoice reference reconstruction, not issued" width={680} height={962}/>
       <div className="config-template-reference-card__body"><strong>MyFX POS</strong><span>POS invoice layout reconstructed for visual comparison.</span><span className="config-template-reference-card__status">Reference only · not active</span></div>
      </article>
      <article className="config-template-reference-card">
-      <div className="config-template-reference-card__brand"><Image src="/brand/fx-digitech.svg" alt="FX Digitech logo" width={820} height={220}/></div>
+      <div className="config-template-reference-card__brand"><Image src="/brand/fx-digitech.webp" alt="FX Digitech logo from supplied brand pack" width={360} height={94}/></div>
       <Image className="config-template-reference-card__image" src="/brand/templates/digitech-sample.svg" alt="Digitech invoice reference reconstruction, not issued" width={680} height={962}/>
       <div className="config-template-reference-card__body"><strong>Digitech</strong><span>Digital services invoice layout reconstructed for visual comparison.</span><span className="config-template-reference-card__status">Reference only · not active</span></div>
      </article>

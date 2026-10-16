@@ -226,7 +226,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <aside className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`} id="primary-navigation" aria-label="Primary navigation">
         <Link className="sidebar-brand" href="/" aria-label="Falchion Xeniaa Finance home">
-          <Image className="sidebar-brand__logo" src="/brand/falchion-xeniaa-logo.svg" alt="Falchion Xeniaa" width={330} height={165} priority />
+          <span className="sidebar-brand__logo-wrap">
+            <Image className="sidebar-brand__logo" src="/brand/falchion-xeniaa-logo.webp" alt="Falchion Xeniaa" width={300} height={150} priority />
+          </span>
           <span className="sidebar-brand__caption">FINANCE WORKSPACE</span>
         </Link>
 

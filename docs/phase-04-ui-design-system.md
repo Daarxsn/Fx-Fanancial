@@ -142,3 +142,8 @@ Evidence:
 ### Closure follow-up: brand references are reconstructive
 
 The primary shell/auth SVG and three line-of-business/ invoice SVG references are scalable reconstructions informed by the uploaded PDF/ZIP references. They avoid external binary dependencies in the repository, but are not exact reproductions of the source art. The Settings gallery calls out that the invoice visuals are reference-only. Before production sign-off, compare these SVGs with the uploaded originals and replace the reconstructions with approved exact logo assets if the original visual fidelity is required. The source guide's Sansation/Open Sans families currently load as CSS web fonts with local fallbacks; approve the external request or provide licensed self-hosted font assets.
+
+
+### Visual fidelity follow-up (PR #6)
+
+The exact supplied Falchion Xeniaa corporate logo, MyFX POS logo, and FX Digitech logo exports are now used as transparent WebP assets. Gold-on-transparent logo marks have charcoal backplates where needed so they remain visible on light and dark themes. The Coworks image currently remains an SVG reconstruction and needs replacement with the exact approved logo export before claiming all supplied logo packs have been integrated with pixel fidelity. Invoice cards continue to show sanitized reference reconstructions, not the raw invoice samples or generated/issued documents.

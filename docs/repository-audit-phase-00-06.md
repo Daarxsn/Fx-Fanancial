@@ -68,3 +68,8 @@ The Library contains `FX Brand Guidelines(2).pdf`, `myfx pos logo.zip`, `FX Digi
 ## Sign-off rule
 
 No phase is marked complete solely because its specification or a route exists. A full sign-off requires committed code, automated test evidence, real-environment evidence where applicable, and business/finance/tax authorization for business facts. The merged audit intentionally records the remaining operator and owner gates instead of fabricating completion.
+
+
+### Exact logo exports follow-up
+
+The merged visual-fidelity branch uses the supplied exact transparent WebP exports for the main Falchion Xeniaa logo, MyFX POS and FX Digitech logos. The Coworks logo is still a reconstruction and is called out as such. The three invoice layout SVGs remain sanitized reconstructions; no raw invoice samples with sample financial/business data are copied into the public assets. PR #6 CI validation is the evidence gate for the logo header changes.
