@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
            payment_terms_days,tax_identifier,notes,is_active,record_version,created_by,updated_by)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,TRUE,1,?,?)`,
         [id,customerCode,parsed.name,email,phone,billingAddress,shippingAddress,
-         parsed.purchaseOrderReference?.trim()||null,parsed.paymentTermsDays??0,taxIdentifier,parsed.notes??null,actor.userId,actor.userId],
+         parsed.purchaseOrderReference?.trim()||null,parsed.paymentTermsDays??null,taxIdentifier,parsed.notes??null,actor.userId,actor.userId],
       );
       for(const contact of parsed.contacts??[]){
         await connection.execute(
