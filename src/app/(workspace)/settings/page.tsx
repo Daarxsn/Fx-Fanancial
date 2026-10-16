@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { BRAND_LOGO_ASSETS, APPROVED_BRAND_COLORS, resolveBrandLogo, isApprovedBrandColor } from "@/lib/brand-assets";
 import { useCallback, useEffect, useState, type FormEvent, type Dispatch, type SetStateAction, type ReactNode, type CSSProperties } from "react";
 import { Breadcrumbs, Button, Card, EmptyState, InlineAlert, LoadingState, PageHeader, StatusBadge, TextField, TextAreaField, SelectField } from "@/components/ui";
 
@@ -58,8 +59,8 @@ function RecordCard({title,subtitle,meta,active,details,actions}:{title:string;s
  return <Card className="config-record-card"><div className="config-record-top"><div className="config-identity-mark"><span>{title.slice(0,1).toUpperCase()}</span></div><div className="config-record-name"><h3>{title}</h3><p>{subtitle}</p>{meta?<small>{meta}</small>:null}</div><StatusBadge tone={active?"success":"neutral"}>{active?"Active":"Inactive"}</StatusBadge></div><div className="config-record-details">{details}</div>{actions?<div className="config-record-bottom"><span/><div className="config-action-row">{actions}</div></div>:null}</Card>;
 }
 function Detail({label,children}:{label:string;children:ReactNode}){return <span><small>{label}</small>{children}</span>}
-function TemplatePreview({config,title,documentType,issuerName}:{config:Record<string,unknown>|null;title:string;documentType:string;issuerName:string}){
- const accent=typeof config?.accentColor==="string"&&/^#[0-9A-Fa-f]{6}$/.test(config.accentColor)?config.accentColor:"#931314";
+function TemplatePreview({config,title,documentType,issuerName,logoSource,logoAlt}:{config:Record<string,unknown>|null;title:string;documentType:string;issuerName:string;logoSource:string;logoAlt:string}){
+ const accent=isApprovedBrandColor(config?.accentColor)?config.accentColor:"#931314";
  const pageSize=config?.pageSize==="A5"?"A5":config?.pageSize==="LETTER"?"LETTER":"A4";
  const orientation=config?.orientation==="LANDSCAPE"?"LANDSCAPE":"PORTRAIT";
  const showLogo=config?.showLogo!==false,showTax=config?.showTaxBreakdown!==false,showTerms=config?.showPaymentTerms!==false;
@@ -76,7 +77,7 @@ function TemplatePreview({config,title,documentType,issuerName}:{config:Record<s
    <article className={`config-template-paper config-template-paper--${orientation.toLowerCase()}`} style={{"--template-accent":accent} as CSSProperties} aria-label="Illustrative document page">
     <div className="config-template-paper__accent"/>
     <header className="config-template-paper__header">
-     {showLogo?<div className="config-template-paper__logo" aria-label="Illustrative brand logo"><Image className="config-template-paper__logo-image" src="/brand/falchion-xeniaa-logo.webp" alt="Falchion Xeniaa logo reference; configure the actual issuing brand before activation" width={300} height={150}/></div>:null}
+     {showLogo?<div className="config-template-paper__logo" aria-label="Illustrative brand logo"><Image className="config-template-paper__logo-image" src={logoSource} alt={logoAlt} width={180} height={58} unoptimized /></div>:null}
      <div className="config-template-paper__issuer"><strong>{issuer}</strong><span>Registered supplier · Contact and address</span></div>
      <div className="config-template-paper__document"><small>DOCUMENT PREVIEW</small><h4>{docLabel}</h4><span>NOT ISSUED</span></div>
     </header>
@@ -151,6 +152,8 @@ export default function SettingsPage(){
  },[entityId]);
  const entity=entities.find(e=>e.id===entityId)??null;
  const accessibleBrands=brands.filter(b=>b.legalEntityMappings.some(m=>m.legalEntityId===entityId));
+ const templateBrand=accessibleBrands.find(b=>b.id===String(template.brandId))??null;
+ const selectedLogo=resolveBrandLogo(templateBrand?.logoReference??entity?.logoReference);
  async function mutate(event:FormEvent<HTMLFormElement>|undefined,action:()=>Promise<unknown>,message:string){
   event?.preventDefault();setSaving(true);setError("");setNotice("");
   try{await action();setNotice(message);await loadAll()}
@@ -321,11 +324,11 @@ export default function SettingsPage(){
    <Card className="config-form-card"><form className="config-form" onSubmit={e=>void mutate(e,saveBrand,brandEdit?"Brand version saved.":"Brand and entity mappings saved.")}><Grid>
     <Input id="brandName" label="Brand name" value={String(brand.name)} required onChange={s=>setValue(setBrand,"name",s)}/>
     <Input id="brandCode" label="Stable brand code" value={String(brand.code)} required disabled={Boolean(brandEdit)} onChange={s=>setValue(setBrand,"code",s.toUpperCase())}/>
-    <Input id="brandLogo" label="Logo reference" value={String(brand.logoReference)} onChange={s=>setValue(setBrand,"logoReference",s)}/>
+    <Input id="brandLogo" label="Logo reference" value={String(brand.logoReference)} onChange={s=>setValue(setBrand,"logoReference",s)} hint="Select a supplied brand asset below; custom storage references require an approved asset pipeline."/>
     <Input id="brandTemplate" label="Preferred template key" value={String(brand.defaultTemplateKey)} onChange={s=>setValue(setBrand,"defaultTemplateKey",s)}/>
-    <Input id="brandAccent" label="Presentation accent" type="color" value={String(brand.themeAccent)} onChange={s=>setValue(setBrand,"themeAccent",s)}/>
+    <Select id="brandAccent" label="Presentation accent" value={String(brand.themeAccent)} onChange={s=>setValue(setBrand,"themeAccent",s)} options={APPROVED_BRAND_COLORS.map(c=>({value:c.value,label:c.name+" · "+c.value}))}/>
     <Select id="brandStyle" label="Presentation style" value={String(brand.themeStyle)} onChange={s=>setValue(setBrand,"themeStyle",s)} options={[{value:"STANDARD",label:"Standard"},{value:"MINIMAL",label:"Minimal"},{value:"EDITORIAL",label:"Editorial"}]}/>
-   </Grid><TextAreaField id="brandDescription" label="Description" value={String(brand.description)} onChange={e=>setValue(setBrand,"description",e.target.value)} rows={2}/>
+   </Grid><div className="form-field form-field--wide"><span className="form-label">Approved logo asset</span><p className="form-hint">Choose only an asset from the approved brand library. Selecting a logo also applies its documented accent.</p><div className="brand-logo-picker" role="group" aria-label="Choose a brand logo">{BRAND_LOGO_ASSETS.map(asset=><button key={asset.code} type="button" className="brand-logo-picker__choice" aria-pressed={String(brand.logoReference)===asset.logoReference} onClick={()=>{setValue(setBrand,"logoReference",asset.logoReference);setValue(setBrand,"themeAccent",asset.accentColor)}}><span className="brand-logo-picker__preview"><Image src={asset.logoReference} alt="" width={120} height={52} unoptimized /></span><span className="brand-logo-picker__copy"><strong>{asset.name}</strong><small>{asset.audience} identity</small><span style={{"--brand-accent":asset.accentColor} as CSSProperties}/></span></button>)}</div></div><TextAreaField id="brandDescription" label="Description" value={String(brand.description)} onChange={e=>setValue(setBrand,"description",e.target.value)} rows={2/>
    <TextField id="brandEntities" label="Legal entity UUIDs" required value={String(brand.legalEntityIds)} onChange={e=>setValue(setBrand,"legalEntityIds",e.target.value)} hint="Comma-separated IDs from your entity list; the server verifies each mapping."/>
    <TextField id="brandReason" label="Reason for change" required value={String(brand.changeReason)} onChange={e=>setValue(setBrand,"changeReason",e.target.value)}/>
    <div className="config-form-actions"><Button type="submit" disabled={saving}>{saving?"Saving…":brandEdit?"Save brand version":"Create brand"}</Button>{brandEdit?<Button variant="ghost" onClick={()=>{setBrandEdit("");setBrand(brandBlank())}}>Cancel</Button>:null}</div></form></Card>
@@ -452,7 +455,7 @@ export default function SettingsPage(){
     </Grid><TextAreaField id="tplConfig" label="Validated template configuration (JSON)" value={String(template.templateConfig)} required onChange={e=>setValue(setTemplate,"templateConfig",e.target.value)} rows={12} hint="Supported keys: pageSize, orientation, layout, accentColor, showLogo, showTaxBreakdown, showBankDetails, showPaymentTerms, showCustomerTaxIdentifier, showFooter, footerText."/>
     <label className="config-checkbox"><input type="checkbox" checked={template.activate===true} onChange={e=>setValue(setTemplate,"activate",e.target.checked)}/><span>Activate now if there is no overlapping active template for this entity/brand/type</span></label>
     <TextField id="tplReason" label="Reason for change" required value={String(template.changeReason)} onChange={e=>setValue(setTemplate,"changeReason",e.target.value)}/><Button type="submit" disabled={saving}>Save template version</Button></form></Card>
-    <TemplatePreview config={templatePreviewConfig} title={String(template.displayName)} documentType={String(template.documentType)} issuerName={entity.displayName}/>
+    <TemplatePreview config={templatePreviewConfig} title={String(template.displayName)} documentType={String(template.documentType)} issuerName={entity.displayName} logoSource={selectedLogo.logoReference} logoAlt={selectedLogo.name}/>
     {templates.filter(t=>t.legalEntityId===entityId).length===0?<EmptyState title="No templates yet" description="An active invoice template is required for readiness." icon="file"/>:<div className="config-record-list">{templates.filter(t=>t.legalEntityId===entityId).map(t=><RecordCard key={t.id} title={t.displayName} subtitle={t.templateKey+" · "+t.documentType} meta={"Version "+t.versionNumber+" · "+(t.brandId?accessibleBrands.find(b=>b.id===t.brandId)?.name??"Brand-specific":"Entity default")} active={t.isActive}
      details={<><Detail label="Page">{String(t.templateConfig.pageSize??"—")+" · "+String(t.templateConfig.orientation??"—")}</Detail><Detail label="Tax breakdown">{t.templateConfig.showTaxBreakdown?"Shown":"Hidden"}</Detail><Detail label="Effective">{compactDate(t.effectiveFrom)+" → "+compactDate(t.effectiveUntil)}</Detail></>}
      actions={<Button size="sm" variant={t.isActive?"danger":"secondary"} onClick={()=>void toggle("/api/v1/document-templates/"+t.id,t.isActive,t.displayName)}>{t.isActive?"Deactivate":"Activate"}</Button>}/>)}</div>}
