@@ -1,6 +1,8 @@
-> **Phase 00–06 closure pass (2026-10-16):** PRs #4, #5 and #6 are merged to `main`; current audited main is `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69`. Post-merge CI and lockfile/bootstrap passed on that exact revision ([CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236087), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236031)). Exact supplied transparent WebP logo exports for Falchion Xeniaa, MyFX POS, FX Digitech and FX Coworks are now in the UI. Developer-provided evidence confirms development Aiven TLS/query, migrations 001–010, reference-seed idempotency and both health endpoints. External business/finance/tax approval, provider-level recovery, production configuration and manual browser acceptance remain open; do not infer full phase sign-off.
+> **Phase 00–06 closure pass (2026-10-16):** PRs #4, #5 and #6 are merged to `main`. The exact supplied transparent WebP logos are in the UI; the approved brand-picker and palette-validation follow-up has also been ported directly to `main`. The latest branch is being CI-validated; see GitHub Actions for the current result. Developer-provided evidence confirms development Aiven TLS/query, migrations 001–010, reference-seed idempotency and both health endpoints. External business/finance/tax approval, provider-level recovery, production configuration and manual browser acceptance remain open; do not infer full phase sign-off.
 
 # Phase 00–06 Implementation Tracker
+
+**Phase 7 gate:** Phase 7 remains paused until the technical acceptance evidence for Phases 1–6 is verified and all required business/finance/tax/legal decisions have authorized sign-off. Do not mark phases complete solely to unblock later work.
 
 This tracker records verified implementation evidence. Do not mark infrastructure or application behavior complete solely because documentation or source files exist.
 

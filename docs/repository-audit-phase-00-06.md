@@ -1,7 +1,7 @@
 # Repository Audit — Phases 00–06
 
 **Audit date:** 2026-10-16  
-**Audited baseline:** `main` at `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69` (PR #6 merge)  
+**Audited baseline:** `main` after PR #6 merge plus Phase 6 brand-picker/palette-validation follow-up (2026-10-16)  
 **Merged closure work:** PRs #4, #5 and #6 are merged to `main`. PR #6 merge commit is `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69`; its CI passed before merge (run `38888975682`), and post-merge CI/bootstrap passed (runs `38889236087` and `38889236031`). Exact supplied WebP assets for the corporate logo, MyFX POS, Digitech and Coworks are now merged.  
 **Scope:** tracked repository tree, SQL migrations, Next.js route handlers and screens, validation, auth/RBAC helpers, OpenAPI, CI workflows, implementation tracker, and uploaded brand/logo/template assets. This is not a production penetration test or an approval of company/tax facts.
 
@@ -50,7 +50,7 @@ The developer separately confirmed against the intended Aiven development databa
 **Still required for production:** configure exact public HTTPS `APP_ORIGIN`, high-entropy deployment `SESSION_SECRET`, trusted proxy settings only behind verified ingress, mail/invitation delivery if required, and any company-mandated SSO/MFA/password-recovery controls.
 
 ### Phase 06 — Company, brand, tax, numbering and template configuration
-**Verified:** permission/scope-checked configuration APIs, audit reasons/version history, masking of bank details, effective-dated registration/rule/series/template checks, tax-jurisdiction readiness checks, currency consistency guard, server-side numbering and invoice issue transaction with configuration snapshot/hash, idempotency and snapshot immutability integration coverage. Exact corporate/MyFX/Digitech/Coworks WebP logo exports are proposed in PR #6 (current revision awaits CI). Sanitized invoice layout references remain visible on Settings.
+**Verified:** permission/scope-checked configuration APIs, audit reasons/version history, masking of bank details, effective-dated registration/rule/series/template checks, tax-jurisdiction readiness checks, currency consistency guard, server-side numbering and invoice issue transaction with configuration snapshot/hash, idempotency and snapshot immutability integration coverage. Exact corporate/MyFX/Digitech/Coworks WebP logo exports are merged. The approved brand picker and preview logo selection, plus API palette allow-list validation, have been ported to `main`; latest CI is the acceptance gate for these incremental changes. Sanitized invoice layout references remain reference-only.
 
 **Still required:** finance/business approval of real legal entity data, brand mappings, tax registrations/rules, number formats, templates and statutory scope; configure the actual legal entity in the database before any document can issue. Uploaded sample sheets are not registered as active template configs. A working PDF render/download/private object-storage/email delivery pipeline is not evidenced by the current source and must not be claimed as complete.
 

@@ -11,7 +11,7 @@ This is the pre-Phase-07 release checklist. Do not use this page to infer busine
 - [x] Administrator bootstrap succeeded and the developer signed in locally.
 - [x] Closure PR #4 merged to `main` as `7b7e591128facbb66beda6cbe4b781e42759d6ff`; PR #5 and PR #6 also merged, with latest main at `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69` and CI/bootstrap green.
 
-## Code/document work merged to main (PRs #4, #5 and #6)
+## Code/document work merged to main (PRs #4, #5 and #6, plus follow-up commits)
 
 - [x] Align global UI tokens to the uploaded brand guide's primary palette.
 - [x] Add SVG logo/template reference reconstructions in PR #4; invoice-layout visuals remain reference-only and not active templates.
@@ -23,6 +23,7 @@ This is the pre-Phase-07 release checklist. Do not use this page to infer busine
 - [x] Use exact supplied WebP exports for Falchion Xeniaa, MyFX POS, FX Digitech and Coworks in the UI; test WebP signatures, paths and expected CSS classes.
 - [x] Keep three invoice-layout SVGs sanitized and reference-only rather than exposing raw sample sheets in `public/`.
 - [x] PR #6 merged to `main` as `c837e4fae5b6e0ec1dbc42828f2c46aff1c4ee69`; post-merge CI and lockfile/bootstrap passed: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236087), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/38889236031).
+- [x] Port the useful brand-selection changes from draft PR #3 directly onto `main` while retaining the newer WebP assets: approved logo picker, selected-brand template-preview logo, responsive picker styling, and API palette allow-list validation. New CI must pass on the current main revision.
 - [ ] Manually inspect desktop/tablet/mobile and light/dark logo sizing in a real browser.
 
 ## Must remain open until independently verified/approved

@@ -147,3 +147,8 @@ PR #6 uses exact supplied WebP exports for the Falchion Xeniaa corporate logo an
 ### Visual fidelity follow-up (PR #6)
 
 PR #6 uses the exact supplied transparent WebP exports for Falchion Xeniaa, MyFX POS, FX Digitech and FX Coworks. Gold-on-transparent logo marks have charcoal backplates for contrast on light and dark themes. Invoice cards show sanitized SVG reference reconstructions, not raw invoice samples or issued documents.
+
+
+## Phase 6 approved brand picker
+
+Settings now provides an allow-listed visual selector for the four supplied WebP identities. Selecting a logo also applies the documented brand accent, and the illustrative non-issued template preview follows the selected brand mapping. API schemas restrict brand and template accents to the documented palette. This is presentation/configuration support only: it does not approve real legal entities or activate invoice templates.
