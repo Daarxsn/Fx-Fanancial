@@ -758,3 +758,25 @@ h1, h2, h3, h4, .eyebrow, .section-heading h2, .card-heading h2, .module-card h3
  .master-data-panel,.master-data-detail { padding:14px; }
  .master-data-panel__heading,.master-data-detail__heading { align-items:flex-start; }
 }
+
+
+/* Phase 07 — validated CSV import workflow. */
+.master-data-import { border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+.master-data-import > summary { padding:13px 15px; color:var(--ink); font-size:11px; font-weight:800; cursor:pointer; }
+.master-data-import > summary:focus-visible { outline:3px solid var(--focus); outline-offset:2px; border-radius:10px; }
+.master-data-import__body { display:flex; flex-direction:column; gap:12px; padding:0 15px 15px; }
+.master-data-import__body > p { margin:0; color:var(--muted); font-size:11px; line-height:1.65; }
+.master-data-import__controls { display:flex; align-items:flex-end; flex-wrap:wrap; gap:12px; }
+.master-data-import__controls .form-field { flex:1 1 260px; min-width:180px; }
+.master-data-import__controls > a { padding:10px 0; color:var(--red); font-size:11px; font-weight:750; text-decoration:underline; }
+.master-data-import__report { display:flex; flex-direction:column; gap:10px; padding:13px; border:1px solid var(--line); border-radius:10px; background:var(--surface-subtle); }
+.master-data-import__report > strong { color:var(--ink); font-size:12px; }
+.master-data-import__errors,.master-data-import__warnings { display:flex; flex-direction:column; gap:5px; color:var(--muted-strong); font-size:11px; }
+.master-data-import__errors p,.master-data-import__warnings p { margin:0; font-weight:700; }
+.master-data-import__errors ul,.master-data-import__warnings ul { display:flex; flex-direction:column; gap:5px; max-height:180px; overflow:auto; margin:0; padding-left:18px; }
+.master-data-import__commit { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding-top:10px; border-top:1px solid var(--line); }
+.master-data-import__confirm { display:flex; align-items:flex-start; gap:8px; max-width:580px; color:var(--ink); font-size:11px; line-height:1.5; }
+.master-data-import__confirm input { margin-top:2px; }
+.master-data-child-editor { display:flex; flex-direction:column; gap:10px; padding:12px; border:1px solid var(--line); border-radius:10px; }
+.master-data-child-editor__heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.master-data-child-editor__heading strong { color:var(--ink); font-size:11px; }
