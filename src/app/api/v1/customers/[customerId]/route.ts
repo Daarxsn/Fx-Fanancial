@@ -21,7 +21,7 @@ export async function GET(_request:NextRequest,context:Context){
   const [rows]=await pool.execute<(RowDataPacket & {
    id:string;customer_code:string|null;name:string;email:string|null;phone:string|null;
    billing_address_json:unknown;shipping_address_json:unknown;purchase_order_reference:string|null;
-   payment_terms_days:number;tax_identifier:string|null;notes:string|null;is_active:number;record_version:number;
+   payment_terms_days:number|null;tax_identifier:string|null;notes:string|null;is_active:number;record_version:number;
    archived_at:Date|null;archive_reason:string|null;created_at:Date;updated_at:Date;
   })[]>(
    `SELECT id,customer_code,name,email,phone,billing_address_json,shipping_address_json,purchase_order_reference,
@@ -39,7 +39,7 @@ export async function GET(_request:NextRequest,context:Context){
   return jsonNoStore({data:{
    id:row.id,customerCode:row.customer_code,name:row.name,email:row.email,phone:row.phone,
    billingAddress:jsonValue(row.billing_address_json),shippingAddress:jsonValue(row.shipping_address_json),
-   purchaseOrderReference:row.purchase_order_reference,paymentTermsDays:Number(row.payment_terms_days),
+   purchaseOrderReference:row.purchase_order_reference,paymentTermsDays:row.payment_terms_days===null?null:Number(row.payment_terms_days),
    ...(actor.permissions.includes("settings:manage")?{taxIdentifier:row.tax_identifier,
      taxIdentifiers:taxIdentifiers.map(t=>({id:t.id,identifierType:t.identifier_type,countryCode:t.country_code,jurisdiction:t.jurisdiction,identifierValue:t.identifier_value}))}:{}),
    contacts:contacts.map(c=>({id:c.id,fullName:c.full_name,jobTitle:c.job_title,email:c.email,phone:c.phone,isPrimary:Boolean(c.is_primary)})),
