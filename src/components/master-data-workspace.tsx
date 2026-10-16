@@ -6,11 +6,14 @@ import { Button, InlineAlert, StatusBadge } from "@/components/ui";
 type Resource = "customers" | "catalog";
 type Row = Record<string, unknown> & { id: string; recordVersion?: number; isActive?: boolean };
 type Permissions = string[];
+type ImportError = { rowNumber: number; field?: string; message: string };
+type ImportWarning = { rowNumber: number; matches: Array<{ id?: string; name: string; itemCode?: string | null; customerCode?: string | null; matchOn?: string[] }> };
+type ImportReport = { mode?: string; valid?: boolean; rowCount?: number; validRows?: number; createdCount?: number; errors: ImportError[]; duplicateWarnings: ImportWarning[] };
 type ContactDraft = { fullName: string; jobTitle: string; email: string; phone: string };
 type TaxDraft = { identifierType: string; countryCode: string; jurisdiction: string; identifierValue: string };
 const emptyContact = (): ContactDraft => ({fullName:"",jobTitle:"",email:"",phone:""});
 const emptyTax = (): TaxDraft => ({identifierType:"OTHER",countryCode:"",jurisdiction:"",identifierValue:""});
-type ApiPayload = { data?: unknown; error?: { code?: string; message?: string; fields?: Record<string,string> }; duplicateWarnings?: Array<{id:string;name:string;itemCode?:string|null;customerCode?:string|null;matchOn?:string[]}>; meta?: { pagination?: { limit:number; offset:number; total:number; hasMore:boolean } } };
+type ApiPayload = { data?: unknown; report?: unknown; error?: { code?: string; message?: string; fields?: Record<string,string> }; duplicateWarnings?: Array<{id:string;name:string;itemCode?:string|null;customerCode?:string|null;matchOn?:string[]}>; meta?: { pagination?: { limit:number; offset:number; total:number; hasMore:boolean } } };
 type FieldConfig = { key:string; label:string; type?:"text"|"email"|"number"|"textarea"; required?:boolean; placeholder?:string; help?:string };
 const customerFields: FieldConfig[] = [
   {key:"customerCode",label:"Customer code",help:"Optional. Must be unique when supplied."},
@@ -73,7 +76,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
  const [query,setQuery]=useState("");const deferredQuery=useDeferredValue(query);
  const [status,setStatus]=useState("active");const [offset,setOffset]=useState(0);const limit=25;
  const [records,setRecords]=useState<Row[]>([]);const [pagination,setPagination]=useState({total:0,hasMore:false});
- const [permissions,setPermissions]=useState<Permissions>([]);
+ const [permissions,setPermissions]=useState<Permissions>([]);\n const [importFile,setImportFile]=useState<File|null>(null);const [importReport,setImportReport]=useState<ImportReport|null>(null);\n const [importBusy,setImportBusy]=useState(false);const [confirmImportDuplicates,setConfirmImportDuplicates]=useState(false);const [fileInputKey,setFileInputKey]=useState(0);
  const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [error,setError]=useState("");
  const [success,setSuccess]=useState("");const [warnings,setWarnings]=useState<ApiPayload["duplicateWarnings"]>([]);
  const [form,setForm]=useState<Record<string,string>>(emptyForm(resource));
@@ -166,6 +169,35 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
   }catch(e){setError(e instanceof Error?e.message:"The record could not be saved.");}
   finally{setSaving(false);}
  };
+ const asImportReport=(body:ApiPayload,mode:string):ImportReport=>{
+  const source=obj(body.report??body.data);
+  const errors=Array.isArray(source.errors)?source.errors.map(v=>{const r=obj(v);return {rowNumber:Number(r.rowNumber??0),field:typeof r.field==="string"?r.field:undefined,message:str(r.message)||"Invalid row"} as ImportError;}):[];
+  const duplicateWarnings=Array.isArray(source.duplicateWarnings)?source.duplicateWarnings.map(v=>{
+   const w=obj(v);const matches=Array.isArray(w.matches)?w.matches.map(m=>{const r=obj(m);return {id:str(r.id)||undefined,name:str(r.name)||"Possible duplicate",itemCode:typeof r.itemCode==="string"?r.itemCode:null,customerCode:typeof r.customerCode==="string"?r.customerCode:null,matchOn:Array.isArray(r.matchOn)?r.matchOn.map(str):[]};}):[];
+   return {rowNumber:Number(w.rowNumber??0),matches};
+  }):[];
+  return {mode,valid:typeof source.valid==="boolean"?source.valid:errors.length===0&&!body.error,
+   rowCount:Number(source.rowCount??source.createdCount??0),validRows:Number(source.validRows??source.rowCount??0),
+   createdCount:Number(source.createdCount??0),errors,duplicateWarnings};
+ };
+ const runImport=async(mode:"validate"|"commit")=>{
+  if(!importFile)return;
+  setImportBusy(true);setError("");setSuccess("");
+  try{
+   const csrf=await getCsrf();const source=await importFile.text();
+   const result=await request(basePath+"/import?mode="+mode,{method:"POST",headers:{"Content-Type":"text/csv","X-CSRF-Token":csrf},body:source});
+   const report=asImportReport(result.body,mode);setImportReport(report);
+   if(!result.response.ok){setError(result.body.error?.message??"CSV import could not be completed.");return;}
+   if(mode==="validate"){
+    setSuccess(report.duplicateWarnings.length?"Validation passed with possible duplicates. Review the report and explicitly confirm before committing.":"Validation passed. No records have been created yet.");
+    setConfirmImportDuplicates(false);
+   }else{
+    setSuccess(`Imported ${report.createdCount} ${resource==="customers"?"customer":"item/service"} records. Review the duplicate report if one was returned.`);
+    setImportFile(null);setImportReport(null);setConfirmImportDuplicates(false);setFileInputKey(v=>v+1);await refresh();
+   }
+  }catch(e){setError(e instanceof Error?e.message:"CSV import failed.");}
+  finally{setImportBusy(false);}
+ };
  const archive=async(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();if(!archiveTarget)return;
   setSaving(true);setError("");setSuccess("");
@@ -196,8 +228,30 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
      <option value="active">Active</option><option value="archived">Archived</option><option value="all">All records</option>
     </select>
    </div>
+   <a className="button button--secondary button--sm" href={basePath+"/export?status="+encodeURIComponent(status)}>Export CSV</a>
    {canWrite?<Button onClick={openCreate}>+ New {resource==="customers"?"customer":"item / service"}</Button>:null}
   </div>
+  {canWrite?<details className="master-data-import"><summary>Import CSV with validation</summary>
+   <div className="master-data-import__body">
+    <p>Choose a CSV, validate every row first, review possible duplicate matches, then explicitly commit. Imports are atomic; invalid files do not create partial records.</p>
+    <div className="master-data-import__controls">
+     <div className="form-field"><label className="form-label" htmlFor={resource+"-csv-file"}>CSV file</label>
+      <input key={fileInputKey} className="form-control" id={resource+"-csv-file"} type="file" accept=".csv,text/csv" onChange={e=>{setImportFile(e.target.files?.[0]??null);setImportReport(null);setConfirmImportDuplicates(false);setError("");setSuccess("");}}/>
+     </div>
+     <a href={resource==="customers"?"/templates/customers-import-template.csv":"/templates/catalog-items-import-template.csv"} download>Download CSV template</a>
+     <Button type="button" variant="secondary" disabled={!importFile||importBusy} onClick={()=>void runImport("validate")}>{importBusy?"Working…":"Validate CSV"}</Button>
+    </div>
+    {importReport?<div className="master-data-import__report" aria-live="polite">
+      <strong>{importReport.mode==="commit"?`Committed ${importReport.createdCount??0} rows`:importReport.valid?`Validated ${importReport.rowCount??0} rows`:`Found ${importReport.errors.length} validation error(s)`}</strong>
+      {importReport.errors.length?<div className="master-data-import__errors"><p>Fix the rows below and validate the updated file before committing:</p><ul>{importReport.errors.map((issue,index)=><li key={index}>Row {issue.rowNumber}{issue.field?" · "+issue.field:""}: {issue.message}</li>)}</ul></div>:null}
+      {importReport.duplicateWarnings.length?<div className="master-data-import__warnings"><p>Possible duplicates do not block a deliberate import, but they are never auto-merged:</p><ul>{importReport.duplicateWarnings.map((warning,index)=><li key={index}>Row {warning.rowNumber}: {warning.matches.map(match=>match.name+(match.customerCode||match.itemCode?" ("+(match.customerCode||match.itemCode)+")":"")).join(", ")}</li>)}</ul></div>:null}
+      {importReport.valid&&importReport.mode==="validate"?<div className="master-data-import__commit">
+       {importReport.duplicateWarnings.length?<label className="master-data-import__confirm"><input type="checkbox" checked={confirmImportDuplicates} onChange={e=>setConfirmImportDuplicates(e.target.checked)}/> I reviewed the duplicate warnings and explicitly want to continue.</label>:null}
+       <Button type="button" disabled={!importFile||importBusy||(importReport.duplicateWarnings.length>0&&!confirmImportDuplicates)} onClick={()=>void runImport("commit")}>{importBusy?"Importing…":`Commit ${importReport.rowCount??0} rows`}</Button>
+      </div>:null}
+    </div>:null}
+   </div>
+  </details>:null}
   {error?<InlineAlert tone="danger" title="Action needs attention">{error}</InlineAlert>:null}
   {success?<InlineAlert tone="success" title="Saved">{success}</InlineAlert>:null}
   {warnings?.length?<InlineAlert tone="warning" title="Possible duplicates found">No records were merged. Review these possible matches before creating more records: {warnings.map(w=>w.name+(w.customerCode||w.itemCode?" ("+(w.customerCode||w.itemCode)+")":"")).join("; ")}.</InlineAlert>:null}
