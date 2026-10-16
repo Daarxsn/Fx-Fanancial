@@ -20,7 +20,13 @@ type Check={key:string;passed:boolean;message:string};
 type Readiness={legalEntityId:string;ready:boolean;checks:Check[]};
 type Tab="company"|"brands"|"units"|"tax"|"numbering"|"templates";
 type Draft=Record<string,string|boolean>;
-const today=()=>new Date().toISOString().slice(0,10);
+// Configuration defaults use the company's default business timezone, not UTC. This
+// avoids a one-day error for Asia/Kolkata during the first 5h30m of a local calendar day.
+const today=(timeZone="Asia/Kolkata")=>{
+ const parts=new Intl.DateTimeFormat("en-GB",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+ const part=(type:"year"|"month"|"day")=>parts.find(value=>value.type===type)?.value??"";
+ return `${part("year")}-${part("month")}-${part("day")}`;
+};
 const companyBlank=():Draft=>({legalName:"",displayName:"",registrationNumber:"",taxIdentifier:"",countryCode:"",currency:"INR",line1:"",line2:"",city:"",state:"",postalCode:"",billingLine1:"",billingLine2:"",billingCity:"",billingState:"",billingPostalCode:"",billingCountryCode:"",invoiceEmail:"",invoicePhone:"",website:"",locale:"en-IN",timeZone:"Asia/Kolkata",logoReference:"",invoiceTerms:"",invoiceFooter:"",defaultTaxCode:"",taxSetupStatus:"UNCONFIGURED",taxSetupApprovalReference:"",bankAccountName:"",bankName:"",bankAccountNumber:"",bankIfsc:"",bankSwift:"",replaceBank:false,changeReason:"Initial legal entity configuration"});
 const brandBlank=():Draft=>({name:"",code:"",description:"",logoReference:"",defaultTemplateKey:"",themeAccent:"#B51F32",themeStyle:"STANDARD",legalEntityIds:"",changeReason:"Initial brand configuration"});
 const unitBlank=():Draft=>({code:"",name:"",description:"",legalEntityIds:"",brandIds:"",changeReason:"Initial business unit configuration"});
