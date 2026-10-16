@@ -50,7 +50,7 @@ Never commit credentials, `.env.local`, database dumps, customer financial data,
 
 ## Pre-Phase-07 closure — Phases 00–06
 
-The core Phase 01–06 code, tests and audit work has been merged through PRs #4 and #5. This final UI pass uses the exact supplied transparent WebP exports for the Falchion Xeniaa corporate logo and the MyFX POS, FX Digitech and FX Coworks marks. The CSS aligns to Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5` and White `#FFFFFF`, and keeps gold marks readable with charcoal backing where appropriate.
+The core Phase 01–06 code, tests, audit work and exact supplied logo exports have been merged through PRs #4, #5 and #6. This final UI pass uses the exact supplied transparent WebP exports for the Falchion Xeniaa corporate logo and the MyFX POS, FX Digitech and FX Coworks marks. The CSS aligns to Gold `#DCAF51`, Saffron Red `#931314`, Charcoal `#111111`, Platinum `#F4F4F5` and White `#FFFFFF`, and keeps gold marks readable with charcoal backing where appropriate.
 
 Settings shows sanitized SVG invoice-layout reconstructions guided by the supplied samples as reference-only designs. They are not pixel copies of the source invoice sheets, active template records, or issued PDFs. The raw invoice samples are deliberately not served from `public/` because they contain example business/customer/financial details.
 
