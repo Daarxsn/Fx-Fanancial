@@ -781,6 +781,38 @@ try {
   assert.equal(unitBrandLinks.length, 1, "removed unit-brand mapping remains in the historical mapping table");
   assert.ok(unitBrandLinks[0].effective_until);
 
+  // A related entity can be deactivated after configuration is created. This must not trap
+  // an active business unit in a state where it cannot itself be deactivated, and inactive
+  // legal entities must not permit their brands/business units to be reactivated.
+  const recoveryUnit=await call("/api/v1/business-units",{
+    method:"POST",
+    body:JSON.stringify({code:"P6A_REC_"+suffix.toUpperCase(),name:"Phase 6A Recovery Unit "+suffix,
+      description:"CI-only deactivation regression",legalEntityIds:[entityB.id],brandIds:[brandId],
+      changeReason:"Phase 6A deactivation regression fixture"}),
+  },phase6aSession.jar);
+  assert.equal(recoveryUnit.response.status,201,"test recovery unit can be created before entity deactivation");
+  const brandOff=await call("/api/v1/brands/"+brandId,{
+    method:"PATCH",body:JSON.stringify({isActive:false,changeReason:"Phase 6A deactivation regression: disable brand"}),
+  },phase6aSession.jar);
+  assert.equal(brandOff.response.status,200,"mapped brand can be deactivated");
+  const entityOff=await call("/api/v1/legal-entities/"+entityB.id,{
+    method:"PATCH",body:JSON.stringify({isActive:false,changeReason:"Phase 6A deactivation regression: disable entity"}),
+  },phase6aSession.jar);
+  assert.equal(entityOff.response.status,200,"mapped legal entity can be deactivated");
+  const unitOff=await call("/api/v1/business-units/"+recoveryUnit.body.data.id,{
+    method:"PATCH",body:JSON.stringify({isActive:false,changeReason:"Phase 6A deactivation regression: disable unit"}),
+  },phase6aSession.jar);
+  assert.equal(unitOff.response.status,200,"business unit must remain deactivatable after its entity/brand are inactive: "+JSON.stringify(unitOff.body?.error??null));
+  const unitReactivation=await call("/api/v1/business-units/"+recoveryUnit.body.data.id,{
+    method:"PATCH",body:JSON.stringify({isActive:true,changeReason:"Phase 6A negative test: cannot reactivate unit"}),
+  },phase6aSession.jar);
+  assert.equal(unitReactivation.response.status,409,"business unit cannot reactivate while a mapped entity is inactive");
+  const brandReactivation=await call("/api/v1/brands/"+brandId,{
+    method:"PATCH",body:JSON.stringify({isActive:true,changeReason:"Phase 6A negative test: cannot reactivate brand"}),
+  },phase6aSession.jar);
+  assert.equal(brandReactivation.response.status,409,"brand cannot reactivate while its mapped entity is inactive");
+  console.log("PASS: inactive entity mappings do not block deactivation, and mapped brands/business units cannot be reactivated inconsistently.");
+
   const outsider = await seedUser("finance_admin", "phase6a-outsider-" + suffix + "@example.invalid", "ACTIVE",
     "Phase 6A Outsider Password #5!", [testLegalEntityId]);
   const outsiderSession = await login(outsider);
