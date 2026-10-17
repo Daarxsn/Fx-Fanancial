@@ -61,6 +61,10 @@ export async function POST(request:NextRequest){
   const errors:CsvParseIssue[]=[...parsed.errors];
   if(errors.length)return jsonNoStore({error:{code:"CSV_PARSE_ERROR",message:"The CSV could not be parsed.",requestId:randomUUID()},report:{errors}},422);
   const headers=new Set(parsed.headers.map(normalizeCsvHeader));
+  const canManageSensitive = actor.permissions.includes("settings:manage");
+  if (!canManageSensitive && parsed.rows.some(row => Boolean(csvValue(row,"taxIdentifier").trim() || csvValue(row,"taxIdentifiersJson").trim() || csvValue(row,"internalNotes").trim()))) {
+   return jsonNoStore({error:{code:"FORBIDDEN",message:"Customer tax identifier and internal-note columns require finance/settings administrator permission."}},403);
+  }
   if(!headers.has("name"))errors.push({rowNumber:1,field:"name",message:"Required column is missing."});
   if(parsed.rows.length===0)errors.push({rowNumber:1,message:"CSV must contain at least one data row."});
   if(parsed.rows.length>MAX_CSV_ROWS)errors.push({rowNumber:1,message:`At most ${MAX_CSV_ROWS} data rows are allowed.`});

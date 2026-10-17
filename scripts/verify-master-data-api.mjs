@@ -907,6 +907,30 @@ try {
   assert.equal(phase7Customer.response.status, 201, "customer CRUD accepts customer billing, shipping, contact and tax identifier details");
   assert.equal(phase7Customer.body.data.recordVersion, 1);
   const phase7CustomerId = phase7Customer.body.data.id;
+
+  const unprivilegedSensitiveCreate = await call("/api/v1/customers", {
+    method: "POST",
+    body: JSON.stringify({ name: "Forbidden Tax Customer " + suffix, taxIdentifiers: [{ identifierType: "OTHER", countryCode: "IN", identifierValue: "FORBIDDEN-TAX-" + suffix }] }),
+  }, staffSession.jar);
+  assert.equal(unprivilegedSensitiveCreate.response.status, 403, "customer writers without settings:manage cannot create restricted tax identifiers");
+  const unprivilegedSensitiveUpdate = await call("/api/v1/customers/" + phase7CustomerId, {
+    method: "PATCH",
+    body: JSON.stringify({ expectedVersion: 1, taxIdentifiers: [{ identifierType: "OTHER", countryCode: "IN", identifierValue: "FORBIDDEN-UPDATE-" + suffix }] }),
+  }, staffSession.jar);
+  assert.equal(unprivilegedSensitiveUpdate.response.status, 403, "customer writers without settings:manage cannot replace restricted tax identifiers");
+  const unprivilegedSensitiveImport = await call("/api/v1/customers/import?mode=validate", {
+    method: "POST", headers: { "Content-Type": "text/csv" },
+    body: "name,taxIdentifier\\r\\nForbidden import,FORBIDDEN-CSV-" + suffix,
+  }, staffSession.jar);
+  assert.equal(unprivilegedSensitiveImport.response.status, 403, "customer CSV imports enforce sensitive-field permission server-side");
+  const childTaxDuplicate = await call("/api/v1/customers", {
+    method: "POST",
+    body: JSON.stringify({ name: "Distinct Customer " + suffix, email: "distinct-" + suffix + "@example.invalid",
+      taxIdentifiers: [{ identifierType: "OTHER", countryCode: "IN", identifierValue: "TAX-" + suffix }] }),
+  }, financeSession.jar);
+  assert.equal(childTaxDuplicate.response.status, 201);
+  assert.ok(childTaxDuplicate.body.duplicateWarnings?.some(w => w.id === phase7CustomerId && w.matchOn?.includes("taxIdentifier")),
+    "duplicate detection includes normalized child tax identifiers, not only the legacy primary field");
   const duplicateCustomer = await call("/api/v1/customers", {
     method: "POST",
     body: JSON.stringify({ name: phase7CustomerName, email: "phase7-" + suffix + "@example.invalid" }),

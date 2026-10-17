@@ -22,7 +22,7 @@ function duplicateEntry(error: unknown): boolean {
 }
 async function findCustomerDuplicates(input: {
   id?: string; name?: string; email?: string | null; phone?: string | null;
-  taxIdentifier?: string | null; customerCode?: string | null;
+  taxIdentifier?: string | null; taxIdentifiers?: string[]; customerCode?: string | null;
 }) {
   const conditions: string[] = [];
   const values: unknown[] = [];
@@ -31,11 +31,13 @@ async function findCustomerDuplicates(input: {
   if (input.phone?.trim()) { conditions.push("phone=?"); values.push(input.phone.trim()); }
   if (input.taxIdentifier?.trim()) { conditions.push("UPPER(REPLACE(REPLACE(tax_identifier,' ',''),'-',''))=?"); values.push(normalizeIdentifier(input.taxIdentifier)); }
   if (input.customerCode?.trim()) { conditions.push("LOWER(customer_code)=LOWER(?)"); values.push(input.customerCode.trim()); }
+  const childTaxKeys = (input.taxIdentifiers ?? []).map(normalizeIdentifier).filter(Boolean);
+  if (childTaxKeys.length) { conditions.push(`EXISTS (SELECT 1 FROM customer_tax_identifiers ti WHERE ti.customer_id=customers.id AND ti.normalized_identifier IN (${childTaxKeys.map(() => "?").join(",")}))`); values.push(...childTaxKeys); }
   if (!conditions.length) return [];
   const idClause = input.id ? " AND id<>?" : "";
   if (input.id) values.push(input.id);
-  const [rows] = await pool.query<(RowDataPacket & {id:string;name:string;customer_code:string|null;email:string|null;phone:string|null;tax_identifier:string|null})[]>(
-    `SELECT id,name,customer_code,email,phone,tax_identifier FROM customers WHERE (${conditions.join(" OR ")})${idClause} ORDER BY name,id LIMIT 8`, values);
+  const [rows] = await pool.query<(RowDataPacket & {id:string;name:string;customer_code:string|null;email:string|null;phone:string|null;tax_identifier:string|null;child_tax_identifier_match:number})[]>(
+    `SELECT id,name,customer_code,email,phone,tax_identifier,${childTaxKeys.length ? `EXISTS (SELECT 1 FROM customer_tax_identifiers ti WHERE ti.customer_id=customers.id AND ti.normalized_identifier IN (${childTaxKeys.map(() => "?").join(",")}))` : "0"} AS child_tax_identifier_match FROM customers WHERE (${conditions.join(" OR ")})${idClause} ORDER BY name,id LIMIT 8`, [...childTaxKeys, ...values]);
   return rows.map(row => ({
     id: row.id, name: row.name, customerCode: row.customer_code,
     matchOn: [
@@ -43,6 +45,7 @@ async function findCustomerDuplicates(input: {
       input.email?.trim() && row.email?.toLowerCase() === input.email.trim().toLowerCase() ? "email" : null,
       input.phone?.trim() && row.phone === input.phone.trim() ? "phone" : null,
       input.taxIdentifier?.trim() && row.tax_identifier && normalizeIdentifier(row.tax_identifier) === normalizeIdentifier(input.taxIdentifier) ? "taxIdentifier" : null,
+      Number(row.child_tax_identifier_match) ? "taxIdentifier" : null,
       input.customerCode?.trim() && row.customer_code?.toLowerCase() === input.customerCode.trim().toLowerCase() ? "customerCode" : null,
     ].filter(Boolean),
   }));
@@ -113,7 +116,10 @@ export async function POST(request: NextRequest) {
     const customerCode = parsed.customerCode?.trim() || null;
     const billingAddress = parsed.billingAddress ? JSON.stringify(parsed.billingAddress) : null;
     const shippingAddress = parsed.shippingAddress ? JSON.stringify(parsed.shippingAddress) : null;
-    const duplicateWarnings = await findCustomerDuplicates({name:parsed.name,email,phone,taxIdentifier,customerCode});
+    if (!actor.permissions.includes("settings:manage") && (Boolean(taxIdentifier) || (parsed.taxIdentifiers?.length ?? 0) > 0)) {
+      return jsonNoStore({ error: { code: "FORBIDDEN", message: "Customer tax identifiers are restricted to finance/settings administrators." } }, 403);
+    }
+    const duplicateWarnings = await findCustomerDuplicates({name:parsed.name,email,phone,taxIdentifier,taxIdentifiers:(parsed.taxIdentifiers??[]).map(item=>item.identifierValue),customerCode});
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();

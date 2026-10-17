@@ -59,6 +59,9 @@ export async function PATCH(request:NextRequest,context:Context){
   const {customerId}=await context.params;const id=uuidSchema.parse(customerId);
   const input=customerUpdateSchema.parse(await request.json());
   const {expectedVersion,contacts,taxIdentifiers,...patch}=input;
+  if (!actor.permissions.includes("settings:manage") && (patch.taxIdentifier !== undefined || taxIdentifiers !== undefined || patch.notes !== undefined)) {
+   return jsonNoStore({error:{code:"FORBIDDEN",message:"Customer tax identifiers and internal notes are restricted to finance/settings administrators."}},403);
+  }
   conn=await pool.getConnection();await conn.beginTransaction();
   const [rows]=await conn.execute<(RowDataPacket & {
    id:string;customer_code:string|null;name:string;email:string|null;phone:string|null;tax_identifier:string|null;
@@ -78,14 +81,18 @@ export async function PATCH(request:NextRequest,context:Context){
   if(next.email){duplicateConditions.push("LOWER(email)=LOWER(?)");duplicateParams.push(next.email)}
   if(next.phone){duplicateConditions.push("phone=?");duplicateParams.push(next.phone)}
   if(next.taxIdentifier){duplicateConditions.push("UPPER(REPLACE(REPLACE(tax_identifier,' ',''),'-',''))=?");duplicateParams.push(normalizeIdentifier(next.taxIdentifier))}
+  const childTaxKeys=(taxIdentifiers??[]).map(t=>normalizeIdentifier(t.identifierValue)).filter(Boolean);
+  if(childTaxKeys.length){duplicateConditions.push(`EXISTS (SELECT 1 FROM customer_tax_identifiers ti WHERE ti.customer_id=customers.id AND ti.normalized_identifier IN (${childTaxKeys.map(()=>"?").join(",")}))`);duplicateParams.push(...childTaxKeys)}
   if(next.customerCode){duplicateConditions.push("LOWER(customer_code)=LOWER(?)");duplicateParams.push(next.customerCode)}
   if(duplicateConditions.length){
-   const [matches]=await conn.query<(RowDataPacket & {id:string;name:string;customer_code:string|null})[]>(
-    `SELECT id,name,customer_code FROM customers WHERE id<>? AND (${duplicateConditions.join(" OR ")}) ORDER BY name,id LIMIT 8`,[id,...duplicateParams]);
+   const [matches]=await conn.query<(RowDataPacket & {id:string;name:string;customer_code:string|null;email:string|null;phone:string|null;tax_identifier:string|null;child_tax_identifier_match:number})[]>(
+    `SELECT id,name,customer_code,email,phone,tax_identifier,${childTaxKeys.length?`EXISTS (SELECT 1 FROM customer_tax_identifiers ti WHERE ti.customer_id=customers.id AND ti.normalized_identifier IN (${childTaxKeys.map(()=>"?").join(",")}))`:"0"} AS child_tax_identifier_match FROM customers WHERE id<>? AND (${duplicateConditions.join(" OR ")}) ORDER BY name,id LIMIT 8`,[...(childTaxKeys.length?childTaxKeys:[]),id,...duplicateParams]);
    for(const match of matches){
     const matchOn=[
      next.name.toLowerCase()===match.name.toLowerCase()?"name":null,
+     patch.email!==undefined && patch.email.trim() && patch.email.trim().toLowerCase()===String(match.email??"").toLowerCase()?"email":null,
      next.customerCode&&match.customer_code?.toLowerCase()===next.customerCode.toLowerCase()?"customerCode":null,
+     Number(match.child_tax_identifier_match)?"taxIdentifier":null,
     ].filter(Boolean);
     duplicates.push({id:match.id,name:match.name,customerCode:match.customer_code,matchOn:matchOn.length?matchOn:["otherField"]});
    }
