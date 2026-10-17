@@ -1,0 +1,61 @@
+# Phase 08 — Invoice Engine & Financial Calculations
+
+**Status:** Core implementation is committed directly to `main` and passed the clean CI and lockfile/bootstrap run for `25f40dbedb3400505a9132e48878ecedf7f13721`.
+
+- CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/39005607553
+- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/39005607523
+
+## Delivered
+
+The invoice workspace now supports a searchable, scoped invoice list; draft creation and editing; catalog-backed item/service lines; separate charge lines; quantity and unit-rate entry; fixed or percentage discounts; approved tax-code selection; invoice and due dates; payment terms; server-returned totals; payment-aware outstanding balances; and issue actions guarded by the existing Phase 6B approval, numbering and snapshot workflow.
+
+The implemented API is:
+
+- `GET /api/v1/invoices`: bounded, entity-scoped list/search/filter with pagination and calculated balances.
+- `POST /api/v1/invoices`: create a draft with an `Idempotency-Key` and payload fingerprint.
+- `GET /api/v1/invoices/draft-options`: retrieve permitted active entities, customers, catalog items and approved tax rules.
+- `GET /api/v1/invoices/{invoiceId}`: read lines, stored calculation results and outstanding balance in the caller's scope.
+- `PATCH /api/v1/invoices/{invoiceId}`: update drafts only, with `expectedVersion` optimistic concurrency and server recalculation.
+- `POST /api/v1/invoices/{invoiceId}/issue`: the existing controlled issuance endpoint now recalculates from persisted line inputs and approved effective tax configuration before preserving issue-time evidence and allocating the official number.
+
+## Calculation policy: invoice-calculation-v1
+
+All monetary calculations use exact scaled integers with `BigInt`, not JavaScript floating-point arithmetic. User-entered monetary amounts and quantities are decimal strings with up to four fractional places. Tax rates are percentages with up to six fractional places.
+
+For each line, the engine extends quantity by unit price, calculates the configured fixed/percentage discount, derives the taxable net amount, then calculates tax and line total. It rounds line extensions, calculated percentage discounts and tax amounts to four decimals using explicit **ROUND_HALF_UP**, then aggregates those rounded line values. Amounts returned by the engine are serialized to four decimal places to match MySQL `DECIMAL(19,4)`.
+
+Tax behaviour comes only from the approved effective-dated tax rule selected by the server:
+
+- **Tax-exclusive:** the unit price excludes tax. Discounts are applied to the net line amount, tax is calculated on the post-discount taxable value, and line total is taxable value plus tax.
+- **Tax-inclusive:** the unit price includes tax. The engine extracts the net taxable value using `gross × 100 / (100 + rate)`, rounded HALF_UP to four places. An entered discount reduces gross price; its net-of-tax discount is extracted and the post-discount gross amount remains the line total.
+
+The document reports:
+
+- **Subtotal:** aggregate net-of-tax line bases before discounts.
+- **Discount total:** aggregate discounts excluding the tax component.
+- **Taxable value:** subtotal minus discount total.
+- **Tax total:** aggregate calculated line tax.
+- **Grand total:** sum of line totals after discounts and including applicable tax.
+- **Outstanding balance:** `max(0, grand total − recorded allocated payments)`, using exact decimal subtraction.
+
+Additional charges are explicit lines with `lineKind=CHARGE`, so their discount and approved tax treatment are visible and calculated under the same policy. A customer-facing UI amount or client-supplied total cannot override the server’s results.
+
+## Currency, dates and safety
+
+The current policy requires the invoice currency to equal the selected legal entity’s configured currency. FX conversion is intentionally blocked until finance approves an exchange-rate source, rate date, rounding and gain/loss policy.
+
+Invoice and due dates must be real `YYYY-MM-DD` calendar dates; due dates cannot precede invoice dates. If a due date is omitted or null and an invoice date is present, it is derived from the invoice date and payment terms. Quantities must be positive; prices and discounts must be non-negative; discounts cannot exceed a line; percentages cannot exceed 100; malformed precision and unsupported tax codes are rejected. Tax code alone is accepted from the client—the server resolves the applicable rate and inclusive/exclusive mode.
+
+Create retries with an identical idempotency key and identical payload return the existing draft. Reusing a key for a different payload returns a conflict. Stale draft updates are rejected using the record version. Issued/cancelled documents cannot be edited with draft endpoints, and the issuance path recalculates totals before taking the established configuration snapshot.
+
+## Automated evidence
+
+CI on the implementation revision passed MySQL 8 migrations/seed/dump-restore, OpenAPI validation, authorization/API contracts, Phase 6B issuance/snapshot tests, the new invoice calculation test suite, responsive/accessibility foundation checks, lint, TypeScript and production build.
+
+The added calculation test suite covers exclusive and inclusive tax, fixed/percentage discount handling, an additional charge, half-up rounding at the fourth decimal, invalid negative values/rate and over-discounts, date validation, and outstanding balances. The MySQL-backed API suite additionally covers create/update/list/detail consistency, approved inclusive/exclusive rules, idempotency and conflicts, stale-version protection, and issue-time recalculation against deliberately inconsistent draft totals.
+
+## Remaining rollout gates
+
+- Manual browser acceptance at real desktop and mobile viewports, keyboard usability and finance-user sign-off remain operator checks.
+- Migrations 013–015 passed in the disposable MySQL 8 CI service; they have not been applied to the configured Aiven instance in this work.
+- Finance/tax owners still need to approve actual production tax rules, registrations, invoice numbering/configuration and policy for any future multi-currency requirements.

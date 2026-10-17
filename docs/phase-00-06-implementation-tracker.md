@@ -252,3 +252,38 @@ Evidence:
 - Local Mac status cannot be observed by GitHub Actions or this remote repository audit. Verify with `git status -sb`, `git rev-parse HEAD`, and `git rev-parse origin/main`.
 
 **Sign-off rule:** Phase 00's repository foundation is signed off based on the developer-confirmed clean/synchronized worktree and passing CI/lockfile workflows. This tracker/acceptance update triggers another CI run. Phase 01 remains in progress until its database integration and recovery tests have evidence.
+
+
+## Phase 08 — Invoice Engine & Financial Calculations
+
+**Implementation status:** Core invoice draft engine, API, workspace, and calculation regression suite are implemented directly on `main`. The clean implementation revision `25f40dbedb3400505a9132e48878ecedf7f13721` passed CI and lockfile/bootstrap:
+- CI: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/39005607553
+- Lockfile/bootstrap: https://github.com/Daarxsn/Fx-Fanancial/actions/runs/39005607523
+
+### Acceptance evidence
+
+- [x] Exact-decimal, fixed-point calculation engine uses `BigInt` and four-decimal monetary units; calculation policy is documented in `docs/phase-08-invoice-engine.md`.
+- [x] ROUND_HALF_UP rounding is explicit for line extensions, discounts and tax. Tests include half-way cases at the fourth decimal place.
+- [x] Exclusive and inclusive pricing are resolved from approved, effective-dated tax rules. Clients submit tax codes, not authoritative rates or calculation modes.
+- [x] Fixed and percentage discounts, item/service lines and additional charge lines feed server-calculated subtotal, discount total, taxable value, tax total and grand total.
+- [x] Draft invoice create/list/detail/update APIs validate entity scope, currency, dates, due dates, active customer/catalog references, line bounds and optimistic record versions.
+- [x] Duplicate create submissions use an idempotency key and a payload fingerprint; identical replay returns the original draft while reusing the key for a different payload is rejected.
+- [x] Outstanding balance is calculated using exact decimal subtraction from recorded payment allocations.
+- [x] Issuance recalculates line and header totals using persisted line inputs and current approved rule configuration before preserving the issue-time configuration snapshot. Existing issued documents remain immutable through the draft API.
+- [x] MySQL 8 integration tests verify tax-inclusive/exclusive calculation, additional charges, date validation, duplicate submissions, stale updates, issue-time recalculation, payment balance and API total parity.
+- [x] Calculation unit tests cover half-up precision, discount bounds, tax rate bounds, invalid quantity, dates and outstanding balance.
+- [x] OpenAPI, secret scan, MySQL migrations/seeding/restore, authorization/API tests, Phase 6B snapshot tests, UI foundation checks, lint, TypeScript and production build passed in the linked CI run.
+- [ ] Manual browser acceptance at desktop and mobile widths, including keyboard operation and finance-user acceptance, still needs an operator review.
+- [ ] Apply migrations 013–015 to the configured Aiven development/testing database and verify there. This pass verified all 15 migrations against the disposable MySQL 8 CI service; it did not apply them to the live Aiven instance.
+- [ ] Finance/tax owners must approve the actual tax-rule assignments and production issuance configuration. Currency conversion remains disabled until an FX policy is approved.
+
+Evidence/code:
+- Calculation engine: `src/lib/finance/invoice-calculation.ts`
+- Draft validation and persistence: `src/lib/finance/invoice-draft-service.ts`, `src/lib/validation/invoice.ts`
+- API: `src/app/api/v1/invoices/route.ts`, `src/app/api/v1/invoices/[invoiceId]/route.ts`, `src/app/api/v1/invoices/[invoiceId]/issue/route.ts`
+- Draft options: `src/app/api/v1/invoices/draft-options/route.ts`
+- UI: `src/components/invoice-workspace.tsx`
+- Calculation regression suite: `scripts/verify-invoice-calculations.ts`
+- MySQL/API regression suite: `scripts/verify-master-data-api.mjs`
+- Schema changes: migrations 013–015
+- API contract: `docs/openapi.yaml`
