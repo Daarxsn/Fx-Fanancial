@@ -913,8 +913,13 @@ try {
   const scopedFinanceSession = await login(scopedFinance);
   const linkedInvoiceId = randomUUID();
   await db.execute(
-    "INSERT INTO invoices (id,legal_entity_id,customer_id,document_type,lifecycle_status,currency,grand_total) VALUES (?, ?, ?, 'INVOICE', 'DRAFT', 'INR', '24.5000')",
+    "INSERT INTO invoices (id,legal_entity_id,customer_id,document_type,lifecycle_status,currency,grand_total) VALUES (?, ?, ?, 'INVOICE', 'DRAFT', 'INR', '24.6800')",
     [linkedInvoiceId, testLegalEntityId, phase7CustomerId],
+  );
+  const linkedInvoiceLineId = randomUUID();
+  await db.execute(
+    "INSERT INTO invoice_lines (id,invoice_id,catalog_item_id,line_number,description,quantity,unit_price,discount_amount,tax_rate,tax_code,tax_rule_id,tax_amount,line_total) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [linkedInvoiceLineId, linkedInvoiceId, item.body.data.id, "Phase 05 CI service", "2.0000", "12.3400", "0.0000", "0.000000", null, null, "0.0000", "24.6800"],
   );
   const linkedQuotationId = randomUUID();
   await db.execute(
@@ -1025,6 +1030,14 @@ try {
   assert.equal(itemUpdated.response.status, 200);
   assert.equal(itemUpdated.body.data.recordVersion, 2);
   assert.equal(itemUpdated.body.data.defaultUnitPrice, "12.3401");
+  const [unchangedInvoiceLine] = await db.execute(
+    "SELECT description,unit_price,line_total FROM invoice_lines WHERE id=?",
+    [linkedInvoiceLineId],
+  );
+  assert.equal(unchangedInvoiceLine[0].description, "Phase 05 CI service", "editing the catalog must not rewrite an invoice-line description already copied into a document");
+  assert.equal(unchangedInvoiceLine[0].unit_price, "12.3400", "editing a default catalog price must not rewrite an existing invoice line");
+  assert.equal(unchangedInvoiceLine[0].line_total, "24.6800", "editing the catalog must not rewrite an existing line total");
+
   const staleItemUpdate = await call("/api/v1/catalog/items/" + item.body.data.id, {
     method: "PATCH", body: JSON.stringify({ expectedVersion: 1, name: "Stale item overwrite" }),
   }, financeSession.jar);

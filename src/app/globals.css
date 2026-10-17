@@ -780,3 +780,11 @@ h1, h2, h3, h4, .eyebrow, .section-heading h2, .card-heading h2, .module-card h3
 .master-data-child-editor { display:flex; flex-direction:column; gap:10px; padding:12px; border:1px solid var(--line); border-radius:10px; }
 .master-data-child-editor__heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .master-data-child-editor__heading strong { color:var(--ink); font-size:11px; }
+
+
+/* Phase 07 — permission-scoped customer document references. */
+.master-data-linked-documents { display:flex; flex-direction:column; gap:7px; margin:0; padding:0; list-style:none; }
+.master-data-linked-documents li { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:10px 12px; border:1px solid var(--line); border-radius:9px; background:var(--surface-subtle); }
+.master-data-linked-documents li strong { min-width:0; color:var(--ink); font-size:11px; overflow-wrap:anywhere; }
+.master-data-linked-documents li span { color:var(--muted); font-size:10px; text-align:right; overflow-wrap:anywhere; }
+@media (max-width:760px) { .master-data-linked-documents li { flex-direction:column; gap:4px; } .master-data-linked-documents li span { text-align:left; } }

@@ -206,6 +206,10 @@ paths:
         - in: query
           name: mode
           schema: { type: string, enum: [validate, commit], default: validate }
+        - in: query
+          name: confirmDuplicates
+          description: Must be true when committing a CSV that contains possible duplicate matches reported by validation; otherwise the server returns 409 and writes nothing.
+          schema: { type: boolean, default: false }
       requestBody:
         required: true
         content:
@@ -369,6 +373,10 @@ paths:
         - in: query
           name: mode
           schema: { type: string, enum: [validate, commit], default: validate }
+        - in: query
+          name: confirmDuplicates
+          description: Must be true when committing a CSV that contains possible duplicate matches reported by validation; otherwise the server returns 409 and writes nothing.
+          schema: { type: boolean, default: false }
       requestBody:
         required: true
         content:

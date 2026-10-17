@@ -83,7 +83,7 @@ Use consistent validation/error envelopes, bounded pagination, and no-store beha
 
 - Customer list with search, status filter, pagination, and a clear empty state.
 - Customer create/edit form with inline validation and a reviewable address/contact section.
-- Customer detail view with linked quotations/invoices where permitted.
+- [x] Customer detail view returns and displays the latest 10 linked quotations/invoices only when the caller has the corresponding read permission and a legal-entity scope; tests verify unscoped callers receive neither linked details nor counts.
 - Item/service list with search, active/archived filter, code, unit, currency and default price.
 - Item/service create/edit form with exact-decimal validation and clearly labeled defaults.
 - Confirmation before archive; explain when existing records still reference the customer/item.
@@ -102,11 +102,11 @@ The server must enforce permissions regardless of whether a UI control is hidden
 
 - [x] Schema migration extends customer/catalog records and normalizes contacts and tax identifiers (migrations 011–012; current CI must pass before claiming verified).
 - [ ] Required-field, length, enum, identifier, email, currency and exact-decimal validation is covered by automated tests.
-- [x] Duplicate warnings do not silently merge records; duplicate codes are hard conflicts.
+- [x] Duplicate warnings do not silently merge records; duplicate codes are hard conflicts. Server-side CSV commit also requires explicit `confirmDuplicates=true` when possible duplicate matches were reported.
 - [x] Archive endpoints are soft archives, version checked, reasoned and audited; historical references are counted. Integration verification is required before marking accepted.
 - [ ] Permission-denied requests fail on the server and are tested.
 - [ ] Pagination and search are bounded and tested.
-- [ ] Changes to catalog/customer data do not alter a saved invoice snapshot.
+- [x] Integration test confirms editing a catalog item does not rewrite an already-saved invoice line description, unit price or line total. Issued invoice snapshot immutability remains separately covered by Phase 06B tests.
 - [x] Create/update/archive/import actions emit audit events with changed field names and without copying customer tax values into the audit payload.
 - [ ] UI works at desktop and mobile widths and has accessible validation/error states.
 - [ ] Migration is applied and tested against the configured MySQL version.
