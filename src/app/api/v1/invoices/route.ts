@@ -76,7 +76,7 @@ export async function POST(request:NextRequest){
   requestFingerprint=fingerprint;
   conn=await pool.getConnection();await conn.beginTransaction();
   const [existing]=await conn.execute<(RowDataPacket & {id:string;idempotency_payload_sha256:string|null;lifecycle_status:string})[]>(
-   "SELECT id,idempotency_payload_sha256,lifecycle_status FROM invoices WHERE idempotency_key=? LIMIT 1 FOR UPDATE",[idempotencyKey]);
+   "SELECT id,idempotency_payload_sha256,lifecycle_status FROM invoices WHERE idempotency_key=? LIMIT 1",[idempotencyKey]);
   if(existing.length){
    await conn.rollback();
    if(existing[0].idempotency_payload_sha256!==fingerprint)return jsonNoStore({error:{code:"DUPLICATE_SUBMISSION",message:"This Idempotency-Key was already used for a different invoice payload."}},409);
