@@ -16,7 +16,8 @@
     "api:contract-test": "node scripts/verify-master-data-api.mjs",
     "auth:security-test": "node scripts/verify-master-data-api.mjs",
     "ui:validate": "node scripts/validate-ui-foundation.mjs",
-    "config:phase6b-test": "tsx scripts/verify-phase-6b-configuration.ts"
+    "config:phase6b-test": "tsx scripts/verify-phase-6b-configuration.ts",
+    "finance:calculation-test": "tsx scripts/verify-invoice-calculations.ts"
   },
   "dependencies": {
     "mysql2": "^3.24.5",
