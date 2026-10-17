@@ -89,8 +89,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ in
       return jsonNoStore({ data: {
         id: invoice.id, status: invoice.lifecycle_status, invoiceNumber: invoice.invoice_number,
         financialYear: invoice.financial_year, invoiceDate: invoice.invoice_date, dueDate: invoice.due_date,
-        currency: invoice.currency, grandTotal: calculation.grandTotal, subtotal: calculation.subtotal, discountTotal: calculation.discountTotal,
-        taxableValue: calculation.taxableValue, taxTotal: calculation.taxTotal, dueDate: invoiceDueDate,
+        currency: invoice.currency, grandTotal: String(invoice.grand_total),
         configurationSnapshotId: snapshots[0].id, configurationSha256: snapshots[0].configuration_sha256,
         idempotentReplay: true,
       } });
