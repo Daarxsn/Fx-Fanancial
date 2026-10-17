@@ -1213,6 +1213,16 @@ try {
       customerDescription: "validation fixture", unitCode: "hour", defaultUnitPrice: "1.0000", currency: "inr" }),
   }, financeSession.jar);
   assert.equal(invalidCurrency.response.status, 422, "catalog currency must be a three-letter uppercase code");
+  const overlongCustomerName = await call("/api/v1/customers", {
+    method: "POST", body: JSON.stringify({ name: "X".repeat(256) }),
+  }, financeSession.jar);
+  assert.equal(overlongCustomerName.response.status, 422, "customer name length is bounded by schema");
+  const invalidItemType = await call("/api/v1/catalog/items", {
+    method: "POST", body: JSON.stringify({ itemType: "OTHER", name: "Invalid enum " + suffix,
+      customerDescription: "validation fixture", unitCode: "hour", defaultUnitPrice: "1.0000", currency: "INR" }),
+  }, financeSession.jar);
+  assert.equal(invalidItemType.response.status, 422, "catalog item type is restricted to PRODUCT or SERVICE");
+
 
   const viewerSession = await login(viewer);
   const viewerProfile = await call("/api/v1/auth/me", {}, viewerSession.jar);

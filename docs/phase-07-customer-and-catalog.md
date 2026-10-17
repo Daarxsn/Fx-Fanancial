@@ -101,11 +101,11 @@ The server must enforce permissions regardless of whether a UI control is hidden
 ## Acceptance criteria
 
 - [x] Schema migration extends customer/catalog records and normalizes contacts and tax identifiers (migrations 011–012; current CI must pass before claiming verified).
-- [ ] Required-field, length, enum, identifier, email, currency and exact-decimal validation is covered by automated tests.
+- [x] Required-field, length, enum, identifier, email, currency and exact-decimal validation is covered by automated tests.
 - [x] Duplicate warnings do not silently merge records; duplicate codes are hard conflicts. Server-side CSV commit also requires explicit `confirmDuplicates=true` when possible duplicate matches were reported.
 - [x] Archive endpoints are soft archives, version checked, reasoned and audited; historical references are counted. Integration verification is required before marking accepted.
-- [ ] Permission-denied requests fail on the server and are tested.
-- [ ] Pagination and search are bounded and tested.
+- [x] Permission-denied requests fail on the server and are tested, including customer tax identifiers/internal notes and read-only writes.
+- [x] Pagination and search are bounded and tested, including query/code matches, maximum limit/offset and restricted tax-ID search.
 - [x] Integration test confirms editing a catalog item does not rewrite an already-saved invoice line description, unit price or line total. Issued invoice snapshot immutability remains separately covered by Phase 06B tests.
 - [x] Create/update/archive/import actions emit audit events with changed field names and without copying customer tax values into the audit payload.
 - [ ] UI works at desktop and mobile widths and has accessible validation/error states.

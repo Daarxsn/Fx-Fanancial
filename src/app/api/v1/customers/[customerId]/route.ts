@@ -141,7 +141,9 @@ export async function PATCH(request:NextRequest,context:Context){
    for(const match of matches){
     const matchOn=[
      next.name.toLowerCase()===match.name.toLowerCase()?"name":null,
-     patch.email!==undefined && patch.email.trim() && patch.email.trim().toLowerCase()===String(match.email??"").toLowerCase()?"email":null,
+     next.email&&match.email&&next.email.toLowerCase()===match.email.toLowerCase()?"email":null,
+     next.phone&&match.phone===next.phone?"phone":null,
+     next.taxIdentifier&&match.tax_identifier&&normalizeIdentifier(match.tax_identifier)===normalizeIdentifier(next.taxIdentifier)?"taxIdentifier":null,
      next.customerCode&&match.customer_code?.toLowerCase()===next.customerCode.toLowerCase()?"customerCode":null,
      Number(match.child_tax_identifier_match)?"taxIdentifier":null,
     ].filter(Boolean);
