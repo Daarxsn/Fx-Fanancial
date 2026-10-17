@@ -788,3 +788,47 @@ h1, h2, h3, h4, .eyebrow, .section-heading h2, .card-heading h2, .module-card h3
 .master-data-linked-documents li strong { min-width:0; color:var(--ink); font-size:11px; overflow-wrap:anywhere; }
 .master-data-linked-documents li span { color:var(--muted); font-size:10px; text-align:right; overflow-wrap:anywhere; }
 @media (max-width:760px) { .master-data-linked-documents li { flex-direction:column; gap:4px; } .master-data-linked-documents li span { text-align:left; } }
+
+
+/* Phase 08 — invoice draft engine and line editing. */
+.invoice-workspace { display:flex; flex-direction:column; gap:14px; min-width:0; }
+.invoice-workspace-toolbar { display:flex; align-items:flex-end; flex-wrap:wrap; gap:12px; padding:15px; border:1px solid var(--line); border-radius:14px; background:var(--surface); }
+.invoice-workspace-toolbar > div { min-width:160px; }
+.invoice-workspace-search { flex:1 1 280px; }
+.invoice-workspace-summary { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; color:var(--muted); font-size:11px; }
+.invoice-workspace-summary strong { color:var(--ink); }
+.invoice-workspace-muted { margin-top:3px; color:var(--muted); font-size:10px; }
+.invoice-editor { display:flex; flex-direction:column; gap:16px; padding:20px; border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:0 10px 35px rgb(17 17 17 / 6%); }
+.invoice-editor__heading { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+.invoice-editor__heading h2 { margin:0; color:var(--ink); font-size:20px; }
+.invoice-editor__heading p:not(.page-eyebrow) { max-width:700px; margin:7px 0 0; color:var(--muted); font-size:11px; line-height:1.6; }
+.invoice-form-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px 15px; }
+.invoice-form-field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.invoice-form-field--wide { grid-column:1/-1; }
+.invoice-form-field .form-control { width:100%; min-width:0; }
+.invoice-line-card { display:flex; flex-direction:column; gap:12px; padding:14px; border:1px solid var(--line); border-radius:12px; background:var(--surface-subtle); }
+.invoice-line-card__head { display:flex; align-items:center; gap:10px; }
+.invoice-line-card__head strong { margin-right:auto; color:var(--ink); font-size:12px; }
+.invoice-line-card__head select { width:auto; min-width:145px; }
+.invoice-line-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.invoice-editor__lines-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; margin-top:20px; }
+.invoice-editor__lines-heading h3 { margin:0; color:var(--ink); font-size:15px; }
+.invoice-editor__lines-heading p { margin:5px 0 0; }
+.invoice-editor__calculation { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 14px; padding:15px; border:1px solid var(--line); border-radius:12px; background:var(--surface-subtle); }
+.invoice-editor__calculation > div { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--line); }
+.invoice-editor__calculation span,.invoice-editor__calculation p { color:var(--muted); font-size:11px; }
+.invoice-editor__calculation strong { color:var(--ink); font-size:12px; font-variant-numeric:tabular-nums; }
+.invoice-editor__calculation p { grid-column:1/-1; margin:0; }
+.invoice-editor__calculation .invoice-editor__grand { grid-column:1/-1; border-bottom:0; padding-top:12px; }
+.invoice-editor__calculation .invoice-editor__grand strong { font-size:17px; }
+.invoice-editor__actions { display:flex; justify-content:flex-end; gap:9px; padding-top:14px; margin-top:4px; border-top:1px solid var(--line); }
+@media (max-width:900px) { .invoice-form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .invoice-line-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:650px) {
+ .invoice-workspace-toolbar { align-items:stretch; }
+ .invoice-workspace-toolbar > div,.invoice-workspace-toolbar > .button { width:100%; }
+ .invoice-workspace-summary,.invoice-editor__heading,.invoice-editor__lines-heading { align-items:flex-start; flex-direction:column; }
+ .invoice-editor { padding:14px; }
+ .invoice-form-grid,.invoice-line-grid,.invoice-editor__calculation { grid-template-columns:minmax(0,1fr); }
+ .invoice-form-field--wide,.invoice-editor__calculation .invoice-editor__grand { grid-column:1; }
+ .invoice-editor__calculation .invoice-editor__grand strong { font-size:16px; }
+}
