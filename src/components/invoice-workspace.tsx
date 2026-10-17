@@ -57,9 +57,9 @@ export function InvoiceWorkspace(){
    setRows(Array.isArray(r.body.data)?r.body.data as Invoice[]:[]);setTotal(Number(r.body.meta?.pagination?.total??0));
   }catch(e){setError(e instanceof Error?e.message:"Invoices could not be loaded.");}finally{setLoading(false);}
  },[getRequest,status,query,offset]);
- useEffect(()=>{void refreshProfile();},[refreshProfile]);
- useEffect(()=>{void refresh();},[refresh]);
- useEffect(()=>{void refreshOptions();},[refreshOptions]);
+ useEffect(()=>{Promise.resolve().then(()=>refreshProfile());},[refreshProfile]);
+ useEffect(()=>{Promise.resolve().then(()=>refresh());},[refresh]);
+ useEffect(()=>{Promise.resolve().then(()=>refreshOptions());},[refreshOptions]);
  const csrf=async()=>{const r=await fetch("/api/v1/auth/csrf",{cache:"no-store"});const b=await r.json() as {data?:{csrfToken?:string}};if(!r.ok||!b.data?.csrfToken)throw new Error("Request validation expired. Refresh the page and try again.");return b.data.csrfToken;};
  const updateForm=(key:keyof typeof form,value:string)=>{setForm(old=>({...old,[key]:value}));setDirty(true);setCreateKey(crypto.randomUUID()+crypto.randomUUID());};
  const updateLine=(key:string,patch:Partial<LineDraft>)=>{setLines(old=>old.map(line=>line.key===key?{...line,...patch}:line));setDirty(true);setCreateKey(crypto.randomUUID()+crypto.randomUUID());};

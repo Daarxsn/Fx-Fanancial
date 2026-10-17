@@ -783,7 +783,7 @@ paths:
   /api/v1/invoices/draft-options:
     get:
       tags: [Invoices]
-      summary: Load the caller's permitted draft options and approved tax rules
+      summary: "Load the caller's permitted draft options and approved tax rules"
       operationId: getInvoiceDraftOptions
       x-implementation-status: implemented
       responses:
