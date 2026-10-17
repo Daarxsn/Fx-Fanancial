@@ -579,6 +579,97 @@ try {
   assert.equal(taxRuleResult.response.status,201,"approved test tax rule can be created: "+JSON.stringify(taxRuleResult.body?.error??null));
   const phase6bTaxRuleId=taxRuleResult.body.data.id;
 
+  // Phase 8: server-calculated invoice totals, tax modes, extra charges, due dates and idempotency.
+  const overLimitTaxRule=await call("/api/v1/tax-rules",{
+    method:"POST",
+    body:JSON.stringify({legalEntityId:entityA.id,taxCode:"P8_BAD_RATE_"+phase6bSuffix,displayName:"Invalid out-of-range rate",
+      jurisdiction:"CI-JURISDICTION",ratePercent:"100.000001",calculationMode:"EXCLUSIVE",effectiveFrom:"2020-01-01",
+      effectiveUntil:"",approvalReference:"CI-P8-BAD-RATE-"+phase6bSuffix,
+      changeReason:"Phase 8 validation: reject tax rates above the approved maximum"}),
+  },phase6aSession.jar);
+  assert.equal(overLimitTaxRule.response.status,422,"tax-rule rates above 100 percentage points must be rejected");
+  const [[phase8Dates]] = await db.execute(
+    "SELECT DATE_FORMAT(CURRENT_DATE(),'%Y-%m-%d') AS today",
+  );
+  const phase8InvoiceDate=phase8Dates.today;
+  const phase8DueDateObj=new Date(phase8InvoiceDate+"T00:00:00.000Z");
+  phase8DueDateObj.setUTCDate(phase8DueDateObj.getUTCDate()+30);
+  const phase8ExpectedDueDate=phase8DueDateObj.toISOString().slice(0,10);
+  const phase8Line={description:"Phase 8 precision-tested consulting",unitCode:"hour",quantity:"2.0000",unitPrice:"100.0000",
+    discountType:"PERCENT",discountValue:"10.0000",taxCode:phase6bTaxCode};
+  const phase8Charge={lineKind:"CHARGE",description:"Phase 8 delivery charge",unitCode:"service",quantity:"1.0000",
+    unitPrice:"20.0000",discountType:"AMOUNT",discountValue:"0.0000",taxCode:phase6bTaxCode};
+  const phase8DraftBody={legalEntityId:entityA.id,customerId:created.body.data.id,currency:"INR",
+    invoiceDate:phase8InvoiceDate,dueDate:null,paymentTermsDays:30,notes:"Phase 8 automated calculation fixture",
+    lines:[phase8Line,phase8Charge]};
+  const phase8IdempotencyKey="p8-create-"+phase6bSuffix.toLowerCase()+"-001";
+  const phase8Draft=await call("/api/v1/invoices",{
+    method:"POST",headers:{"Idempotency-Key":phase8IdempotencyKey},body:JSON.stringify(phase8DraftBody),
+  },phase6aSession.jar);
+  assert.equal(phase8Draft.response.status,201,"an authorized request creates a draft and calculates totals server-side: "+JSON.stringify(phase8Draft.body?.error??null));
+  assert.equal(phase8Draft.body.data.lifecycleStatus,"DRAFT");
+  assert.equal(phase8Draft.body.data.recordVersion,1);
+  assert.equal(phase8Draft.body.data.subtotal,"220.0000","subtotal aggregates net-of-tax bases before discount");
+  assert.equal(phase8Draft.body.data.discountTotal,"20.0000","percentage discount is calculated exactly");
+  assert.equal(phase8Draft.body.data.taxableValue,"200.0000","taxable value equals subtotal minus discount");
+  assert.equal(phase8Draft.body.data.taxTotal,"36.0000","tax total uses the approved 18 percent rule on the post-discount base");
+  assert.equal(phase8Draft.body.data.grandTotal,"236.0000","server total includes the separately identified charge line");
+  assert.equal(phase8Draft.body.data.dueDate,phase8ExpectedDueDate,"blank due date defaults from invoice date and payment terms");
+  assert.equal(phase8Draft.body.data.lines[1].lineKind,"CHARGE");
+  assert.equal(phase8Draft.body.data.lines[0].taxCalculationMode,"EXCLUSIVE");
+  const phase8Replay=await call("/api/v1/invoices",{
+    method:"POST",headers:{"Idempotency-Key":phase8IdempotencyKey},body:JSON.stringify(phase8DraftBody),
+  },phase6aSession.jar);
+  assert.equal(phase8Replay.response.status,200,"identical duplicate submissions return an idempotent replay");
+  assert.equal(phase8Replay.body.data.id,phase8Draft.body.data.id);
+  assert.equal(phase8Replay.body.data.idempotentReplay,true);
+  const phase8KeyConflict=await call("/api/v1/invoices",{
+    method:"POST",headers:{"Idempotency-Key":phase8IdempotencyKey},
+    body:JSON.stringify({...phase8DraftBody,lines:[{...phase8Line,quantity:"3.0000"},phase8Charge]}),
+  },phase6aSession.jar);
+  assert.equal(phase8KeyConflict.response.status,409,"reusing a submission key with a different payload is rejected");
+  assert.equal(phase8KeyConflict.body.error.code,"DUPLICATE_SUBMISSION");
+  const phase8Detail=await call("/api/v1/invoices/"+phase8Draft.body.data.id,{},phase6aSession.jar);
+  assert.equal(phase8Detail.response.status,200);
+  assert.equal(phase8Detail.body.data.grandTotal,"236.0000");
+  assert.equal(phase8Detail.body.data.lines.length,2);
+  const phase8Updated=await call("/api/v1/invoices/"+phase8Draft.body.data.id,{
+    method:"PATCH",body:JSON.stringify({...phase8DraftBody,expectedVersion:1,lines:[{...phase8Line,unitPrice:"150.0000"},phase8Charge]}),
+  },phase6aSession.jar);
+  assert.equal(phase8Updated.response.status,200,"draft edits recalculate all line and document totals");
+  assert.equal(phase8Updated.body.data.recordVersion,2);
+  assert.equal(phase8Updated.body.data.subtotal,"320.0000");
+  assert.equal(phase8Updated.body.data.discountTotal,"30.0000");
+  assert.equal(phase8Updated.body.data.taxableValue,"290.0000");
+  assert.equal(phase8Updated.body.data.taxTotal,"52.2000");
+  assert.equal(phase8Updated.body.data.grandTotal,"342.2000");
+  const phase8Stale=await call("/api/v1/invoices/"+phase8Draft.body.data.id,{
+    method:"PATCH",body:JSON.stringify({...phase8DraftBody,expectedVersion:1}),
+  },phase6aSession.jar);
+  assert.equal(phase8Stale.response.status,409,"optimistic concurrency prevents stale invoice draft updates");
+  const phase8BadQuantity=await call("/api/v1/invoices",{
+    method:"POST",headers:{"Idempotency-Key":"p8-negative-"+phase6bSuffix.toLowerCase()+"-01"},
+    body:JSON.stringify({...phase8DraftBody,lines:[{...phase8Line,quantity:"-1.0000"}]}),
+  },phase6aSession.jar);
+  assert.equal(phase8BadQuantity.response.status,422,"negative invoice quantities are rejected");
+  const phase8BadDueDateObj=new Date(phase8InvoiceDate+"T00:00:00.000Z");
+  phase8BadDueDateObj.setUTCDate(phase8BadDueDateObj.getUTCDate()-1);
+  const phase8BadDueDate=await call("/api/v1/invoices",{
+    method:"POST",headers:{"Idempotency-Key":"p8-date-"+phase6bSuffix.toLowerCase()+"-01"},
+    body:JSON.stringify({...phase8DraftBody,dueDate:phase8BadDueDateObj.toISOString().slice(0,10)}),
+  },phase6aSession.jar);
+  assert.equal(phase8BadDueDate.response.status,422,"due dates before invoice dates are rejected");
+  const phase8ClientRateOverride=await call("/api/v1/invoices",{
+    method:"POST",headers:{"Idempotency-Key":"p8-rate-"+phase6bSuffix.toLowerCase()+"-01"},
+    body:JSON.stringify({...phase8DraftBody,lines:[{...phase8Line,taxRatePercent:"999.000000"}]}),
+  },phase6aSession.jar);
+  assert.equal(phase8ClientRateOverride.response.status,422,"clients cannot submit or override server-authoritative tax rates");
+  const phase8Options=await call("/api/v1/invoices/draft-options",{},phase6aSession.jar);
+  assert.equal(phase8Options.response.status,200,"invoice workspace options respect current finance and entity scope");
+  assert.ok(phase8Options.body.data.legalEntities.some(e=>e.id===entityA.id));
+  assert.ok(phase8Options.body.data.taxRules.some(r=>r.id===phase6bTaxRuleId));
+  console.log("PASS: Phase 8 invoice API tests verify approved-rate server calculation, extra charges, due-date defaults/validation, four-place totals, idempotent replay/conflict, stale-version protection, strict rejection of client rates, and scoped UI options.");
+
   // Second jurisdiction fixture proves each invoice line's registration must match its rule.
   const otherRegResult=await call("/api/v1/legal-entities/"+entityA.id+"/tax-registrations",{
     method:"POST",
@@ -662,6 +753,26 @@ try {
   assert.equal(issueResult.response.status,200,"approved in-scope draft invoice issues successfully: "+JSON.stringify(issueResult.body?.error??null));
   assert.equal(issueResult.body.data.status,"ISSUED");
   assert.equal(issueResult.body.data.idempotentReplay,false);
+  assert.equal(issueResult.body.data.subtotal,"100.0000");
+  assert.equal(issueResult.body.data.discountTotal,"0.0000");
+  assert.equal(issueResult.body.data.taxableValue,"100.0000");
+  assert.equal(issueResult.body.data.taxTotal,"18.0000");
+  assert.equal(issueResult.body.data.grandTotal,"118.0000","issuance recalculates document totals instead of trusting stored totals");
+  const phase8PaymentId=randomUUID();
+  await db.execute(
+    "INSERT INTO payments (id,customer_id,amount,currency,payment_date,method,status,recorded_by) VALUES (?,?,?,'INR',CURDATE(),'OTHER','RECORDED',?)",
+    [phase8PaymentId,created.body.data.id,"25.1234",phase6aFinance.userId],
+  );
+  await db.execute(
+    "INSERT INTO payment_allocations (id,payment_id,invoice_id,amount) VALUES (?,?,?,?)",
+    [randomUUID(),phase8PaymentId,issuedInvoiceId,"25.1234"],
+  );
+  const phase8Outstanding=await call("/api/v1/invoices/"+issuedInvoiceId,{},phase6aSession.jar);
+  assert.equal(phase8Outstanding.response.status,200);
+  assert.equal(phase8Outstanding.body.data.paidAmount,"25.1234");
+  assert.equal(phase8Outstanding.body.data.outstandingBalance,"92.8766","outstanding balance uses exact decimal subtraction, not binary floating point");
+  assert.equal(phase8Outstanding.body.data.paymentStatus,"PARTIALLY_PAID");
+
   assert.match(issueResult.body.data.invoiceNumber,/^P6B-/);
   assert.match(issueResult.body.data.configurationSha256,/^[0-9a-f]{64}$/);
 
