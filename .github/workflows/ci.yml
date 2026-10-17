@@ -178,6 +178,8 @@ jobs:
         run: npm run finance:calculation-test
       - name: Validate responsive and accessibility UI foundation
         run: npm run ui:validate
+      - name: Validate Phase 7 customer/catalog UI foundation
+        run: npm run phase7:ui-test
       - name: Lint
         run: npm run lint
       - name: TypeScript
