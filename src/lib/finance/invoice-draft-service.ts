@@ -6,7 +6,7 @@ import { requirePermissionForEntity } from "@/lib/auth/authorize";
 import { ConfigurationNotReadyError } from "@/lib/configuration/errors";
 import { calendarDateInTimeZone, recordAudit } from "@/lib/configuration/service";
 import { calculateInvoice, defaultDueDate, assertValidDueDate, type InvoiceCalculation, type InvoiceCalculationLineInput } from "@/lib/finance/invoice-calculation";
-import type { invoiceDraftCreateSchema, invoiceDraftUpdateSchema } from "@/lib/validation/invoice";
+import type { invoiceDraftCreateSchema } from "@/lib/validation/invoice";
 import { z } from "zod";
 
 export type DraftFields = z.infer<typeof invoiceDraftCreateSchema>;
@@ -126,7 +126,7 @@ export async function validateDraftContext(
   const terms=fields.paymentTermsDays??customers[0].payment_terms_days??0;
   const invoiceDate=fields.invoiceDate??null;
   let dueDate=fields.dueDate??null;
-  if(fields.dueDate===undefined && invoiceDate)dueDate=defaultDueDate(invoiceDate,terms);
+  if(fields.dueDate==null && invoiceDate)dueDate=defaultDueDate(invoiceDate,terms);
   if(dueDate){
     if(!invoiceDate)throw new InvoiceDraftValidationError("A due date requires an invoice date.");
     try{assertValidDueDate(invoiceDate,dueDate);}catch(error){throw new InvoiceDraftValidationError(error instanceof Error?error.message:"Invoice due date is invalid.");}

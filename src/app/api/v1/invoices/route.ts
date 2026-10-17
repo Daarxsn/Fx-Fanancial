@@ -5,7 +5,6 @@ import { pool } from "@/lib/db/pool";
 import { requirePermission } from "@/lib/auth/authorize";
 import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
-import { ConfigurationNotReadyError } from "@/lib/configuration/errors";
 import { canonicalJson } from "@/lib/configuration/service";
 import { outstandingBalance, subtractMoney } from "@/lib/finance/invoice-calculation";
 import { invoiceCalendarDateSchema, invoiceDraftCreateSchema } from "@/lib/validation/invoice";
@@ -14,8 +13,9 @@ import { validateDraftContext, resolveDraftLines, persistDraftLines, auditDraftC
 export const runtime="nodejs"; export const dynamic="force-dynamic";
 function dateText(v:Date|string|null):string|null{return v===null?null:v instanceof Date?v.toISOString().slice(0,10):String(v).slice(0,10);}
 function money(v:unknown):string{return String(v??"0.0000");}
-function paymentState(total:string,paid:string):"UNPAID"|"PARTIALLY_PAID"|"PAID"{if(Number(total)>0&&Number(paid)>=Number(total))return "PAID";if(Number(paid)>0)return "PARTIALLY_PAID";return "UNPAID";}
+function paymentState(total:string,paid:string):"UNPAID"|"PARTIALLY_PAID"|"PAID"{if(total!=="0.0000"&&outstandingBalance(total,paid)==="0.0000")return "PAID";if(paid!=="0.0000")return "PARTIALLY_PAID";return "UNPAID";}
 function validationError(error:unknown){if(error instanceof InvoiceDraftValidationError)return jsonNoStore({error:{code:"VALIDATION_ERROR",message:error.message}},422);return apiError(error);}
+function duplicateEntry(error:unknown){return typeof error==="object"&&error!==null&&"code" in error&&(error as {code?:string}).code==="ER_DUP_ENTRY";}
 
 export async function GET(request:NextRequest){
  try{
@@ -63,13 +63,17 @@ export async function GET(request:NextRequest){
 
 export async function POST(request:NextRequest){
  let conn:Awaited<ReturnType<typeof pool.getConnection>>|undefined;
+ let requestIdempotencyKey:string|undefined;
+ let requestFingerprint:string|undefined;
  try{
   await assertCsrf(request);
   const actor=await requirePermission("invoices:draft:create");
   const idempotencyKey=request.headers.get("Idempotency-Key")?.trim()??"";
   if(!/^[\x21-\x7e]{16,128}$/.test(idempotencyKey))return jsonNoStore({error:{code:"VALIDATION_ERROR",message:"Idempotency-Key must contain 16–128 visible ASCII characters."}},400);
+  requestIdempotencyKey=idempotencyKey;
   const input=invoiceDraftCreateSchema.parse(await request.json());
   const fingerprint=createHash("sha256").update(canonicalJson(input)).digest("hex");
+  requestFingerprint=fingerprint;
   conn=await pool.getConnection();await conn.beginTransaction();
   const [existing]=await conn.execute<(RowDataPacket & {id:string;idempotency_payload_sha256:string|null;lifecycle_status:string})[]>(
    "SELECT id,idempotency_payload_sha256,lifecycle_status FROM invoices WHERE idempotency_key=? LIMIT 1 FOR UPDATE",[idempotencyKey]);
@@ -98,5 +102,21 @@ export async function POST(request:NextRequest){
    recordVersion:1,...prepared.calculation,paidAmount:"0.0000",outstandingBalance:prepared.calculation.grandTotal,
    paymentStatus:prepared.calculation.grandTotal==="0.0000"?"UNPAID":"UNPAID",idempotentReplay:false,
   }},201);
- }catch(error){if(conn)await conn.rollback().catch(()=>undefined);return validationError(error);}finally{conn?.release();}
+ }catch(error){
+   if(conn)await conn.rollback().catch(()=>undefined);
+   // Two identical submissions can both pass the initial lookup before either insert commits.
+   // Reconcile the unique-key race with the winning row and preserve the same replay/conflict contract.
+   if(duplicateEntry(error)&&requestIdempotencyKey&&requestFingerprint){
+    try{
+     const [winner]=await pool.execute<(RowDataPacket & {id:string;idempotency_payload_sha256:string|null;lifecycle_status:string})[]>(
+      "SELECT id,idempotency_payload_sha256,lifecycle_status FROM invoices WHERE idempotency_key=? LIMIT 1",[requestIdempotencyKey]);
+     if(winner.length){
+      if(winner[0].idempotency_payload_sha256!==requestFingerprint)
+       return jsonNoStore({error:{code:"DUPLICATE_SUBMISSION",message:"This Idempotency-Key was already used for a different invoice payload."}},409);
+      return jsonNoStore({data:{id:winner[0].id,lifecycleStatus:winner[0].lifecycle_status,idempotentReplay:true}},200);
+     }
+    }catch{/* Preserve the original database error if reconciliation itself cannot be completed. */}
+   }
+   return validationError(error);
+  }finally{conn?.release();}
 }

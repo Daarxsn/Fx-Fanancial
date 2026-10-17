@@ -206,10 +206,6 @@ paths:
         - in: query
           name: mode
           schema: { type: string, enum: [validate, commit], default: validate }
-        - in: query
-          name: confirmDuplicates
-          description: Must be true when committing a CSV that contains possible duplicate matches reported by validation; otherwise the server returns 409 and writes nothing.
-          schema: { type: boolean, default: false }
       requestBody:
         required: true
         content:
@@ -373,10 +369,6 @@ paths:
         - in: query
           name: mode
           schema: { type: string, enum: [validate, commit], default: validate }
-        - in: query
-          name: confirmDuplicates
-          description: Must be true when committing a CSV that contains possible duplicate matches reported by validation; otherwise the server returns 409 and writes nothing.
-          schema: { type: boolean, default: false }
       requestBody:
         required: true
         content:
@@ -727,11 +719,14 @@ paths:
       tags: [Invoices]
       summary: Search invoices in the caller's legal-entity scope
       operationId: listInvoices
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - in: query
           name: status
-          schema: { type: string, enum: [DRAFT, ISSUED, CANCELLED] }
+          schema: { type: string, enum: [all, DRAFT, ISSUED, CANCELLED], default: all }
+        - in: query
+          name: query
+          schema: { type: string, maxLength: 100 }
         - in: query
           name: customerId
           schema: { $ref: "#/components/schemas/Uuid" }
@@ -748,7 +743,7 @@ paths:
         - { $ref: "#/components/parameters/Offset" }
       responses:
         "200":
-          description: Invoice page
+          description: Invoice page filtered to the caller's legal-entity scope
           content:
             application/json:
               schema: { $ref: "#/components/schemas/InvoiceListResponse" }
@@ -757,9 +752,15 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Invoices]
-      summary: Create a draft invoice
+      summary: Create an invoice draft with server-calculated totals
       operationId: createInvoiceDraft
-      x-implementation-status: planned
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 16, maxLength: 128, pattern: '^[!-~]+$' }
       requestBody:
         required: true
         content:
@@ -767,24 +768,45 @@ paths:
             schema: { $ref: "#/components/schemas/InvoiceDraftInput" }
       responses:
         "201":
-          description: Draft created; no official invoice number allocated yet
+          description: Draft created; totals are calculated from exact-decimal inputs and approved tax configuration.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/InvoiceResponse" }
+        "200":
+          description: Idempotent replay of a previously accepted identical create request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvoiceResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/invoices/draft-options:
+    get:
+      tags: [Invoices]
+      summary: "Load the caller's permitted draft options and approved tax rules"
+      operationId: getInvoiceDraftOptions
+      x-implementation-status: implemented
+      responses:
+        "200":
+          description: Active legal entities, customers, catalog items, and approved tax rules
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvoiceDraftOptionsResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /api/v1/invoices/{invoiceId}:
     parameters:
       - { $ref: "#/components/parameters/InvoiceId" }
     get:
       tags: [Invoices]
-      summary: Read invoice details and separate lifecycle/payment/approval states
+      summary: Read invoice details and calculated balances in the caller's legal-entity scope
       operationId: getInvoice
-      x-implementation-status: planned
+      x-implementation-status: implemented
       responses:
         "200":
-          description: Invoice and snapshot metadata
+          description: Invoice details and stored line calculations
           content:
             application/json:
               schema: { $ref: "#/components/schemas/InvoiceResponse" }
@@ -793,9 +815,11 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Invoices]
-      summary: Update a draft invoice only
+      summary: Update a draft invoice only and recalculate totals
       operationId: updateInvoiceDraft
-      x-implementation-status: planned
+      x-implementation-status: implemented
+      parameters:
+        - { $ref: "#/components/parameters/CsrfToken" }
       requestBody:
         required: true
         content:
@@ -803,7 +827,7 @@ paths:
             schema: { $ref: "#/components/schemas/InvoiceDraftUpdateInput" }
       responses:
         "200":
-          description: Draft updated and totals recalculated by server
+          description: Draft updated using optimistic concurrency and server-calculated totals
           content:
             application/json:
               schema: { $ref: "#/components/schemas/InvoiceResponse" }
@@ -2231,15 +2255,41 @@ components:
     InvoiceLineInput:
       type: object
       additionalProperties: false
-      required: [description, quantity, unitPrice]
+      required: [description, unitCode, quantity, unitPrice]
       properties:
         catalogItemId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
+        lineKind: { type: string, enum: [ITEM, CHARGE], default: ITEM }
         description: { type: string, minLength: 1, maxLength: 1000 }
-        unitCode: { type: string, maxLength: 40 }
+        unitCode: { type: string, minLength: 1, maxLength: 40 }
         quantity: { type: string, pattern: '^(?=.*[1-9])(?:0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
         unitPrice: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
-        discountAmount: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
-        taxCode: { type: [string, "null"], maxLength: 80 }
+        discountType: { type: string, enum: [AMOUNT, PERCENT], default: AMOUNT }
+        discountValue: { type: string, pattern: '^(0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$', default: "0.0000" }
+        taxCode:
+          type: [string, "null"]
+          maxLength: 80
+          description: Tax code only. Server resolves approved rate and inclusive/exclusive mode from effective tax configuration.
+    InvoiceLine:
+      type: object
+      required: [id, lineKind, description, unitCode, quantity, unitPrice, discountType, discountValue, discountAmount, taxRatePercent, taxCalculationMode, taxAmount, lineTotal]
+      properties:
+        id: { $ref: "#/components/schemas/Uuid" }
+        catalogItemId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
+        lineKind: { type: string, enum: [ITEM, CHARGE] }
+        description: { type: string }
+        unitCode: { type: string }
+        quantity: { type: string, pattern: '^(?=.*[1-9])(?:0|[1-9][0-9]{0,14})(\.[0-9]{1,4})?$' }
+        unitPrice: { $ref: "#/components/schemas/Money" }
+        discountType: { type: string, enum: [AMOUNT, PERCENT] }
+        discountValue: { $ref: "#/components/schemas/Money" }
+        discountAmount: { $ref: "#/components/schemas/Money" }
+        taxRatePercent: { type: string, pattern: '^(0|[1-9][0-9]{0,2})(\.[0-9]{1,6})?$' }
+        taxCode: { type: [string, "null"] }
+        taxCalculationMode: { type: string, enum: [EXCLUSIVE, INCLUSIVE] }
+        taxAmount: { $ref: "#/components/schemas/Money" }
+        lineTotal: { $ref: "#/components/schemas/Money" }
+        taxRuleId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
+        taxRegistrationId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
     InvoiceDraftInput:
       type: object
       additionalProperties: false
@@ -2250,6 +2300,10 @@ components:
         customerId: { $ref: "#/components/schemas/Uuid" }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         invoiceDate: { type: [string, "null"], format: date }
+        dueDate:
+          type: [string, "null"]
+          format: date
+          description: If omitted or null, the server derives due date from invoice date and payment terms.
         paymentTermsDays: { type: integer, minimum: 0, maximum: 3650 }
         notes: { type: [string, "null"], maxLength: 5000 }
         lines:
@@ -2260,14 +2314,20 @@ components:
     InvoiceDraftUpdateInput:
       type: object
       additionalProperties: false
-      minProperties: 1
-      description: Future draft-only PATCH; server rejects issued/cancelled invoices and unknown fields.
+      required: [expectedVersion]
+      minProperties: 2
+      description: Draft-only PATCH with optimistic concurrency. Issued and cancelled invoices are immutable.
       properties:
+        expectedVersion: { type: integer, minimum: 1 }
         legalEntityId: { $ref: "#/components/schemas/Uuid" }
         brandId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
         customerId: { $ref: "#/components/schemas/Uuid" }
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         invoiceDate: { type: [string, "null"], format: date }
+        dueDate:
+          type: [string, "null"]
+          format: date
+          description: If omitted or null, the server derives due date from invoice date and payment terms.
         paymentTermsDays: { type: integer, minimum: 0, maximum: 3650 }
         notes: { type: [string, "null"], maxLength: 5000 }
         lines:
@@ -2283,6 +2343,7 @@ components:
         legalEntityId: { $ref: "#/components/schemas/Uuid" }
         brandId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
         customerId: { $ref: "#/components/schemas/Uuid" }
+        customerName: { type: string }
         documentType: { type: string, enum: [INVOICE, CREDIT_NOTE, DEBIT_NOTE] }
         relatedInvoiceId: { oneOf: [{ $ref: "#/components/schemas/Uuid" }, { type: "null" }] }
         invoiceNumber: { type: [string, "null"] }
@@ -2291,13 +2352,81 @@ components:
         currency: { type: string, pattern: '^[A-Z]{3}$' }
         subtotal: { $ref: "#/components/schemas/Money" }
         discountTotal: { $ref: "#/components/schemas/Money" }
+        taxableValue: { $ref: "#/components/schemas/Money" }
         taxTotal: { $ref: "#/components/schemas/Money" }
         grandTotal: { $ref: "#/components/schemas/Money" }
+        paidAmount: { $ref: "#/components/schemas/Money" }
+        outstandingBalance: { $ref: "#/components/schemas/Money" }
         invoiceDate: { type: [string, "null"], format: date }
         dueDate: { type: [string, "null"], format: date }
+        paymentTermsDays: { type: integer, minimum: 0, maximum: 3650 }
+        recordVersion: { type: integer, minimum: 1 }
+        notes: { type: [string, "null"], maxLength: 5000 }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/InvoiceLine" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         issueSnapshotHash: { type: [string, "null"], pattern: '^[0-9a-f]{64}$' }
+    InvoiceDraftOptionsResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [legalEntities, customers, catalogItems, taxRules]
+          properties:
+            legalEntities:
+              type: array
+              items:
+                type: object
+                required: [id, name, currency, taxSetupStatus]
+                properties:
+                  id: { $ref: "#/components/schemas/Uuid" }
+                  name: { type: string }
+                  currency: { type: string, pattern: '^[A-Z]{3}$' }
+                  taxSetupStatus: { type: string }
+            customers:
+              type: array
+              items:
+                type: object
+                required: [id, name]
+                properties:
+                  id: { $ref: "#/components/schemas/Uuid" }
+                  name: { type: string }
+                  customerCode: { type: [string, "null"] }
+                  email: { type: [string, "null"] }
+                  paymentTermsDays: { type: [integer, "null"] }
+            catalogItems:
+              type: array
+              items:
+                type: object
+                required: [id, name, unitCode, defaultUnitPrice, currency]
+                properties:
+                  id: { $ref: "#/components/schemas/Uuid" }
+                  itemCode: { type: [string, "null"] }
+                  itemType: { type: string, enum: [PRODUCT, SERVICE] }
+                  name: { type: string }
+                  description: { type: string }
+                  unitCode: { type: string }
+                  defaultUnitPrice: { $ref: "#/components/schemas/Money" }
+                  currency: { type: string, pattern: '^[A-Z]{3}$' }
+                  defaultTaxCode: { type: [string, "null"] }
+            taxRules:
+              type: array
+              items:
+                type: object
+                required: [id, legalEntityId, taxCode, ratePercent, calculationMode]
+                properties:
+                  id: { $ref: "#/components/schemas/Uuid" }
+                  legalEntityId: { $ref: "#/components/schemas/Uuid" }
+                  taxCode: { type: string }
+                  displayName: { type: string }
+                  ratePercent: { type: string }
+                  calculationMode: { type: string, enum: [EXCLUSIVE, INCLUSIVE] }
+                  effectiveFrom: { type: string, format: date }
+                  effectiveUntil: { type: [string, "null"], format: date }
+        meta: { $ref: "#/components/schemas/Meta" }
     InvoiceResponse:
       type: object
       required: [data, meta]

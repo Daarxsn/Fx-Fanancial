@@ -12,7 +12,7 @@ import { validateDraftContext, resolveDraftLines, persistDraftLines, auditDraftC
 export const runtime="nodejs";export const dynamic="force-dynamic";
 type Context={params:Promise<{invoiceId:string}>};
 function responseValidation(error:unknown){if(error instanceof InvoiceDraftValidationError)return jsonNoStore({error:{code:"VALIDATION_ERROR",message:error.message}},422);return apiError(error);}
-function paymentStatus(total:string,paid:string):"UNPAID"|"PARTIALLY_PAID"|"PAID"{if(Number(total)>0&&Number(paid)>=Number(total))return "PAID";if(Number(paid)>0)return "PARTIALLY_PAID";return "UNPAID";}
+function paymentStatus(total:string,paid:string):"UNPAID"|"PARTIALLY_PAID"|"PAID"{if(total!=="0.0000"&&outstandingBalance(total,paid)==="0.0000")return "PAID";if(paid!=="0.0000")return "PARTIALLY_PAID";return "UNPAID";}
 function money(value:unknown){return String(value??"0.0000");}
 function serializeLine(row:RowDataPacket & {id:string;catalog_item_id:string|null;line_kind:string;description:string;unit_code:string;quantity:string;unit_price:string;discount_type:string;discount_value:string;discount_amount:string;tax_rate:string;tax_code:string|null;tax_calculation_mode:string;tax_amount:string;line_total:string;tax_rule_id:string|null;tax_registration_id:string|null}){
  return {id:row.id,catalogItemId:row.catalog_item_id,lineKind:row.line_kind,description:row.description,unitCode:row.unit_code,
@@ -60,7 +60,7 @@ export async function PATCH(request:NextRequest,context:Context){
   const current=rows[0];
   if(current.lifecycle_status!=="DRAFT"){await conn.rollback();return jsonNoStore({error:{code:"IMMUTABLE_INVOICE",message:"Only draft invoices can be updated. Issued/cancelled documents are preserved for audit."}},409);}
   if(Number(current.record_version)!==expectedVersion){await conn.rollback();return jsonNoStore({error:{code:"VERSION_CONFLICT",message:"This invoice draft changed. Reload it before saving."}},409);}
-  const oldLines=patch.lines===undefined ? await conn.execute<(RowDataPacket & {catalog_item_id:string|null;line_kind:string;description:string;unit_code:string;quantity:string;unit_price:string;discount_type:string;discount_value:string;tax_code:string|null})[]>(
+  const oldLines=patch.lines===undefined ? await conn.execute<(RowDataPacket & {catalog_item_id:string|null;line_kind:"ITEM"|"CHARGE";description:string;unit_code:string;quantity:string;unit_price:string;discount_type:"AMOUNT"|"PERCENT";discount_value:string;tax_code:string|null})[]>(
    "SELECT catalog_item_id,line_kind,description,unit_code,quantity,unit_price,discount_type,discount_value,tax_code FROM invoice_lines WHERE invoice_id=? ORDER BY line_number",[invoiceId]).then(r=>r[0].map(line=>({
     catalogItemId:line.catalog_item_id,lineKind:line.line_kind,description:line.description,unitCode:line.unit_code,quantity:String(line.quantity),
     unitPrice:String(line.unit_price),discountType:line.discount_type,discountValue:String(line.discount_value),taxCode:line.tax_code,

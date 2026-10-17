@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/auth/authorize";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { ConfigurationConflictError, ConfigurationNotReadyError } from "@/lib/configuration/errors";
 import { captureDocumentConfigurationSnapshot, jsonValue } from "@/lib/configuration/service";
+import { calculateInvoice, defaultDueDate, assertValidDueDate } from "@/lib/finance/invoice-calculation";
 import { calendarDateSchema } from "@/lib/validation/configuration";
 import { z } from "zod";
 
@@ -31,12 +32,6 @@ type InvoiceRow = RowDataPacket & {
   grand_total: string | number;
   issue_idempotency_key: string | null;
 };
-
-function sameRate(left: unknown, right: unknown): boolean {
-  const a = Number(left);
-  const b = Number(right);
-  return Number.isFinite(a) && Number.isFinite(b) && Math.round(a * 1_000_000) === Math.round(b * 1_000_000);
-}
 
 function jsonObject(value: unknown): Record<string, unknown> {
   if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
@@ -122,11 +117,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ in
     const customer = customers[0];
 
     const [lineRows] = await conn.execute<(RowDataPacket & {
-      id: string; line_number: number; tax_code: string | null; tax_rule_id: string | null; tax_registration_id: string | null;
+      id: string; line_number: number; line_kind: "ITEM"|"CHARGE"; description: string; quantity:string|number; unit_price:string|number;
+      discount_type:"AMOUNT"|"PERCENT"; discount_value:string|number; tax_calculation_mode:"EXCLUSIVE"|"INCLUSIVE";
+      tax_code: string | null; tax_rule_id: string | null; tax_registration_id: string | null;
       tax_rate: string | number; tax_amount: string | number; configured_tax_code: string | null; configured_rate: string | number | null;
-      configured_tax_jurisdiction: string | null; configured_registration_jurisdiction: string | null;
+      configured_tax_calculation_mode:"EXCLUSIVE"|"INCLUSIVE"|null; configured_tax_jurisdiction: string | null;
+      configured_registration_jurisdiction: string | null;
     })[]>(
-      "SELECT l.id,l.line_number,l.tax_code,l.tax_rule_id,l.tax_registration_id,l.tax_rate,l.tax_amount,r.tax_code AS configured_tax_code,r.rate AS configured_rate,r.jurisdiction AS configured_tax_jurisdiction,tr.jurisdiction AS configured_registration_jurisdiction FROM invoice_lines l LEFT JOIN tax_rules r ON r.id=l.tax_rule_id LEFT JOIN legal_entity_tax_registrations tr ON tr.id=l.tax_registration_id WHERE l.invoice_id=? ORDER BY l.line_number FOR UPDATE",
+      "SELECT l.id,l.line_number,l.line_kind,l.description,l.quantity,l.unit_price,l.discount_type,l.discount_value,l.tax_calculation_mode,l.tax_code,l.tax_rule_id,l.tax_registration_id,l.tax_rate,l.tax_amount,r.tax_code AS configured_tax_code,r.rate AS configured_rate,r.calculation_mode AS configured_tax_calculation_mode,r.jurisdiction AS configured_tax_jurisdiction,tr.jurisdiction AS configured_registration_jurisdiction FROM invoice_lines l LEFT JOIN tax_rules r ON r.id=l.tax_rule_id LEFT JOIN legal_entity_tax_registrations tr ON tr.id=l.tax_registration_id WHERE l.invoice_id=? ORDER BY l.line_number FOR UPDATE",
       [invoice.id],
     );
     if (!lineRows.length) throw new ConfigurationNotReadyError("At least one invoice line is required before issuance.");
@@ -150,20 +148,44 @@ export async function POST(request: NextRequest, context: { params: Promise<{ in
         const taxJurisdiction = line.configured_tax_jurisdiction?.trim().toLowerCase();
         const registrationJurisdiction = line.configured_registration_jurisdiction?.trim().toLowerCase();
         return !line.tax_rule_id || !line.tax_registration_id || !line.tax_code ||
-          line.configured_tax_code !== line.tax_code || !sameRate(line.tax_rate, line.configured_rate) ||
+          line.configured_tax_code !== line.tax_code || line.configured_tax_calculation_mode !== line.tax_calculation_mode ||
           !taxJurisdiction || !registrationJurisdiction || taxJurisdiction !== registrationJurisdiction;
       });
       if (invalid) throw new ConfigurationNotReadyError("Every invoice line must reference an approved tax rule and a registration for the same jurisdiction, with a matching tax code and rate.");
       taxRuleIds = [...new Set(lineRows.map((line) => String(line.tax_rule_id)))];
       taxRegistrationIds = [...new Set(lineRows.map((line) => String(line.tax_registration_id)))];
     } else if (taxStatus === "APPROVED_NOT_APPLICABLE") {
-      const inconsistent = lineRows.some((line) =>
-        line.tax_rule_id !== null || line.tax_registration_id !== null || line.tax_code !== null ||
-        Number(line.tax_rate) !== 0 || Number(line.tax_amount) !== 0);
-      if (inconsistent) throw new ConfigurationConflictError("The approved tax setup is not applicable; invoice lines must not contain tax rule references or calculated tax.");
+      const inconsistent = lineRows.some((line) => line.tax_rule_id !== null || line.tax_registration_id !== null || line.tax_code !== null);
+      if (inconsistent) throw new ConfigurationConflictError("The approved tax setup is not applicable; invoice lines must not contain tax rule references.");
     } else {
       throw new ConfigurationNotReadyError("A recorded, approved tax decision is required before invoice issuance.");
     }
+
+    // Recompute every line and document total from persisted exact-decimal inputs and approved tax rules.
+    // Never trust client/stored tax rates or totals as authoritative at issue time.
+    const calculation = calculateInvoice(lineRows.map((line) => ({
+      lineKind: line.line_kind, description: line.description, quantity: String(line.quantity), unitPrice: String(line.unit_price),
+      discountType: line.discount_type, discountValue: String(line.discount_value),
+      taxRatePercent: taxStatus === "APPROVED_CONFIGURED" ? String(line.configured_rate) : "0.000000",
+      taxCalculationMode: taxStatus === "APPROVED_CONFIGURED" ? line.configured_tax_calculation_mode! : "EXCLUSIVE",
+    })));
+    for (let index = 0; index < lineRows.length; index++) {
+      const line = lineRows[index], calculated = calculation.lines[index];
+      const rate = taxStatus === "APPROVED_CONFIGURED" ? String(line.configured_rate) : "0.000000";
+      await conn.execute(
+        "UPDATE invoice_lines SET discount_amount=?,tax_rate=?,tax_calculation_mode=?,tax_amount=?,line_total=? WHERE id=? AND invoice_id=?",
+        [calculated.discountAmount, rate, calculated.taxCalculationMode, calculated.taxAmount, calculated.lineTotal, line.id, invoice.id],
+      );
+    }
+    const invoiceDueDate = invoice.due_date instanceof Date
+      ? invoice.due_date.toISOString().slice(0,10)
+      : invoice.due_date === null ? defaultDueDate(documentDate, Number(invoice.payment_terms_days)) : String(invoice.due_date).slice(0,10);
+    try { assertValidDueDate(documentDate, invoiceDueDate); }
+    catch (error) { throw new ConfigurationConflictError(error instanceof Error ? error.message : "Invoice due date is invalid."); }
+    await conn.execute(
+      "UPDATE invoices SET subtotal=?,discount_total=?,tax_total=?,grand_total=? WHERE id=? AND lifecycle_status='DRAFT'",
+      [calculation.subtotal,calculation.discountTotal,calculation.taxTotal,calculation.grandTotal,invoice.id],
+    );
 
     const snapshotResult = await captureDocumentConfigurationSnapshot(conn, {
       resourceType: invoice.document_type, resourceId: invoice.id, legalEntityId: invoice.legal_entity_id,
@@ -189,8 +211,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ in
     };
 
     const [updated] = await conn.execute<ResultSetHeader>(
-      "UPDATE invoices SET lifecycle_status='ISSUED',invoice_number=?,financial_year=?,invoice_date=?,due_date=DATE_ADD(?, INTERVAL payment_terms_days DAY),supplier_snapshot=?,customer_snapshot=?,issued_at=NOW(3),issued_by=?,issue_idempotency_key=?,updated_at=NOW(3) WHERE id=? AND lifecycle_status='DRAFT'",
-      [snapshotResult.invoiceNumber, financialYearLabel, documentDate, documentDate, JSON.stringify(supplierForInvoice),
+      "UPDATE invoices SET lifecycle_status='ISSUED',invoice_number=?,financial_year=?,invoice_date=?,due_date=?,supplier_snapshot=?,customer_snapshot=?,issued_at=NOW(3),issued_by=?,issue_idempotency_key=?,updated_at=NOW(3) WHERE id=? AND lifecycle_status='DRAFT'",
+      [snapshotResult.invoiceNumber, financialYearLabel, documentDate, invoiceDueDate, JSON.stringify(supplierForInvoice),
         JSON.stringify(customerSnapshot), actor.userId, idempotencyKey, invoice.id],
     );
     if (updated.affectedRows !== 1) throw new ConfigurationConflictError("Invoice state changed during issuance; retry after refreshing the invoice.");
@@ -205,7 +227,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ in
     return jsonNoStore({ data: {
       id: invoice.id, status: "ISSUED", invoiceNumber: snapshotResult.invoiceNumber,
       financialYear: financialYearLabel, invoiceDate: documentDate, currency: invoice.currency,
-      grandTotal: String(invoice.grand_total), configurationSnapshotId: snapshotResult.snapshotId,
+      grandTotal: calculation.grandTotal, subtotal: calculation.subtotal, discountTotal: calculation.discountTotal,
+      taxableValue: calculation.taxableValue, taxTotal: calculation.taxTotal, dueDate: invoiceDueDate, configurationSnapshotId: snapshotResult.snapshotId,
       configurationSha256: snapshotResult.sha256, idempotentReplay: false,
     } });
   } catch (error) {

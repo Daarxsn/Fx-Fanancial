@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { MasterDataWorkspace } from "@/components/master-data-workspace";
+import { InvoiceWorkspace } from "@/components/invoice-workspace";
 import { Breadcrumbs, Card, EmptyState, InlineAlert, PageHeader, StatusBadge } from "@/components/ui";
 
 const sections = {
@@ -9,9 +10,9 @@ const sections = {
     eyebrow: "DOCUMENT MANAGEMENT",
     description: "Prepare invoice drafts and preserve a clear, auditable record of every issued document.",
     icon: "invoice" as const,
-    status: "Foundation ready",
+    status: "Live draft workflow",
     emptyTitle: "Your invoice workspace is ready for real data",
-    emptyDescription: "Invoice list, draft editing, numbering and issue actions will be enabled when their secured API workflows are implemented. No sample invoices or financial totals are fabricated here.",
+    emptyDescription: "Draft creation, exact-decimal totals, payment-aware balances and guarded issuance are connected to secured APIs. Invoice numbering is allocated only at issuance, and totals are recalculated before issuing.",
     note: "Issued financial details must remain immutable; changes belong in an approved correction workflow.",
     details: ["Drafts and document status", "Issue-time snapshots", "Private document history"],
   },
@@ -122,7 +123,7 @@ export default async function SectionPage({ params }: { params: Promise<{ sectio
         <StatusBadge tone={data.status.includes("available") ? "info" : data.status === "Planned" ? "warning" : "success"}>{data.status}</StatusBadge>
       </div>
 
-      {section === "customers" || section === "catalog" ? <MasterDataWorkspace resource={section} /> : <div className="section-workspace-grid">
+      {section === "invoices" ? <InvoiceWorkspace /> : section === "customers" || section === "catalog" ? <MasterDataWorkspace resource={section} /> : <div className="section-workspace-grid">
         <Card className="section-data-card">
           <div className="card-heading">
             <div><h2>{section === "settings" ? "Configuration areas" : section === "reports" ? "Available views" : "Workspace records"}</h2><p>Honest state, ready for implementation.</p></div>
