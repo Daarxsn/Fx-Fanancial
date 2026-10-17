@@ -156,3 +156,10 @@ export function assertValidDueDate(invoiceDate: string, dueDate: string): void {
   if (!validDate(invoiceDate) || !validDate(dueDate)) throw new Error("Invoice and due dates must be real calendar dates.");
   if (dueDate < invoiceDate) throw new Error("Due date cannot be earlier than invoice date.");
 }
+
+/** Exact decimal subtraction for already-normalized DECIMAL(19,4) values, clamped at zero. */
+export function subtractMoney(totalValue: string | number, partValue: string | number): string {
+  const total=parseScaled(String(totalValue),4,MONEY_PATTERN,"Money value");
+  const part=parseScaled(String(partValue),4,MONEY_PATTERN,"Money value");
+  return formatScaled(total>part?total-part:0n,4);
+}

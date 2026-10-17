@@ -5,11 +5,9 @@ import { requirePermission } from "@/lib/auth/authorize";
 import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { ConfigurationConflictError } from "@/lib/configuration/errors";
-import { calculateInvoice, outstandingBalance } from "@/lib/finance/invoice-calculation";
+import { outstandingBalance, subtractMoney } from "@/lib/finance/invoice-calculation";
 import { invoiceDraftUpdateSchema } from "@/lib/validation/invoice";
 import { validateDraftContext, resolveDraftLines, persistDraftLines, auditDraftChange, InvoiceDraftValidationError, dateText } from "@/lib/finance/invoice-draft-service";
-import { createHash } from "node:crypto";
-import { canonicalJson } from "@/lib/configuration/service";
 
 export const runtime="nodejs";export const dynamic="force-dynamic";
 type Context={params:Promise<{invoiceId:string}>};
@@ -40,7 +38,7 @@ export async function GET(_request:NextRequest,context:Context){
   return jsonNoStore({data:{id:row.id,legalEntityId:row.legal_entity_id,brandId:row.brand_id,customerId:row.customer_id,customerName:row.customer_name,
    documentType:row.document_type,relatedInvoiceId:row.related_invoice_id,invoiceNumber:row.invoice_number,lifecycleStatus:row.lifecycle_status,
    paymentStatus:paymentStatus(total,paid),currency:row.currency,subtotal:money(row.subtotal),discountTotal:money(row.discount_total),
-   taxableValue:money(Number(row.subtotal)-Number(row.discount_total)),taxTotal:money(row.tax_total),grandTotal:total,paidAmount:paid,
+   taxableValue:subtractMoney(money(row.subtotal),money(row.discount_total)),taxTotal:money(row.tax_total),grandTotal:total,paidAmount:paid,
    outstandingBalance:outstandingBalance(total,paid),invoiceDate:dateText(row.invoice_date),dueDate:dateText(row.due_date),
    paymentTermsDays:Number(row.payment_terms_days),notes:row.notes,recordVersion:Number(row.record_version),createdAt:row.created_at,updatedAt:row.updated_at,
    lines:lineRows.map(serializeLine)}});
@@ -53,7 +51,7 @@ export async function PATCH(request:NextRequest,context:Context){
   await assertCsrf(request);const actor=await requirePermission("invoices:draft:update");const {invoiceId}=await context.params;
   if(!/^[0-9a-f-]{36}$/i.test(invoiceId))return jsonNoStore({error:{code:"VALIDATION_ERROR",message:"invoiceId must be a UUID."}},400);
   const raw=await request.json();
-  const parsed=invoiceDraftUpdateSchema.extend({expectedVersion: (await import("zod")).z.number().int().min(1)}).parse(raw);
+  const parsed=invoiceDraftUpdateSchema.parse(raw);
   const {expectedVersion,...patch}=parsed;
   conn=await pool.getConnection();await conn.beginTransaction();
   const [rows]=await conn.execute<(RowDataPacket & {id:string;legal_entity_id:string;brand_id:string|null;customer_id:string;currency:string;invoice_date:Date|string|null;due_date:Date|string|null;payment_terms_days:number;notes:string|null;record_version:number;lifecycle_status:string})[]>(
@@ -77,7 +75,7 @@ export async function PATCH(request:NextRequest,context:Context){
    lines:patch.lines??oldLines??[],
   };
   const ctx=await validateDraftContext(conn,actor,input);
-  const prepared=await resolveDraftLines(conn,actor,ctx.entity,ctx.invoiceDate,input.currency,input.lines);
+  const prepared=await resolveDraftLines(conn,ctx.entity,ctx.invoiceDate,input.currency,input.lines);
   await persistDraftLines(conn,invoiceId,actor.userId,prepared.lines);
   const [updated]=await conn.execute<ResultSetHeader>(
    `UPDATE invoices SET legal_entity_id=?,brand_id=?,customer_id=?,currency=?,invoice_date=?,due_date=?,payment_terms_days=?,notes=?,

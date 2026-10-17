@@ -24,7 +24,6 @@ export function dateText(value:Date|string|null|undefined):string|null {
   if(value instanceof Date)return value.toISOString().slice(0,10);
   return String(value).slice(0,10);
 }
-export function mysqlDate(value:string|null):string|null { return value===null?null:value; }
 export function paymentStatus(total:string,paid:string):"UNPAID"|"PARTIALLY_PAID"|"PAID" {
   const n=(v:string)=>Number(v);
   if(n(total)>0 && n(paid)>=n(total))return "PAID";
@@ -33,7 +32,6 @@ export function paymentStatus(total:string,paid:string):"UNPAID"|"PARTIALLY_PAID
 }
 export async function resolveDraftLines(
   conn:PoolConnection,
-  actor:SessionPrincipal,
   entity:EntityRow,
   invoiceDate:string|null,
   currency:string,

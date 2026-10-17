@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { NextRequest } from "next/server";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
@@ -7,10 +7,9 @@ import { assertCsrf } from "@/lib/auth/csrf";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 import { ConfigurationNotReadyError } from "@/lib/configuration/errors";
 import { canonicalJson } from "@/lib/configuration/service";
-import { calculateInvoice, outstandingBalance } from "@/lib/finance/invoice-calculation";
+import { outstandingBalance, subtractMoney } from "@/lib/finance/invoice-calculation";
 import { invoiceCalendarDateSchema, invoiceDraftCreateSchema } from "@/lib/validation/invoice";
 import { validateDraftContext, resolveDraftLines, persistDraftLines, auditDraftChange, InvoiceDraftValidationError } from "@/lib/finance/invoice-draft-service";
-import { createHash } from "node:crypto";
 
 export const runtime="nodejs"; export const dynamic="force-dynamic";
 function dateText(v:Date|string|null):string|null{return v===null?null:v instanceof Date?v.toISOString().slice(0,10):String(v).slice(0,10);}
@@ -55,7 +54,7 @@ export async function GET(request:NextRequest){
    id:r.id,legalEntityId:r.legal_entity_id,brandId:r.brand_id,customerId:r.customer_id,customerName:r.customer_name,
    documentType:r.document_type,relatedInvoiceId:r.related_invoice_id,invoiceNumber:r.invoice_number,lifecycleStatus:r.lifecycle_status,
    paymentStatus:paymentState(total,paid),currency:r.currency,subtotal:money(r.subtotal),discountTotal:money(r.discount_total),
-   taxableValue:money(Number(r.subtotal)-Number(r.discount_total)),taxTotal:money(r.tax_total),grandTotal:total,paidAmount:paid,
+   taxableValue:subtractMoney(money(r.subtotal),money(r.discount_total)),taxTotal:money(r.tax_total),grandTotal:total,paidAmount:paid,
    outstandingBalance:outstandingBalance(total,paid),invoiceDate:dateText(r.invoice_date),dueDate:dateText(r.due_date),
    paymentTermsDays:Number(r.payment_terms_days),recordVersion:Number(r.record_version),createdAt:r.created_at,updatedAt:r.updated_at,
   };}),pagination:{limit,offset,total:Number(count.total),hasMore:offset+rows.length<Number(count.total)}});
@@ -80,7 +79,7 @@ export async function POST(request:NextRequest){
    return jsonNoStore({data:{id:existing[0].id,lifecycleStatus:existing[0].lifecycle_status,idempotentReplay:true}},200);
   }
   const ctx=await validateDraftContext(conn,actor,input);
-  const prepared=await resolveDraftLines(conn,actor,ctx.entity,ctx.invoiceDate,input.currency,input.lines);
+  const prepared=await resolveDraftLines(conn,ctx.entity,ctx.invoiceDate,input.currency,input.lines);
   const id=randomUUID();
   await conn.execute(
    `INSERT INTO invoices (id,legal_entity_id,brand_id,customer_id,document_type,lifecycle_status,record_version,payment_terms_days,

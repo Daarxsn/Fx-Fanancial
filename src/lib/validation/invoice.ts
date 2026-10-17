@@ -22,4 +22,4 @@ const invoiceDraftFieldsSchema = z.object({
   notes: z.string().max(5000).nullable().optional(),lines: z.array(invoiceLineInputSchema).min(1).max(500),
 }).strict();
 export const invoiceDraftCreateSchema = invoiceDraftFieldsSchema;
-export const invoiceDraftUpdateSchema = invoiceDraftFieldsSchema.partial().refine((value)=>Object.keys(value).length>0,"At least one invoice field is required.");
+export const invoiceDraftUpdateSchema = invoiceDraftFieldsSchema.partial().extend({expectedVersion:z.number().int().min(1)}).strict().refine((value)=>Object.keys(value).some(key=>key!=="expectedVersion"),"At least one invoice field is required.");
