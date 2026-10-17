@@ -617,6 +617,28 @@ try {
   assert.equal(phase8Draft.body.data.dueDate,phase8ExpectedDueDate,"blank due date defaults from invoice date and payment terms");
   assert.equal(phase8Draft.body.data.lines[1].lineKind,"CHARGE");
   assert.equal(phase8Draft.body.data.lines[0].taxCalculationMode,"EXCLUSIVE");
+
+  const phase8InclusiveTaxCode="P8_INCL_"+phase6bSuffix;
+  const phase8InclusiveRule=await call("/api/v1/tax-rules",{
+    method:"POST",
+    body:JSON.stringify({legalEntityId:entityA.id,taxCode:phase8InclusiveTaxCode,displayName:"Phase 8 inclusive-price fixture",
+      jurisdiction:"CI-JURISDICTION",ratePercent:"18",calculationMode:"INCLUSIVE",effectiveFrom:"2020-01-01",
+      effectiveUntil:"",approvalReference:"CI-P8-INCLUSIVE-"+phase6bSuffix,
+      changeReason:"Phase 8 automated inclusive-tax calculation fixture"}),
+  },phase6aSession.jar);
+  assert.equal(phase8InclusiveRule.response.status,201,"approved tax-inclusive rule can be configured for the integration fixture");
+  const phase8InclusiveKey="p8-inclusive-"+phase6bSuffix.toLowerCase()+"-01";
+  const phase8InclusiveDraft=await call("/api/v1/invoices",{
+    method:"POST",headers:{"Idempotency-Key":phase8InclusiveKey},
+    body:JSON.stringify({...phase8DraftBody,notes:"Inclusive tax calculation fixture",lines:[{description:"Tax-inclusive item",unitCode:"unit",quantity:"1.0000",unitPrice:"118.0000",discountType:"AMOUNT",discountValue:"0.0000",taxCode:phase8InclusiveTaxCode}]}),
+  },phase6aSession.jar);
+  assert.equal(phase8InclusiveDraft.response.status,201,"invoice engine applies tax-inclusive treatment from the approved rule");
+  assert.equal(phase8InclusiveDraft.body.data.lines[0].taxCalculationMode,"INCLUSIVE");
+  assert.equal(phase8InclusiveDraft.body.data.subtotal,"100.0000");
+  assert.equal(phase8InclusiveDraft.body.data.taxableValue,"100.0000");
+  assert.equal(phase8InclusiveDraft.body.data.taxTotal,"18.0000");
+  assert.equal(phase8InclusiveDraft.body.data.grandTotal,"118.0000");
+
   const phase8Replay=await call("/api/v1/invoices",{
     method:"POST",headers:{"Idempotency-Key":phase8IdempotencyKey},body:JSON.stringify(phase8DraftBody),
   },phase6aSession.jar);
@@ -643,6 +665,16 @@ try {
   assert.equal(phase8Updated.body.data.taxableValue,"290.0000");
   assert.equal(phase8Updated.body.data.taxTotal,"52.2000");
   assert.equal(phase8Updated.body.data.grandTotal,"342.2000");
+  const phase8List=await call("/api/v1/invoices?status=DRAFT&legalEntityId="+entityA.id+"&customerId="+created.body.data.id+"&limit=100&offset=0",{},phase6aSession.jar);
+  assert.equal(phase8List.response.status,200);
+  const phase8ListRow=phase8List.body.data.find(row=>row.id===phase8Draft.body.data.id);
+  assert.ok(phase8ListRow,"updated draft appears in the list for the caller's entity/customer filters");
+  assert.equal(phase8ListRow.grandTotal,"342.2000","list totals match the server calculation returned by PATCH");
+  assert.equal(phase8ListRow.outstandingBalance,"342.2000");
+  const phase8Reloaded=await call("/api/v1/invoices/"+phase8Draft.body.data.id,{},phase6aSession.jar);
+  assert.equal(phase8Reloaded.response.status,200);
+  assert.equal(phase8Reloaded.body.data.grandTotal,phase8Updated.body.data.grandTotal,"GET detail and PATCH response remain calculation-consistent");
+
   const phase8Stale=await call("/api/v1/invoices/"+phase8Draft.body.data.id,{
     method:"PATCH",body:JSON.stringify({...phase8DraftBody,expectedVersion:1}),
   },phase6aSession.jar);
