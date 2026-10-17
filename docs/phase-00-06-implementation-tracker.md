@@ -137,7 +137,7 @@ Evidence:
 
 ### Separate data/workflow release gates
 
-- [x] Customer/catalog list, create, detail, version-checked update and reference-aware soft-archive APIs and connected workspace are implemented on main; latest CI run must complete green before verifying acceptance.
+- [x] Customer/catalog list, create, detail, version-checked update, reference-aware soft-archive, customer linked-document views, CSV safeguards and validation tests are implemented on `main`; CI and lockfile/bootstrap passed at `2d8d680f8bff827c70cc73ac302c7ba48d9f8369` ([CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/39001874484), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/39001874467)). Manual responsive/accessibility review and applying Phase 7 migrations to local Aiven remain open.
 - [ ] Implement and test invoice, quotation, payment/allocation/reversal, approval, document, email, reminder, reporting/export and full audit workflows before showing those actions as available.
 - [ ] Connect authenticated user identity, notifications, global search and permission-aware action visibility when those capabilities are implemented.
 - [ ] Perform a manual visual smoke review on desktop, tablet and narrow mobile browser widths before production release. This review has not been performed in this pass.

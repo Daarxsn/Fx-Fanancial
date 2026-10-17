@@ -1,6 +1,6 @@
 # Phase 07 — Customer and Item/Service Catalog
 
-**Status:** Phase 07 implementation is in progress on `main` (2026-10-16). The first CRUD and CSV slice is committed; do not mark the phase complete until the current MySQL/CI suite is green and the remaining acceptance evidence is captured.
+**Status:** Phase 07 implementation is in progress on `main` (2026-10-17). Customer/catalog CRUD, scoped customer document references, permission enforcement, bounded search/pagination, exact-decimal validation, safe archive, CSV import/export and server-enforced duplicate confirmation are implemented. CI and lockfile/bootstrap passed on `2d8d680f8bff827c70cc73ac302c7ba48d9f8369` ([CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/39001874484), [bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/39001874467)). Do not mark the phase complete until local configured-MySQL migration evidence and manual responsive/accessibility acceptance are captured.
 **Scope:** Reusable customer records and billable item/service records used by quotations and invoices.
 
 ## Goals
@@ -62,20 +62,20 @@ For a draft, the UI may refresh defaults from catalog records, but should make t
 
 ## Proposed API surface
 
-Implemented in the current Phase 07 slice: customer and catalog list/create/detail/update/archive plus customer/catalog CSV import/export. Import has a validation-only mode and a separate atomic commit mode; duplicate codes are validation errors, while possible duplicate names/contact details are surfaced as warnings without auto-merging. These operations require authentication and server-side authorization.
+Implemented in the current Phase 07 slice: customer and catalog list/create/detail/update/archive plus customer/catalog CSV import/export. Import has a validation-only mode and a separate atomic commit mode; duplicate codes are validation errors, while possible duplicate names/contact details are surfaced as warnings without auto-merging. Server-side commit requires `confirmDuplicates=true` when validation reports possible duplicates; a direct API call cannot bypass the UI confirmation. These operations require authentication and server-side authorization.
 
-- `GET /api/v1/customers?query=&status=&cursor=` — paginated search.
+- `GET /api/v1/customers?query=&status=&limit=&offset=` — bounded paginated search.
 - `POST /api/v1/customers` — create.
 - `GET /api/v1/customers/{id}` — read.
 - `PATCH /api/v1/customers/{id}` — update with optimistic concurrency/version checking.
 - `POST /api/v1/customers/{id}/archive` — archive with reference-aware safeguards.
-- `GET /api/v1/customers/export?status=` and `POST /api/v1/customers/import?mode=validate|commit` — bounded CSV export and row-report validation/atomic import.
-- `GET /api/v1/catalog/items?query=&status=&cursor=` — paginated item/service search.
+- `GET /api/v1/customers/export?status=` and `POST /api/v1/customers/import?mode=validate|commit&confirmDuplicates=true` — bounded CSV import with row-report validation, atomic commit, and explicit server-side duplicate confirmation when needed.
+- `GET /api/v1/catalog/items?query=&status=&limit=&offset=` — bounded paginated item/service search.
 - `POST /api/v1/catalog/items` — create.
 - `GET /api/v1/catalog/items/{id}` — read.
 - `PATCH /api/v1/catalog/items/{id}` — update with optimistic concurrency/version checking.
 - `POST /api/v1/catalog/items/{id}/archive` — archive.
-- `GET /api/v1/catalog/items/export?status=` and `POST /api/v1/catalog/items/import?mode=validate|commit` — bounded CSV export and row-report validation/atomic import.
+- `GET /api/v1/catalog/items/export?status=` and `POST /api/v1/catalog/items/import?mode=validate|commit&confirmDuplicates=true` — bounded CSV import with row-report validation, atomic commit, and explicit server-side duplicate confirmation when needed.
 
 Use consistent validation/error envelopes, bounded pagination, and no-store behavior for sensitive responses. Do not expose database driver messages or stack traces. Avoid returning internal descriptions/notes to roles that do not need them.
 
@@ -103,14 +103,14 @@ The server must enforce permissions regardless of whether a UI control is hidden
 - [x] Schema migration extends customer/catalog records and normalizes contacts and tax identifiers (migrations 011–012; current CI must pass before claiming verified).
 - [x] Required-field, length, enum, identifier, email, currency and exact-decimal validation is covered by automated tests.
 - [x] Duplicate warnings do not silently merge records; duplicate codes are hard conflicts. Server-side CSV commit also requires explicit `confirmDuplicates=true` when possible duplicate matches were reported.
-- [x] Archive endpoints are soft archives, version checked, reasoned and audited; historical references are counted. Integration verification is required before marking accepted.
+- [x] Archive endpoints are soft archives, version checked, reasoned and audited; historical references are counted by the Phase 7 MySQL integration suite.
 - [x] Permission-denied requests fail on the server and are tested, including customer tax identifiers/internal notes and read-only writes.
 - [x] Pagination and search are bounded and tested, including query/code matches, maximum limit/offset and restricted tax-ID search.
 - [x] Integration test confirms editing a catalog item does not rewrite an already-saved invoice line description, unit price or line total. Issued invoice snapshot immutability remains separately covered by Phase 06B tests.
 - [x] Create/update/archive/import actions emit audit events with changed field names and without copying customer tax values into the audit payload.
 - [ ] UI works at desktop and mobile widths and has accessible validation/error states.
-- [ ] Migration is applied and tested against the configured MySQL version.
-- [ ] Clean-checkout lint, typecheck, build and relevant integration tests pass.
+- [ ] Apply and verify migrations 011–012 against the configured Aiven development/testing database. CI has tested these migrations against MySQL 8; local Aiven application in this pass has not been verified.
+- [x] Clean-checkout lint, typecheck, production build and relevant MySQL integration tests pass on `2d8d680f8bff827c70cc73ac302c7ba48d9f8369`: [CI](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/39001874484), [lockfile/bootstrap](https://github.com/Daarxsn/Fx-Fanancial/actions/runs/39001874467).
 
 ## Current implementation decisions and remaining business decisions
 
