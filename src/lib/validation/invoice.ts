@@ -10,24 +10,16 @@ export const invoiceLineInputSchema = z.object({
   lineKind: z.enum(["ITEM", "CHARGE"]).optional().default("ITEM"),
   description: z.string().trim().min(1).max(1000),
   unitCode: z.string().trim().min(1).max(40),
-  quantity: quantityInput,
-  unitPrice: moneyInput,
+  quantity: quantityInput, unitPrice: moneyInput,
   discountType: z.enum(["AMOUNT", "PERCENT"]).optional().default("AMOUNT"),
   discountValue: moneyInput.optional().default("0"),
   taxCode: z.string().trim().max(80).nullable().optional(),
 }).strict();
 const invoiceDraftFieldsSchema = z.object({
-  legalEntityId: z.string().uuid(),
-  brandId: z.string().uuid().nullable().optional(),
-  customerId: z.string().uuid(),
-  currency: z.string().regex(/^[A-Z]{3}$/),
-  invoiceDate: invoiceCalendarDateSchema.nullable().optional(),
-  dueDate: invoiceCalendarDateSchema.nullable().optional(),
-  paymentTermsDays: z.number().int().min(0).max(3650).optional(),
-  notes: z.string().max(5000).nullable().optional(),
-  lines: z.array(invoiceLineInputSchema).min(1).max(500),
+  legalEntityId: z.string().uuid(),brandId: z.string().uuid().nullable().optional(),customerId: z.string().uuid(),
+  currency: z.string().regex(/^[A-Z]{3}$/),invoiceDate: invoiceCalendarDateSchema.nullable().optional(),
+  dueDate: invoiceCalendarDateSchema.nullable().optional(),paymentTermsDays: z.number().int().min(0).max(3650).optional(),
+  notes: z.string().max(5000).nullable().optional(),lines: z.array(invoiceLineInputSchema).min(1).max(500),
 }).strict();
 export const invoiceDraftCreateSchema = invoiceDraftFieldsSchema;
-export const invoiceDraftUpdateSchema = invoiceDraftFieldsSchema.partial().refine(
-  (value) => Object.keys(value).length > 0, "At least one invoice field is required.",
-);
+export const invoiceDraftUpdateSchema = invoiceDraftFieldsSchema.partial().refine((value)=>Object.keys(value).length>0,"At least one invoice field is required.");
