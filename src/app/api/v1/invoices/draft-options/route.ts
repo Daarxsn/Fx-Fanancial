@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
 import type { RowDataPacket } from "mysql2";
 import { pool } from "@/lib/db/pool";
-import { requirePermission } from "@/lib/auth/authorize";
+import { AuthorizationError, requirePermission } from "@/lib/auth/authorize";
 import { apiError, jsonNoStore } from "@/lib/http/api-response";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 export async function GET(_request:NextRequest){
  try{
-  const actor=await requirePermission("invoices:draft:create");const scope=[...new Set(actor.legalEntityIds)];
+  let actor;try{actor=await requirePermission("invoices:draft:create");}catch(error){if(!(error instanceof AuthorizationError)||error.code!=="FORBIDDEN")throw error;actor=await requirePermission("invoices:draft:update");}const scope=[...new Set(actor.legalEntityIds)];
   if(!scope.length)return jsonNoStore({data:{legalEntities:[],customers:[],catalogItems:[],taxRules:[]}});
   const placeholders=scope.map(()=>"?").join(",");
   const [entities]=await pool.query<(RowDataPacket & {id:string;display_name:string;currency:string;tax_setup_status:string})[]>(

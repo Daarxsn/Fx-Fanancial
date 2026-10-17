@@ -739,11 +739,11 @@ try {
 
   const issuedInvoiceId=randomUUID();
   await db.execute(
-    "INSERT INTO invoices (id,legal_entity_id,brand_id,customer_id,document_type,lifecycle_status,payment_terms_days,currency,subtotal,discount_total,tax_total,grand_total) VALUES (?, ?, NULL, ?, 'INVOICE','DRAFT',30,'INR',100.0000,0,18.0000,118.0000)",
+    "INSERT INTO invoices (id,legal_entity_id,brand_id,customer_id,document_type,lifecycle_status,payment_terms_days,currency,subtotal,discount_total,tax_total,grand_total) VALUES (?, ?, NULL, ?, 'INVOICE','DRAFT',30,'INR',999.0000,0,0.0000,999.0000)",
     [issuedInvoiceId,entityA.id,created.body.data.id],
   );
   await db.execute(
-    "INSERT INTO invoice_lines (id,invoice_id,line_number,description,quantity,unit_price,discount_amount,tax_rate,tax_code,tax_rule_id,tax_registration_id,tax_amount,line_total) VALUES (?,?,1,'CI taxable line',1.0000,100.0000,0,18.000000,?,?,?,18.0000,118.0000)",
+    "INSERT INTO invoice_lines (id,invoice_id,line_number,description,quantity,unit_price,discount_amount,tax_rate,tax_code,tax_rule_id,tax_registration_id,tax_amount,line_total) VALUES (?,?,1,'CI taxable line',1.0000,100.0000,0,0.000000,?,?,?,0.0000,1.0000)",
     [randomUUID(),issuedInvoiceId,phase6bTaxCode,phase6bTaxRuleId,phase6bRegistrationId],
   );
   const issueKey="p6b-happy-"+phase6bSuffix.toLowerCase()+"-001";
