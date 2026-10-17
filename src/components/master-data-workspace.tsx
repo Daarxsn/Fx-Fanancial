@@ -280,7 +280,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
    <Button variant="secondary" size="sm" disabled={!pagination.hasMore||loading} onClick={()=>setOffset(offset+limit)}>Next</Button>
   </div></div>
 
-  {editorOpen?<div className="master-data-panel" role="dialog" aria-modal="true" aria-labelledby="master-data-form-title">
+  {editorOpen?<section className="master-data-panel" aria-labelledby="master-data-form-title">
    <div className="master-data-panel__heading"><div><p className="page-eyebrow">{editing?"EDIT MASTER DATA":"NEW MASTER DATA"}</p><h2 id="master-data-form-title">{editing?"Edit "+title.slice(0,-1):"Create "+(resource==="customers"?"customer":"item / service")}</h2><p>Only approved information belongs in this record. Fields marked * are required.</p></div><Button variant="ghost" onClick={()=>setEditorOpen(false)}>Close</Button></div>
    <form onSubmit={save}>
     {resource==="catalog"?<div className="master-data-form-grid">
@@ -313,7 +313,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
     </div>}
     <div className="master-data-form-actions"><Button variant="secondary" type="button" disabled={saving} onClick={()=>setEditorOpen(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving?"Saving…":editing?"Save changes":"Create record"}</Button></div>
    </form>
-  </div>:null}
+  </section>:null}
 
   {detail?<div className="master-data-detail" aria-labelledby="master-data-detail-title">
    <div className="master-data-detail__heading"><div><p className="page-eyebrow">RECORD DETAILS</p><h2 id="master-data-detail-title">{displayName(detail)}</h2></div><Button variant="ghost" onClick={()=>setDetail(null)}>Close details</Button></div>
@@ -343,9 +343,9 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
    {detail.isActive&&canWrite?<div className="master-data-form-actions"><Button variant="secondary" onClick={()=>void openEdit(detail)}>Edit record</Button>{canArchive?<Button variant="danger" onClick={()=>{setArchiveTarget(detail);setArchiveReason("");}}>Archive record</Button>:null}</div>:null}
   </div>:detailLoading?<p className="master-data-summary">Loading details…</p>:null}
 
-  {archiveTarget?<div className="master-data-panel master-data-panel--narrow" role="dialog" aria-modal="true" aria-labelledby="archive-title"><div className="master-data-panel__heading"><div><p className="page-eyebrow">ARCHIVE MASTER DATA</p><h2 id="archive-title">Archive {displayName(archiveTarget)}?</h2><p>This hides the record from new selection but preserves linked invoices, quotations and audit history. It is not a delete.</p></div></div>
+  {archiveTarget?<section className="master-data-panel master-data-panel--narrow" aria-labelledby="archive-title"><div className="master-data-panel__heading"><div><p className="page-eyebrow">ARCHIVE MASTER DATA</p><h2 id="archive-title">Archive {displayName(archiveTarget)}?</h2><p>This hides the record from new selection but preserves linked invoices, quotations and audit history. It is not a delete.</p></div></div>
    <form onSubmit={archive}><div className="form-field"><label className="form-label" htmlFor="archiveReason">Reason (required)</label><textarea id="archiveReason" className="form-control form-control--textarea" value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} minLength={3} maxLength={500} required/></div>
     <div className="master-data-form-actions"><Button variant="secondary" type="button" onClick={()=>setArchiveTarget(null)} disabled={saving}>Cancel</Button><Button variant="danger" type="submit" disabled={saving||archiveReason.trim().length<3}>{saving?"Archiving…":"Confirm archive"}</Button></div></form>
-  </div>:null}
+  </section>:null}
  </div>;
 }
