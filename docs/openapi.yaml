@@ -765,7 +765,11 @@ paths:
         - in: header
           name: Idempotency-Key
           required: true
-          schema: { type: string, minLength: 16, maxLength: 128, pattern: '^[!-~]+          application/json:
+          schema: { type: string, minLength: 16, maxLength: 128, pattern: '^[!-~]+$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
             schema: { $ref: "#/components/schemas/InvoiceDraftInput" }
       responses:
         "201":
