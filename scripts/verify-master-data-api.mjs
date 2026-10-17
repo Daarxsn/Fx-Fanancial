@@ -651,6 +651,21 @@ try {
   },phase6aSession.jar);
   assert.equal(phase8KeyConflict.response.status,409,"reusing a submission key with a different payload is rejected");
   assert.equal(phase8KeyConflict.body.error.code,"DUPLICATE_SUBMISSION");
+
+  const phase8ConcurrentKey="p8-race-"+phase6bSuffix.toLowerCase()+"-001";
+  const phase8ConcurrentBody={...phase8DraftBody,notes:"Concurrent duplicate create fixture",lines:[phase8Line,phase8Charge]};
+  const concurrentSubmissions=await Promise.all([
+    call("/api/v1/invoices",{method:"POST",headers:{"Idempotency-Key":phase8ConcurrentKey},body:JSON.stringify(phase8ConcurrentBody)},phase6aSession.jar),
+    call("/api/v1/invoices",{method:"POST",headers:{"Idempotency-Key":phase8ConcurrentKey},body:JSON.stringify(phase8ConcurrentBody)},phase6aSession.jar),
+  ]);
+  assert.deepEqual(concurrentSubmissions.map(result=>result.response.status).sort((a,b)=>a-b),[200,201],
+    "concurrent identical submissions produce one create and one replay, not a server error");
+  assert.equal(concurrentSubmissions[0].body.data.id,concurrentSubmissions[1].body.data.id);
+  const [[concurrentKeyCount]]=await db.execute(
+    "SELECT COUNT(*) AS total FROM invoices WHERE idempotency_key=?",[phase8ConcurrentKey],
+  );
+  assert.equal(Number(concurrentKeyCount.total),1,"one invoice is persisted when identical create requests race");
+
   const phase8Detail=await call("/api/v1/invoices/"+phase8Draft.body.data.id,{},phase6aSession.jar);
   assert.equal(phase8Detail.response.status,200);
   assert.equal(phase8Detail.body.data.grandTotal,"236.0000");
