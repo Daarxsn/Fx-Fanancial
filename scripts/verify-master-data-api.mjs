@@ -1046,6 +1046,28 @@ try {
   }, financeSession.jar);
   assert.equal(csvCommitted.response.status, 201, "a separately requested valid CSV commit creates the records atomically");
   assert.equal(csvCommitted.body.data.createdCount, 1);
+  const duplicateCustomerCsv = [
+    "customerCode,name,email",
+    ["CSV-DUP-" + suffix.toUpperCase(), phase7CustomerName + " Updated", "csv-duplicate-" + suffix + "@example.invalid"].map(csvCell).join(","),
+  ].join("\r\n");
+  const duplicateCustomerPreview = await call("/api/v1/customers/import?mode=validate", {
+    method: "POST", headers: { "Content-Type": "text/csv" }, body: duplicateCustomerCsv,
+  }, financeSession.jar);
+  assert.equal(duplicateCustomerPreview.response.status, 200);
+  assert.ok(duplicateCustomerPreview.body.data.duplicateWarnings.length, "customer import reports possible duplicate names");
+  const duplicateCustomerBlocked = await call("/api/v1/customers/import?mode=commit", {
+    method: "POST", headers: { "Content-Type": "text/csv" }, body: duplicateCustomerCsv,
+  }, financeSession.jar);
+  assert.equal(duplicateCustomerBlocked.response.status, 409, "server blocks duplicate customer import until explicit confirmation");
+  assert.equal(duplicateCustomerBlocked.body.error.code, "DUPLICATE_CONFIRMATION_REQUIRED");
+  assert.equal(duplicateCustomerBlocked.body.data.requiresDuplicateConfirmation, true);
+  const duplicateCustomerNotCreated = await call("/api/v1/customers?query=CSV-DUP-" + suffix.toUpperCase() + "&status=all", {}, financeSession.jar);
+  assert.equal(duplicateCustomerNotCreated.body.meta.pagination.total, 0, "blocked duplicate import writes no rows");
+  const duplicateCustomerConfirmed = await call("/api/v1/customers/import?mode=commit&confirmDuplicates=true", {
+    method: "POST", headers: { "Content-Type": "text/csv" }, body: duplicateCustomerCsv,
+  }, financeSession.jar);
+  assert.equal(duplicateCustomerConfirmed.response.status, 201, "explicitly confirmed duplicate customer import can commit atomically");
+
   const invalidCsvPreview = await call("/api/v1/customers/import?mode=validate", {
     method: "POST", headers: { "Content-Type": "text/csv" },
     body: "customerCode,name,paymentTermsDays\r\nBAD-ROW,Invalid Terms,70000",
@@ -1084,6 +1106,25 @@ try {
   }, financeSession.jar);
   assert.equal(catalogCommitted.response.status, 201);
   assert.equal(catalogCommitted.body.data.createdCount, 1);
+  const duplicateCatalogCsv = [
+    "itemCode,itemType,name,customerDescription,unitCode,defaultUnitPrice,currency",
+    ["CSV-DUP-ITEM-" + suffix.toUpperCase(), "SERVICE", "Phase 07 Updated Service " + suffix, "Duplicate-name fixture", "hour", "5.0000", "INR"].map(csvCell).join(","),
+  ].join("\r\n");
+  const duplicateCatalogPreview = await call("/api/v1/catalog/items/import?mode=validate", {
+    method: "POST", headers: { "Content-Type": "text/csv" }, body: duplicateCatalogCsv,
+  }, financeSession.jar);
+  assert.equal(duplicateCatalogPreview.response.status, 200);
+  assert.ok(duplicateCatalogPreview.body.data.duplicateWarnings.length, "catalog import reports possible duplicate names");
+  const duplicateCatalogBlocked = await call("/api/v1/catalog/items/import?mode=commit", {
+    method: "POST", headers: { "Content-Type": "text/csv" }, body: duplicateCatalogCsv,
+  }, financeSession.jar);
+  assert.equal(duplicateCatalogBlocked.response.status, 409, "server blocks duplicate catalog import until explicit confirmation");
+  assert.equal(duplicateCatalogBlocked.body.error.code, "DUPLICATE_CONFIRMATION_REQUIRED");
+  const duplicateCatalogConfirmed = await call("/api/v1/catalog/items/import?mode=commit&confirmDuplicates=true", {
+    method: "POST", headers: { "Content-Type": "text/csv" }, body: duplicateCatalogCsv,
+  }, financeSession.jar);
+  assert.equal(duplicateCatalogConfirmed.response.status, 201, "explicitly confirmed duplicate catalog import can commit atomically");
+
   const catalogExport = await fetch(new URL("/api/v1/catalog/items/export?status=all", baseUrl), {
     headers: { Cookie: cookieHeader(financeSession.jar) }, cache: "no-store",
   });

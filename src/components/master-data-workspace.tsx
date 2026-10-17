@@ -182,7 +182,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
    const w=obj(v);const matches=Array.isArray(w.matches)?w.matches.map(m=>{const r=obj(m);return {id:str(r.id)||undefined,name:str(r.name)||"Possible duplicate",itemCode:typeof r.itemCode==="string"?r.itemCode:null,customerCode:typeof r.customerCode==="string"?r.customerCode:null,matchOn:Array.isArray(r.matchOn)?r.matchOn.map(str):[]};}):[];
    return {rowNumber:Number(w.rowNumber??0),matches};
   }):[];
-  return {mode,valid:typeof source.valid==="boolean"?source.valid:errors.length===0&&!body.error,
+  return {mode:typeof source.mode==="string"?(source.mode as "validate"|"commit"):mode,valid:typeof source.valid==="boolean"?source.valid:errors.length===0&&!body.error,
    rowCount:Number(source.rowCount??source.createdCount??0),validRows:Number(source.validRows??source.rowCount??0),
    createdCount:Number(source.createdCount??0),errors,duplicateWarnings};
  };
@@ -191,7 +191,8 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
   setImportBusy(true);setError("");setSuccess("");
   try{
    const csrf=await getCsrf();const source=await importFile.text();
-   const result=await request(basePath+"/import?mode="+mode,{method:"POST",headers:{"Content-Type":"text/csv","X-CSRF-Token":csrf},body:source});
+   const confirmation=mode==="commit"&&confirmImportDuplicates?"&confirmDuplicates=true":"";
+    const result=await request(basePath+"/import?mode="+mode+confirmation,{method:"POST",headers:{"Content-Type":"text/csv","X-CSRF-Token":csrf},body:source});
    const report=asImportReport(result.body,mode);setImportReport(report);
    if(!result.response.ok){setError(result.body.error?.message??"CSV import could not be completed.");return;}
    if(mode==="validate"){

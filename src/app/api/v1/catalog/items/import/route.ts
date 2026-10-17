@@ -18,6 +18,7 @@ export async function POST(request:NextRequest){
   await assertCsrf(request);const actor=await requirePermission("catalog:write");
   const mode=request.nextUrl.searchParams.get("mode")??"validate";
   if(!["validate","commit"].includes(mode))return jsonNoStore({error:{code:"VALIDATION_ERROR",message:"mode must be validate or commit"}},400);
+  const confirmDuplicates=request.nextUrl.searchParams.get("confirmDuplicates")==="true";
   const length=Number(request.headers.get("content-length")??"0");
   if(length>MAX_CSV_BYTES)return jsonNoStore({error:{code:"UPLOAD_TOO_LARGE",message:"CSV must be 1 MB or smaller."}},413);
   const source=await request.text();
@@ -71,7 +72,12 @@ export async function POST(request:NextRequest){
   }
   if(mode==="validate")return jsonNoStore({data:{mode,valid:true,rowCount:prepared.length,errors,duplicateWarnings,
    message:duplicateWarnings.length?"Review possible duplicates before explicitly committing the import. No records have been created.":"Validation passed. No records have been created."}});
-  const conn=await pool.getConnection();const createdIds:string[]=[];
+  if(duplicateWarnings.length&&!confirmDuplicates)return jsonNoStore({
+    error:{code:"DUPLICATE_CONFIRMATION_REQUIRED",message:"Possible duplicate catalog items were found. Review the row report and explicitly confirm before committing."},
+    data:{mode:"validate",valid:true,rowCount:prepared.length,errors:[],duplicateWarnings,requiresDuplicateConfirmation:true,
+      message:"No records were created. Explicit duplicate confirmation is required to commit this import."}
+   },409);
+   const conn=await pool.getConnection();const createdIds:string[]=[];
   try{
    await conn.beginTransaction();
    for(const {input} of prepared){
