@@ -14,7 +14,7 @@ import { validateDraftContext, resolveDraftLines, persistDraftLines, auditDraftC
 export const runtime="nodejs"; export const dynamic="force-dynamic";
 function dateText(v:Date|string|null):string|null{return v===null?null:v instanceof Date?v.toISOString().slice(0,10):String(v).slice(0,10);}
 function money(v:unknown):string{return String(v??"0.0000");}
-function paymentState(total:string,paid:string):"UNPAID"|"PARTIALLY_PAID"|"PAID"{if(Number(total)>0&&Number(paid)>=Number(total))return "PAID";if(Number(paid)>0)return "PARTIALLY_PAID";return "UNPAID";}
+function paymentState(total:string,paid:string):"UNPAID"|"PARTIALLY_PAID"|"PAID"{if(total!=="0.0000"&&outstandingBalance(total,paid)==="0.0000")return "PAID";if(paid!=="0.0000")return "PARTIALLY_PAID";return "UNPAID";}
 function validationError(error:unknown){if(error instanceof InvoiceDraftValidationError)return jsonNoStore({error:{code:"VALIDATION_ERROR",message:error.message}},422);return apiError(error);}
 
 export async function GET(request:NextRequest){

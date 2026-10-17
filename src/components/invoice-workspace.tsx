@@ -68,7 +68,7 @@ export function InvoiceWorkspace(){
   setError("");setSuccess("");setSaving(true);
   try{const r=await getRequest("/api/v1/invoices/"+id);if(!r.response.ok)throw new Error(r.body.error?.message??"Invoice could not be opened.");
    const v=record(r.body.data) as unknown as Invoice;setSelected(v);setForm({legalEntityId:v.legalEntityId,brandId:v.brandId??"",customerId:v.customerId,currency:v.currency,invoiceDate:v.invoiceDate??today(),dueDate:v.dueDate??"",paymentTermsDays:String(v.paymentTermsDays??0),notes:v.notes??""});
-   setLines(linesFrom(v.lines));setDirty(false);setEditor(v.lifecycleStatus==="DRAFT"&&(canUpdate||canIssue));
+   setLines(linesFrom(v.lines));setDirty(false);setEditor(v.lifecycleStatus==="DRAFT"&&canUpdate);
   }catch(e){setError(e instanceof Error?e.message:"Invoice could not be opened.");}finally{setSaving(false);}
  };
  const makePayload=()=>({legalEntityId:form.legalEntityId,brandId:form.brandId||null,customerId:form.customerId,currency:form.currency,invoiceDate:form.invoiceDate||null,dueDate:form.dueDate||null,paymentTermsDays:Number(form.paymentTermsDays),notes:form.notes||null,
@@ -81,8 +81,8 @@ export function InvoiceWorkspace(){
    const r=await getRequest(url,{method:selected?"PATCH":"POST",headers:{"X-CSRF-Token":token,...(!selected?{"Idempotency-Key":createKey}:{})},body:JSON.stringify(selected?{...body,expectedVersion:selected.recordVersion}:body)});
    if(!r.response.ok)throw new Error(r.body.error?.message??"Invoice draft could not be saved.");
    const id=str(record(r.body.data).id)||selected?.id||"";
-   setDirty(false);setEditor(false);setSuccess("Draft saved. Authoritative totals were recalculated by the server.");await refresh();
-   if(id)await openInvoice(id);
+   setDirty(false);setEditor(false);await refresh();
+   if(id)await openInvoice(id);setSuccess("Draft saved. Authoritative totals were recalculated by the server.");
   }catch(e){setError(e instanceof Error?e.message:"Invoice draft could not be saved.");}finally{setSaving(false);}
  };
  const issue=async(row:Invoice)=>{setIssuing(row.id);setError("");setSuccess("");
@@ -110,6 +110,21 @@ export function InvoiceWorkspace(){
    {rows.map(row=><tr key={row.id}><td><strong>{row.invoiceNumber||"Draft · "+row.id.slice(0,8)}</strong><div className="invoice-workspace-muted">{row.currency}</div></td><td>{row.customerName}</td><td><StatusBadge tone={row.lifecycleStatus==="ISSUED"?"success":row.lifecycleStatus==="CANCELLED"?"danger":"warning"}>{row.lifecycleStatus}</StatusBadge><div className="invoice-workspace-muted">{row.paymentStatus}</div></td><td>{row.invoiceDate||"Not dated"}</td><td>{currency(row.currency,row.grandTotal)}</td><td>{currency(row.currency,row.outstandingBalance)}</td><td><div className="master-data-actions"><Button variant="secondary" size="sm" disabled={saving||Boolean(issuing)} onClick={()=>void openInvoice(row.id)}>Details</Button>{row.lifecycleStatus==="DRAFT"&&canIssue?<Button size="sm" disabled={Boolean(issuing)} onClick={()=>void issue(row)}>{issuing===row.id?"Issuing…":"Issue"}</Button>:null}</div></td></tr>)}
   </tbody></table></div>
   <div className="master-data-pagination"><span>Showing {total===0?0:offset+1}–{Math.min(offset+rows.length,total)} of {total}</span><div><Button variant="secondary" size="sm" disabled={offset===0||loading} onClick={()=>setOffset(Math.max(0,offset-limit))}>Previous</Button><Button variant="secondary" size="sm" disabled={loading||offset+limit>=total} onClick={()=>setOffset(offset+limit)}>Next</Button></div></div>
+  {selected&&!editor?<div className="invoice-editor">
+   <div className="invoice-editor__heading"><div><p className="page-eyebrow">{selected.lifecycleStatus==="ISSUED"?"ISSUED DOCUMENT":"INVOICE DETAILS"}</p><h2>{selected.invoiceNumber||"Draft · "+selected.id.slice(0,8)}</h2><p>{selected.customerName} · {selected.lifecycleStatus} · {selected.paymentStatus}</p></div><Button variant="ghost" onClick={()=>setSelected(null)}>Close details</Button></div>
+   {selected.lifecycleStatus==="ISSUED"?<InlineAlert tone="warning" title="Issued financial record is immutable">Amounts and line descriptions cannot be edited after issuance. Use an approved correction workflow for changes.</InlineAlert>:null}
+   <div className="invoice-editor__calculation">
+    <div><span>Subtotal (net of tax)</span><strong>{currency(selected.currency,selected.subtotal)}</strong></div>
+    <div><span>Discount total</span><strong>− {currency(selected.currency,selected.discountTotal)}</strong></div>
+    <div><span>Taxable value</span><strong>{currency(selected.currency,selected.taxableValue)}</strong></div>
+    <div><span>Tax</span><strong>{currency(selected.currency,selected.taxTotal)}</strong></div>
+    <div className="invoice-editor__grand"><span>Grand total</span><strong>{currency(selected.currency,selected.grandTotal)}</strong></div>
+    <div><span>Paid</span><strong>{currency(selected.currency,selected.paidAmount)}</strong></div>
+    <div className="invoice-editor__grand"><span>Outstanding</span><strong>{currency(selected.currency,selected.outstandingBalance)}</strong></div>
+   </div>
+   {Array.isArray(selected.lines)&&selected.lines.length?<div className="data-table-scroll"><table className="data-table"><thead><tr><th>Line</th><th>Qty</th><th>Unit rate</th><th>Discount</th><th>Tax</th><th>Total</th></tr></thead><tbody>{selected.lines.map((v,index)=>{const l=record(v);return <tr key={str(l.id)||index}><td><strong>{str(l.description)}</strong><div className="invoice-workspace-muted">{str(l.unitCode)} · {str(l.lineKind)}</div></td><td>{str(l.quantity)}</td><td>{currency(selected.currency,str(l.unitPrice))}</td><td>{str(l.discountType)==="PERCENT"?str(l.discountValue)+"%":currency(selected.currency,str(l.discountValue))}</td><td>{currency(selected.currency,str(l.taxAmount))}{str(l.taxCode)?" · "+str(l.taxCode):""}</td><td>{currency(selected.currency,str(l.lineTotal))}</td></tr>;})}</tbody></table></div>:<p className="form-hint">No line details returned.</p>}
+   <div className="invoice-editor__actions">{selected.lifecycleStatus==="DRAFT"&&canUpdate?<Button variant="secondary" onClick={()=>{setEditor(true);setDirty(false);}}>Edit draft</Button>:null}{selected.lifecycleStatus==="DRAFT"&&canIssue?<Button disabled={Boolean(issuing)} onClick={()=>void issue(selected)}>{issuing===selected.id?"Issuing…":"Issue invoice"}</Button>:null}</div>
+  </div>:null}
   {editor?<div className="invoice-editor">
    <div className="invoice-editor__heading"><div><p className="page-eyebrow">{selected?"DRAFT EDITOR":"NEW DRAFT"}</p><h2>{selected?"Edit invoice draft":"Create invoice draft"}</h2><p>Save to validate and calculate totals on the server. This form does not calculate authoritative totals in the browser.</p></div><Button variant="ghost" onClick={()=>setEditor(false)}>Close</Button></div>
    {selectedEntity&&selectedEntity.taxSetupStatus!=="APPROVED_CONFIGURED"?<InlineAlert tone="warning" title="Tax setup is not approved/configured">You may prepare a draft without tax only when no code is selected; issuance remains blocked until a finance-approved tax decision is recorded.</InlineAlert>:null}

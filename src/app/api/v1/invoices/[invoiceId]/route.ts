@@ -12,7 +12,7 @@ import { validateDraftContext, resolveDraftLines, persistDraftLines, auditDraftC
 export const runtime="nodejs";export const dynamic="force-dynamic";
 type Context={params:Promise<{invoiceId:string}>};
 function responseValidation(error:unknown){if(error instanceof InvoiceDraftValidationError)return jsonNoStore({error:{code:"VALIDATION_ERROR",message:error.message}},422);return apiError(error);}
-function paymentStatus(total:string,paid:string):"UNPAID"|"PARTIALLY_PAID"|"PAID"{if(Number(total)>0&&Number(paid)>=Number(total))return "PAID";if(Number(paid)>0)return "PARTIALLY_PAID";return "UNPAID";}
+function paymentStatus(total:string,paid:string):"UNPAID"|"PARTIALLY_PAID"|"PAID"{if(total!=="0.0000"&&outstandingBalance(total,paid)==="0.0000")return "PAID";if(paid!=="0.0000")return "PARTIALLY_PAID";return "UNPAID";}
 function money(value:unknown){return String(value??"0.0000");}
 function serializeLine(row:RowDataPacket & {id:string;catalog_item_id:string|null;line_kind:string;description:string;unit_code:string;quantity:string;unit_price:string;discount_type:string;discount_value:string;discount_amount:string;tax_rate:string;tax_code:string|null;tax_calculation_mode:string;tax_amount:string;line_total:string;tax_rule_id:string|null;tax_registration_id:string|null}){
  return {id:row.id,catalogItemId:row.catalog_item_id,lineKind:row.line_kind,description:row.description,unitCode:row.unit_code,
