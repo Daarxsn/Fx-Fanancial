@@ -920,7 +920,7 @@ try {
   assert.equal(unprivilegedSensitiveUpdate.response.status, 403, "customer writers without settings:manage cannot replace restricted tax identifiers");
   const unprivilegedSensitiveImport = await call("/api/v1/customers/import?mode=validate", {
     method: "POST", headers: { "Content-Type": "text/csv" },
-    body: "name,taxIdentifier\\r\\nForbidden import,FORBIDDEN-CSV-" + suffix,
+    body: "name,taxIdentifier\r\nForbidden import,FORBIDDEN-CSV-" + suffix,
   }, staffSession.jar);
   assert.equal(unprivilegedSensitiveImport.response.status, 403, "customer CSV imports enforce sensitive-field permission server-side");
   const childTaxDuplicate = await call("/api/v1/customers", {

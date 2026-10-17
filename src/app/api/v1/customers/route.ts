@@ -15,7 +15,7 @@ function parseJson(value: unknown): unknown {
   try { return JSON.parse(value); } catch { return null; }
 }
 function normalizeIdentifier(value: string): string {
-  return value.trim().toUpperCase().replace(/[\\s-]/g, "");
+  return value.trim().toUpperCase().replace(/[\s-]/g, "");
 }
 function duplicateEntry(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as {code?: string}).code === "ER_DUP_ENTRY";
