@@ -228,7 +228,7 @@ export function MasterDataWorkspace({resource}:{resource:Resource}){
  return <div className="master-data-workspace">
   <div className="master-data-toolbar">
    <div className="master-data-search"><label className="form-label" htmlFor={resource+"-search"}>Search records</label>
-    <input className="form-control" id={resource+"-search"} value={query} onChange={e=>{setQuery(e.target.value);setOffset(0);}} placeholder={resource==="customers"?"Name, code, email, phone or tax ID":"Name or item/service code"} />
+    <input className="form-control" id={resource+"-search"} value={query} onChange={e=>{setQuery(e.target.value);setOffset(0);}} placeholder={resource==="customers"?(permissions.includes("settings:manage")?"Name, code, email, phone or tax ID":"Name, code, email or phone"):"Name or item/service code"} />
    </div>
    <div className="master-data-filter"><label className="form-label" htmlFor={resource+"-status"}>Status</label>
     <select id={resource+"-status"} className="form-control" value={status} onChange={e=>{setStatus(e.target.value);setOffset(0);}}>

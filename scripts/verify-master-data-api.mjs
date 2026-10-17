@@ -908,6 +908,19 @@ try {
   assert.equal(phase7Customer.body.data.recordVersion, 1);
   const phase7CustomerId = phase7Customer.body.data.id;
 
+  const customerCodeSearch = await call("/api/v1/customers?query=" + encodeURIComponent(phase7CustomerCode) + "&status=active&limit=10&offset=0", {}, financeSession.jar);
+  assert.equal(customerCodeSearch.response.status, 200);
+  assert.ok(customerCodeSearch.body.data.some(row => row.id === phase7CustomerId), "customer search matches normalized customer code");
+  const excessiveCustomerLimit = await call("/api/v1/customers?limit=101", {}, financeSession.jar);
+  assert.equal(excessiveCustomerLimit.response.status, 400, "customer pagination limit is server-capped");
+  const excessiveCustomerOffset = await call("/api/v1/customers?offset=1000001", {}, financeSession.jar);
+  assert.equal(excessiveCustomerOffset.response.status, 400, "customer pagination offset is bounded");
+  const privilegedTaxSearch = await call("/api/v1/customers?query=" + encodeURIComponent("TAX-" + suffix) + "&status=all", {}, financeSession.jar);
+  assert.ok(privilegedTaxSearch.body.data.some(row => row.id === phase7CustomerId), "finance/settings admins can search customer tax identifiers");
+  const restrictedTaxSearch = await call("/api/v1/customers?query=" + encodeURIComponent("TAX-" + suffix) + "&status=all", {}, staffSession.jar);
+  assert.equal(restrictedTaxSearch.response.status, 200);
+  assert.equal(restrictedTaxSearch.body.meta.pagination.total, 0, "ordinary customer readers cannot search for restricted tax identifier values");
+
   const scopedFinance = await seedUser("finance_admin", "scoped-finance-" + suffix + "@example.invalid", "ACTIVE",
     "Scoped Finance Strong Password #7!", [testLegalEntityId]);
   const scopedFinanceSession = await login(scopedFinance);
@@ -1180,6 +1193,26 @@ try {
   }, staffSession.jar);
   assert.equal(invalid.response.status, 422);
   assert.equal(invalid.body.error.code, "VALIDATION_ERROR");
+
+  const invalidEmail = await call("/api/v1/customers", {
+    method: "POST", body: JSON.stringify({ name: "Invalid email " + suffix, email: "not-an-email" }),
+  }, financeSession.jar);
+  assert.equal(invalidEmail.response.status, 422, "customer email values must pass email validation");
+  const invalidTaxCountry = await call("/api/v1/customers", {
+    method: "POST", body: JSON.stringify({ name: "Invalid tax country " + suffix,
+      taxIdentifiers: [{ identifierType: "OTHER", countryCode: "USA", identifierValue: "NOT-A-REAL-TAX-ID" }] }),
+  }, financeSession.jar);
+  assert.equal(invalidTaxCountry.response.status, 422, "tax identifier country code must be a two-letter uppercase code");
+  const invalidDecimal = await call("/api/v1/catalog/items", {
+    method: "POST", body: JSON.stringify({ itemType: "SERVICE", name: "Invalid decimal " + suffix,
+      customerDescription: "validation fixture", unitCode: "hour", defaultUnitPrice: "01.00000", currency: "INR" }),
+  }, financeSession.jar);
+  assert.equal(invalidDecimal.response.status, 422, "catalog default price must use a non-negative exact decimal with at most four fractional digits");
+  const invalidCurrency = await call("/api/v1/catalog/items", {
+    method: "POST", body: JSON.stringify({ itemType: "SERVICE", name: "Invalid currency " + suffix,
+      customerDescription: "validation fixture", unitCode: "hour", defaultUnitPrice: "1.0000", currency: "inr" }),
+  }, financeSession.jar);
+  assert.equal(invalidCurrency.response.status, 422, "catalog currency must be a three-letter uppercase code");
 
   const viewerSession = await login(viewer);
   const viewerProfile = await call("/api/v1/auth/me", {}, viewerSession.jar);
