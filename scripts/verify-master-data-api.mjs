@@ -908,6 +908,20 @@ try {
   assert.equal(phase7Customer.body.data.recordVersion, 1);
   const phase7CustomerId = phase7Customer.body.data.id;
 
+  const scopedFinance = await seedUser("finance_admin", "scoped-finance-" + suffix + "@example.invalid", "ACTIVE",
+    "Scoped Finance Strong Password #7!", [testLegalEntityId]);
+  const scopedFinanceSession = await login(scopedFinance);
+  const linkedInvoiceId = randomUUID();
+  await db.execute(
+    "INSERT INTO invoices (id,legal_entity_id,customer_id,document_type,lifecycle_status,currency,grand_total) VALUES (?, ?, ?, 'INVOICE', 'DRAFT', 'INR', '24.5000')",
+    [linkedInvoiceId, testLegalEntityId, phase7CustomerId],
+  );
+  const linkedQuotationId = randomUUID();
+  await db.execute(
+    "INSERT INTO quotations (id,legal_entity_id,customer_id,status,currency,grand_total) VALUES (?, ?, ?, 'DRAFT', 'INR', '49.0000')",
+    [linkedQuotationId, testLegalEntityId, phase7CustomerId],
+  );
+
   const unprivilegedSensitiveCreate = await call("/api/v1/customers", {
     method: "POST",
     body: JSON.stringify({ name: "Forbidden Tax Customer " + suffix, taxIdentifiers: [{ identifierType: "OTHER", countryCode: "IN", identifierValue: "FORBIDDEN-TAX-" + suffix }] }),
@@ -947,6 +961,18 @@ try {
   assert.equal(phase7Detail.body.data.shippingAddress.postalCode, "411002");
   assert.equal(phase7Detail.body.data.recordVersion, 1);
 
+  assert.equal(phase7Detail.body.data.referenceCounts.invoices, null, "invoice counts remain hidden without legal-entity scope");
+  assert.equal(phase7Detail.body.data.referenceCounts.quotations, null, "quotation counts remain hidden without legal-entity scope");
+  assert.equal("linkedInvoices" in phase7Detail.body.data, false, "linked invoice metadata is not exposed without legal-entity scope");
+  const scopedCustomerDetail = await call("/api/v1/customers/" + phase7CustomerId, {}, scopedFinanceSession.jar);
+  assert.equal(scopedCustomerDetail.response.status, 200);
+  assert.equal(scopedCustomerDetail.body.data.referenceCounts.invoices, 1);
+  assert.equal(scopedCustomerDetail.body.data.referenceCounts.quotations, 1);
+  assert.ok(scopedCustomerDetail.body.data.linkedInvoices.some(invoice => invoice.id === linkedInvoiceId),
+    "authorized users see linked invoices only within their legal-entity scope");
+  assert.ok(scopedCustomerDetail.body.data.linkedQuotations.some(quotation => quotation.id === linkedQuotationId),
+    "authorized users see linked quotations only within their legal-entity scope");
+
   const updatedCustomer = await call("/api/v1/customers/" + phase7CustomerId, {
     method: "PATCH",
     body: JSON.stringify({
@@ -976,6 +1002,8 @@ try {
   assert.equal(archivedCustomer.response.status, 200, "archive is a soft archive and preserves linked historic records");
   assert.equal(archivedCustomer.body.data.isActive, false);
   assert.equal(archivedCustomer.body.data.referenceCounts.payments, 1);
+  assert.equal(archivedCustomer.body.data.referenceCounts.invoices, 1);
+  assert.equal(archivedCustomer.body.data.referenceCounts.quotations, 1);
   const archivedCustomerDetail = await call("/api/v1/customers/" + phase7CustomerId, {}, financeSession.jar);
   assert.equal(archivedCustomerDetail.response.status, 200, "archived customers remain accessible for historic references");
   assert.equal(archivedCustomerDetail.body.data.isActive, false);

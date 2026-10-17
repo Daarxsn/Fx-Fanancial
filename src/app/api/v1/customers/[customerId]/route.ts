@@ -33,9 +33,58 @@ export async function GET(_request:NextRequest,context:Context){
   const [taxIdentifiers]=await pool.execute<(RowDataPacket & {id:string;identifier_type:string;country_code:string|null;jurisdiction:string|null;identifier_value:string})[]>(
    "SELECT id,identifier_type,country_code,jurisdiction,identifier_value FROM customer_tax_identifiers WHERE customer_id=? ORDER BY identifier_type,country_code,id",[id]);
   const row=rows[0];
-  const [[invoiceReferences]] = await pool.query<(RowDataPacket & {total:number})[]>("SELECT COUNT(*) AS total FROM invoices WHERE customer_id=?",[id]);
-  const [[quotationReferences]] = await pool.query<(RowDataPacket & {total:number})[]>("SELECT COUNT(*) AS total FROM quotations WHERE customer_id=?",[id]);
-  const [[paymentReferences]] = await pool.query<(RowDataPacket & {total:number})[]>("SELECT COUNT(*) AS total FROM payments WHERE customer_id=?",[id]);
+  const visibleEntityIds = actor.legalEntityIds;
+  const canReadInvoices = actor.permissions.includes("invoices:read") && visibleEntityIds.length > 0;
+  const canReadQuotations = actor.permissions.includes("quotations:read") && visibleEntityIds.length > 0;
+  const canReadPayments = actor.permissions.includes("payments:read");
+  let invoiceReferenceCount: number | null = null;
+  let quotationReferenceCount: number | null = null;
+  let paymentReferenceCount: number | null = null;
+  let linkedInvoices: Array<{id:string;invoiceNumber:string|null;status:string;invoiceDate:string|null;dueDate:string|null;currency:string;grandTotal:string;createdAt:string}> | undefined;
+  let linkedQuotations: Array<{id:string;quotationNumber:string|null;status:string;issueDate:string|null;validUntil:string|null;currency:string;grandTotal:string;createdAt:string}> | undefined;
+  if (canReadInvoices) {
+    const scopePlaceholders = visibleEntityIds.map(() => "?").join(",");
+    const [countRows] = await pool.query<(RowDataPacket & {total:number})[]>(
+      `SELECT COUNT(*) AS total FROM invoices WHERE customer_id=? AND legal_entity_id IN (${scopePlaceholders})`, [id, ...visibleEntityIds]);
+    invoiceReferenceCount = Number(countRows[0]?.total ?? 0);
+    const [invoiceRows] = await pool.query<(RowDataPacket & {
+      id:string;invoice_number:string|null;lifecycle_status:string;invoice_date:Date|string|null;due_date:Date|string|null;
+      currency:string;grand_total:string;created_at:Date|string;
+    })[]>(
+      `SELECT id,invoice_number,lifecycle_status,invoice_date,due_date,currency,grand_total,created_at
+       FROM invoices WHERE customer_id=? AND legal_entity_id IN (${scopePlaceholders}) ORDER BY created_at DESC,id DESC LIMIT 10`,
+      [id, ...visibleEntityIds]);
+    const asDate = (value:Date|string|null) => value===null ? null : value instanceof Date ? value.toISOString().slice(0,10) : String(value).slice(0,10);
+    const asTimestamp = (value:Date|string) => value instanceof Date ? value.toISOString() : String(value);
+    linkedInvoices = invoiceRows.map(item=>({
+      id:item.id,invoiceNumber:item.invoice_number,status:item.lifecycle_status,invoiceDate:asDate(item.invoice_date),
+      dueDate:asDate(item.due_date),currency:item.currency,grandTotal:String(item.grand_total),createdAt:asTimestamp(item.created_at),
+    }));
+  }
+  if (canReadQuotations) {
+    const scopePlaceholders = visibleEntityIds.map(() => "?").join(",");
+    const [countRows] = await pool.query<(RowDataPacket & {total:number})[]>(
+      `SELECT COUNT(*) AS total FROM quotations WHERE customer_id=? AND legal_entity_id IN (${scopePlaceholders})`, [id, ...visibleEntityIds]);
+    quotationReferenceCount = Number(countRows[0]?.total ?? 0);
+    const [quotationRows] = await pool.query<(RowDataPacket & {
+      id:string;quotation_number:string|null;status:string;issue_date:Date|string|null;valid_until:Date|string|null;
+      currency:string;grand_total:string;created_at:Date|string;
+    })[]>(
+      `SELECT id,quotation_number,status,issue_date,valid_until,currency,grand_total,created_at
+       FROM quotations WHERE customer_id=? AND legal_entity_id IN (${scopePlaceholders}) ORDER BY created_at DESC,id DESC LIMIT 10`,
+      [id, ...visibleEntityIds]);
+    const asDate = (value:Date|string|null) => value===null ? null : value instanceof Date ? value.toISOString().slice(0,10) : String(value).slice(0,10);
+    const asTimestamp = (value:Date|string) => value instanceof Date ? value.toISOString() : String(value);
+    linkedQuotations = quotationRows.map(item=>({
+      id:item.id,quotationNumber:item.quotation_number,status:item.status,issueDate:asDate(item.issue_date),
+      validUntil:asDate(item.valid_until),currency:item.currency,grandTotal:String(item.grand_total),createdAt:asTimestamp(item.created_at),
+    }));
+  }
+  if (canReadPayments) {
+    const [[paymentReferences]] = await pool.query<(RowDataPacket & {total:number})[]>(
+      "SELECT COUNT(*) AS total FROM payments WHERE customer_id=?",[id]);
+    paymentReferenceCount = Number(paymentReferences.total);
+  }
   return jsonNoStore({data:{
    id:row.id,customerCode:row.customer_code,name:row.name,email:row.email,phone:row.phone,
    billingAddress:jsonValue(row.billing_address_json),shippingAddress:jsonValue(row.shipping_address_json),
@@ -46,7 +95,9 @@ export async function GET(_request:NextRequest,context:Context){
    ...(actor.permissions.includes("settings:manage")?{notes:row.notes}:{}),
    isActive:Boolean(row.is_active),recordVersion:Number(row.record_version),archivedAt:row.archived_at,archiveReason:row.archive_reason,
    createdAt:row.created_at,updatedAt:row.updated_at,
-   referenceCounts:{invoices:Number(invoiceReferences.total),quotations:Number(quotationReferences.total),payments:Number(paymentReferences.total)},
+   referenceCounts:{invoices:invoiceReferenceCount,quotations:quotationReferenceCount,payments:paymentReferenceCount},
+   ...(linkedInvoices!==undefined?{linkedInvoices}:{}),
+   ...(linkedQuotations!==undefined?{linkedQuotations}:{}),
   }});
  }catch(error){return apiError(error)}
 }
